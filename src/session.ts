@@ -5,7 +5,9 @@
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright-core";
 
 export const ORIGIN = "https://www.sundhed.dk";
-const START_URL = `${ORIGIN}/borger/min-side/`;
+// What sundhed.dk's own "Log på" button opens: it redirects through
+// login.sundhed.dk and NemLog-in to MitID, and returns to Min Side after.
+const LOGIN_URL = `${ORIGIN}/login/unsecure/logon.ashx?ReturnUrl=/borger/min-side/`;
 // Each Min Side app has its own backend, and its page sets up that backend's
 // auth when it loads. Before calling an app's API, its page is loaded once.
 const APP_PAGES: Record<string, string> = {
@@ -211,6 +213,19 @@ async function keepAlive(s: State): Promise<void> {
   }
 }
 
+/**
+ * Goes straight to the MitID step: the login redirect, then NemLog-in's
+ * "Fortsæt til login" button, so the person lands on the user ID field.
+ */
+async function openMitId(page: Page): Promise<void> {
+  await page.goto(LOGIN_URL, { waitUntil: "domcontentloaded" });
+  try {
+    await page.locator("#mitIDConfirmation").click({ timeout: 15_000 });
+  } catch {
+    // NemLog-in changed or skipped the step; the person can click on from here.
+  }
+}
+
 const minutesBetween = (a: Date, b: Date) => Math.round((b.getTime() - a.getTime()) / 60_000);
 
 export type ConnectResult = { connected: true; since: Date } | { connected: false; reason: string };
@@ -229,7 +244,7 @@ export async function connect(): Promise<ConnectResult> {
   await setWindow(s.login, "normal");
   // Leave the window alone if the person is already partway through MitID.
   if (!s.login.url().includes("mitid") && !s.login.url().includes("nemlog-in")) {
-    await s.login.goto(START_URL, { waitUntil: "domcontentloaded" });
+    await openMitId(s.login);
   }
   const deadline = Date.now() + LOGIN_WAIT_MS;
   while (Date.now() < deadline) {
@@ -354,15 +369,15 @@ export async function startLogin(): Promise<boolean> {
     markConnected(s);
     return true;
   }
-  if (!s.login.url().startsWith("http")) await s.login.goto(START_URL, { waitUntil: "domcontentloaded" });
+  if (!s.login.url().startsWith("http")) await openMitId(s.login);
   watchForLogin(s);
   return false;
 }
 
-/** Sends the login tab back to Min Side, for when a login attempt went astray. */
+/** Starts the MitID login over, for when an attempt went astray. */
 export async function restartLogin(): Promise<void> {
   const s = await ensureBrowser();
-  await s.login.goto(START_URL, { waitUntil: "domcontentloaded" });
+  await openMitId(s.login);
   watchForLogin(s);
 }
 

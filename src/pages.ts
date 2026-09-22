@@ -109,7 +109,7 @@ export function connectSignInPage(error?: string): string {
 /** The remote browser: a live screenshot you click on, plus a field for typing. */
 export function connectPage(viewport: { width: number; height: number }): string {
   const body = `
-  <p class="muted">This is the server's browser on sundhed.dk. Click <b>Log på</b>, choose MitID, type your MitID user ID in the field below and approve in the MitID app.</p>
+  <p class="muted">This is the server's browser, open on MitID. Click the user ID field, type your MitID user ID in the box below, press Enter and approve in the MitID app.</p>
   <div class="bar">
     <div class="pill" id="state">Waiting for login</div>
     <div class="actions"><button class="ghost" id="up" type="button">Scroll up</button><button class="ghost" id="down" type="button">Scroll down</button><button class="ghost" id="restart" type="button">Start over</button></div>

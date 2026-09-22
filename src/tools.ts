@@ -32,7 +32,7 @@ export function registerTools(server: McpServer): void {
     {
       title: "Connect sundhed.dk",
       description:
-        "Starts a sundhed.dk login with MitID. Locally it opens a browser window and waits up to 3 minutes; tell the person to click 'Log på' there and approve in the MitID app. On a hosted server it returns a link the person opens to log in; relay the link and ask them to say when they are done. Call this when another tool says the person is not logged in.",
+        "Starts a sundhed.dk login with MitID. Locally it opens a browser window and waits up to 3 minutes; tell the person to enter their MitID user ID there and approve in the MitID app. On a hosted server it returns a link the person opens to log in; relay the link and ask them to say when they are done. Call this when another tool says the person is not logged in.",
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
     guard(async () => {
@@ -40,7 +40,7 @@ export function registerTools(server: McpServer): void {
       if (loginUrl) {
         if (await startLogin()) return text("Logged in to sundhed.dk.");
         return text(
-          `Not logged in yet. Ask the person to open ${loginUrl}, enter the server password, click 'Log på' in the page and approve in the MitID app. When they say they are done, call the tool they asked for.`,
+          `Not logged in yet. Ask the person to open ${loginUrl}, enter the server password, type their MitID user ID in the page and approve in the MitID app. When they say they are done, call the tool they asked for.`,
         );
       }
       const result = await connect();
