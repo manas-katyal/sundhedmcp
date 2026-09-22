@@ -1,0 +1,5 @@
+node_modules/
+dist/
+.env
+# Captured responses contain real health data. Never commit them.
+fixtures/private/

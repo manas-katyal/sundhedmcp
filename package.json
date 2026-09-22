@@ -1,0 +1,45 @@
+{
+  "name": "sundhedmcp",
+  "version": "0.1.0",
+  "description": "SundhedMCP: local, read-only MCP server that lets your AI read your own sundhed.dk record (medicine card, prescriptions, test results, vaccinations, referrals) after you log in with MitID",
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "sundhed.dk",
+    "medicinkort",
+    "mitid",
+    "health",
+    "claude"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node src/stdio.ts",
+    "test": "node --test test/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "rm -rf dist/lib && tsc -p tsconfig.build.json",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "playwright-core": "^1.56.0",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.8.0"
+  },
+  "bin": {
+    "sundhedmcp": "bin/sundhedmcp.js"
+  },
+  "files": [
+    "bin",
+    "dist/lib",
+    "README.md",
+    "LICENSE"
+  ]
+}
