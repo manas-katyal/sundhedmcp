@@ -19,6 +19,7 @@
   },
   "scripts": {
     "start": "node src/stdio.ts",
+    "serve": "node src/server.ts",
     "test": "node --test test/*.test.ts",
     "typecheck": "tsc --noEmit",
     "build": "rm -rf dist/lib && tsc -p tsconfig.build.json",
@@ -26,10 +27,12 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
+    "express": "^5.2.1",
     "playwright-core": "^1.56.0",
     "zod": "^4.5.4"
   },
   "devDependencies": {
+    "@types/express": "^5.0.6",
     "@types/node": "^24.0.0",
     "typescript": "^5.8.0"
   },

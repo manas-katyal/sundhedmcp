@@ -49,6 +49,18 @@ interface State {
 let state: State | null = null;
 let launching: Promise<State> | null = null;
 
+// Hosted mode: the browser runs headless on a server, and the person logs in
+// through the /connect page, which shows it as screenshots and forwards input.
+let hostedBaseUrl: string | null = null;
+const VIEWPORT = { width: 1000, height: 760 };
+
+export function configureHosted(baseUrl: string): void {
+  hostedBaseUrl = baseUrl;
+}
+
+/** Where to log in when hosted, or null when running locally with a real window. */
+export const hostedLoginUrl = () => (hostedBaseUrl ? `${hostedBaseUrl}/connect` : null);
+
 const log = (msg: string) => console.error(`[sundhed] ${msg}`);
 
 /** Installed browsers first (MitID treats them like any other), bundled Chromium last. */
@@ -58,7 +70,7 @@ async function launchBrowser(): Promise<Browser> {
   const errors: string[] = [];
   for (const channel of channels) {
     try {
-      const browser = await chromium.launch({ headless: false, channel, args: ["--window-size=1100,900"] });
+      const browser = await chromium.launch({ headless: hostedBaseUrl !== null, channel, args: ["--window-size=1100,900"] });
       log(`using browser channel "${channel}"`);
       return browser;
     } catch (err) {
@@ -75,7 +87,7 @@ async function ensureBrowser(): Promise<State> {
   if (state) return state;
   launching ??= (async () => {
     const browser = await launchBrowser();
-    const context = await browser.newContext({ locale: "da-DK", viewport: null });
+    const context = await browser.newContext({ locale: "da-DK", viewport: hostedBaseUrl ? VIEWPORT : null });
     const login = await context.newPage();
     const s: State = { browser, context, login, api: null, apps: new Map(), connectedAt: null, lastConfirmedAt: null, endedAt: null, lastSessionMinutes: null, keepAlive: null };
     browser.on("disconnected", () => {
@@ -101,6 +113,7 @@ function reset(reason: string): void {
 }
 
 async function setWindow(page: Page, windowState: "minimized" | "normal"): Promise<void> {
+  if (hostedBaseUrl) return;
   try {
     const cdp = await page.context().newCDPSession(page);
     const { windowId } = await cdp.send("Browser.getWindowForTarget");
@@ -274,7 +287,12 @@ export function apiGet(path: string): Promise<unknown> {
 
 async function apiGetNow(path: string): Promise<unknown> {
   const s = state;
-  if (!s || !s.connectedAt) throw new SessionGone();
+  if (!s) throw new SessionGone();
+  if (!s.connectedAt) {
+    // The login may have finished on the /connect page since the last call.
+    if (!(await checkLoggedIn(s))) throw new SessionGone();
+    markConnected(s);
+  }
   const app = appOf(path);
   let res = await fetchInPage(s, app, path);
   if (res.status === 401 || res.status === 403) {
@@ -306,3 +324,84 @@ async function fetchInPage(s: State, app: string, path: string) {
     { url: path, headers: s.apps.get(app) ?? {} },
   );
 }
+
+// --- Hosted login: the /connect page drives the login tab from afar ---
+
+let watching = false;
+
+/** Notices when the login finishes, so the session is ready before the next tool call. */
+function watchForLogin(s: State): void {
+  if (watching) return;
+  watching = true;
+  const deadline = Date.now() + 15 * 60_000;
+  const tick = async () => {
+    if (state !== s || Date.now() > deadline) return void (watching = false);
+    if (await checkLoggedIn(s)) {
+      watching = false;
+      markConnected(s);
+      log("logged in through the /connect page");
+      return;
+    }
+    setTimeout(() => void tick(), POLL_MS);
+  };
+  void tick();
+}
+
+/** Starts the browser on sundhed.dk's login page if needed. True when already logged in. */
+export async function startLogin(): Promise<boolean> {
+  const s = await ensureBrowser();
+  if (await checkLoggedIn(s)) {
+    markConnected(s);
+    return true;
+  }
+  if (!s.login.url().startsWith("http")) await s.login.goto(START_URL, { waitUntil: "domcontentloaded" });
+  watchForLogin(s);
+  return false;
+}
+
+/** Sends the login tab back to Min Side, for when a login attempt went astray. */
+export async function restartLogin(): Promise<void> {
+  const s = await ensureBrowser();
+  await s.login.goto(START_URL, { waitUntil: "domcontentloaded" });
+  watchForLogin(s);
+}
+
+export async function loginScreenshot(): Promise<Buffer | null> {
+  const s = state;
+  if (!s || s.login.isClosed()) return null;
+  return s.login.screenshot({ type: "jpeg", quality: 70 });
+}
+
+export type LoginInput =
+  | { type: "click"; x: number; y: number }
+  | { type: "text"; text: string }
+  | { type: "key"; key: string }
+  | { type: "wheel"; dy: number };
+
+// Only the keys a login form needs. Everything else arrives as text.
+const KEYS = new Set(["Enter", "Tab", "Backspace", "Delete", "Escape", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"]);
+
+export async function loginInput(input: LoginInput): Promise<void> {
+  const s = state;
+  if (!s || s.login.isClosed()) return;
+  const page = s.login;
+  switch (input.type) {
+    case "click": {
+      const x = Math.max(0, Math.min(VIEWPORT.width, input.x));
+      const y = Math.max(0, Math.min(VIEWPORT.height, input.y));
+      await page.mouse.click(x, y);
+      break;
+    }
+    case "text":
+      await page.keyboard.insertText(input.text.slice(0, 200));
+      break;
+    case "key":
+      if (KEYS.has(input.key)) await page.keyboard.press(input.key === "Space" ? " " : input.key);
+      break;
+    case "wheel":
+      await page.mouse.wheel(0, Math.max(-2000, Math.min(2000, input.dy)));
+      break;
+  }
+}
+
+export const loginViewport = () => VIEWPORT;

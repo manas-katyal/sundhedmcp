@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { connect, disconnect, SessionGone, status } from "./session.ts";
+import { connect, disconnect, hostedLoginUrl, SessionGone, startLogin, status } from "./session.ts";
 import * as sundhed from "./sundhed.ts";
 import { monthsAgo } from "./data.ts";
 
@@ -32,10 +32,17 @@ export function registerTools(server: McpServer): void {
     {
       title: "Connect sundhed.dk",
       description:
-        "Opens a browser window on sundhed.dk so the person can log in with MitID, and waits up to 3 minutes for them. Tell them to click 'Log på' in the window and approve in the MitID app. Call this when another tool says the person is not logged in.",
+        "Starts a sundhed.dk login with MitID. Locally it opens a browser window and waits up to 3 minutes; tell the person to click 'Log på' there and approve in the MitID app. On a hosted server it returns a link the person opens to log in; relay the link and ask them to say when they are done. Call this when another tool says the person is not logged in.",
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
     guard(async () => {
+      const loginUrl = hostedLoginUrl();
+      if (loginUrl) {
+        if (await startLogin()) return text("Logged in to sundhed.dk.");
+        return text(
+          `Not logged in yet. Ask the person to open ${loginUrl}, enter the server password, click 'Log på' in the page and approve in the MitID app. When they say they are done, call the tool they asked for.`,
+        );
+      }
       const result = await connect();
       if (result.connected) return text("Logged in to sundhed.dk. The browser window is minimized; leave it running.");
       return fail(result.reason);
