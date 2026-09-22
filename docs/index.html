@@ -4,323 +4,454 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>SundhedMCP</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-48.png" sizes="48x48" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="description" content="SundhedMCP lets Claude and other AI assistants read your own sundhed.dk health record after you log in with MitID. Read-only, nothing stored, open source.">
+<meta name="theme-color" content="#ffffff">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
   *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
   :root {
-    --bg: #f4f3ee; --bg-card: #faf9f5; --ink: #1a1b19; --on-ink: #f4f3ee; --dim: #62655f; --muted: #8f928b; --faint: #b3b5ae;
-    --border: #dfdfd7; --border-strong: #c3c5bc; --accent: #2f7a5c; --accent-soft: #dcebe3; --warn: #b8612e; --radius: 10px;
+    --bg: #ffffff; --alt: #f5f5f7; --tile: #ffffff; --ink: #1d1d1f; --dim: #6e6e73; --faint: #86868b;
+    --line: #d2d2d7; --link: #0066cc; --btn: #0071e3; --btn-ink: #ffffff; --soft-btn: #e8e8ed;
+    --nav: rgba(255, 255, 255, 0.78); --ok: #1d8348; --warn: #bf4800;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
       color-scheme: dark;
-      --bg: #151614; --bg-card: #1c1d1b; --ink: #ecede8; --on-ink: #151614; --dim: #a6a9a2; --muted: #7d8079; --faint: #575a54;
-      --border: #2b2d2a; --border-strong: #44473f; --accent: #6cc39c; --accent-soft: #1f3a2e; --warn: #e08a55;
+      --bg: #000000; --alt: #101012; --tile: #1c1c1e; --ink: #f5f5f7; --dim: #a1a1a6; --faint: #86868b;
+      --line: #38383a; --link: #2997ff; --btn: #0071e3; --btn-ink: #ffffff; --soft-btn: #2c2c2e;
+      --nav: rgba(22, 22, 23, 0.78); --ok: #30d158; --warn: #ff9f0a;
     }
   }
   :root[data-theme="dark"] {
     color-scheme: dark;
-    --bg: #151614; --bg-card: #1c1d1b; --ink: #ecede8; --on-ink: #151614; --dim: #a6a9a2; --muted: #7d8079; --faint: #575a54;
-    --border: #2b2d2a; --border-strong: #44473f; --accent: #6cc39c; --accent-soft: #1f3a2e; --warn: #e08a55;
+    --bg: #000000; --alt: #101012; --tile: #1c1c1e; --ink: #f5f5f7; --dim: #a1a1a6; --faint: #86868b;
+    --line: #38383a; --link: #2997ff; --btn: #0071e3; --btn-ink: #ffffff; --soft-btn: #2c2c2e;
+    --nav: rgba(22, 22, 23, 0.78); --ok: #30d158; --warn: #ff9f0a;
   }
   html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
-  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--ink); line-height: 1.6; font-size: 16px; }
-  .container { max-width: 880px; margin: 0 auto; padding-inline: 1.25rem; }
-  @media (min-width: 768px) { .container { padding-inline: 2rem; } }
-  code, .mono { font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; }
-  a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", "Helvetica Neue", Arial, sans-serif; background: var(--bg); color: var(--ink); font-size: 17px; line-height: 1.47; }
+  .mono, code { font-family: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, monospace; }
+  a { color: var(--link); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  a:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px solid var(--btn); outline-offset: 3px; border-radius: 6px; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding-inline: 22px; }
+  .narrow { max-width: 760px; margin-inline: auto; }
 
-  header { border-bottom: 1px solid var(--border); padding-block: 1.5rem; }
-  header .container { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
-  .logo { font-size: 1rem; font-weight: 500; text-decoration: none; color: var(--ink); display: flex; align-items: center; gap: 0.6rem; }
-  .mark { width: 22px; height: 22px; border-radius: 6px; background: var(--ink); display: grid; place-items: center; flex: none; }
-  .mark svg { width: 12px; height: 12px; }
-  .mark path { stroke: var(--on-ink); }
-  nav { display: flex; gap: 1.5rem; }
-  nav a { font-size: 0.85rem; color: var(--dim); text-decoration: none; transition: color 0.2s; }
-  nav a:hover { color: var(--ink); }
-  @media (max-width: 560px) { header nav a:not(:last-child) { display: none; } }
+  /* Nav */
+  .nav { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; background: var(--nav); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
+  .nav .wrap { height: 52px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .brand { display: flex; align-items: center; gap: 9px; color: var(--ink); font-weight: 700; font-size: 18px; }
+  .brand:hover { text-decoration: none; }
+  .mark { width: 26px; height: 26px; display: block; flex: none; }
+  .mark rect { fill: var(--ink); } .mark path { fill: var(--bg); }
+  .nav nav { display: flex; align-items: center; gap: 26px; font-size: 13px; }
+  .nav nav a { color: var(--ink); opacity: 0.85; }
+  .nav nav a:hover { opacity: 1; text-decoration: none; }
+  .nav .cta { background: var(--btn); color: var(--btn-ink); opacity: 1; padding: 5px 12px; border-radius: 980px; font-weight: 500; }
+  @media (max-width: 700px) { .nav nav a:not(.cta) { display: none; } }
 
-  .hero { padding-block: 4.5rem 3.5rem; }
-  @media (min-width: 768px) { .hero { padding-block: 6.5rem 4.5rem; } }
-  .badge { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.78rem; color: var(--dim); border: 1px solid var(--border); background: var(--bg-card); border-radius: 999px; padding: 0.3rem 0.8rem; margin-bottom: 1.75rem; }
-  .badge i { width: 6px; height: 6px; border-radius: 50%; background: var(--warn); }
-  .hero h1 { font-size: clamp(2.4rem, 6.4vw, 4.2rem); font-weight: 400; line-height: 1.05; margin-bottom: 1.5rem; text-wrap: balance; }
-  .subtitle { font-size: clamp(1rem, 1.4vw, 1.2rem); color: var(--dim); max-width: 580px; margin-bottom: 2.5rem; line-height: 1.6; font-weight: 300; }
-  .cta-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
-  .btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.5rem; border-radius: 999px; font-size: 0.9rem; font-weight: 500; text-decoration: none; transition: background 0.2s, border-color 0.2s; }
-  .btn-primary { background: var(--ink); color: var(--on-ink); }
-  .btn-primary:hover { background: var(--dim); }
-  .btn-secondary { color: var(--ink); border: 1px solid var(--border-strong); }
-  .btn-secondary:hover { border-color: var(--ink); }
-  .proof { margin-top: 1.75rem; font-size: 0.84rem; color: var(--muted); font-weight: 300; }
-  .proof strong { color: var(--ink); font-weight: 500; }
+  /* Buttons */
+  .btns { display: flex; gap: 14px; align-items: center; justify-content: center; flex-wrap: wrap; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; padding: 12px 22px; border-radius: 980px; font-size: 17px; font-weight: 500; transition: background 0.2s; }
+  .btn:hover { text-decoration: none; }
+  .btn.primary { background: var(--btn); color: var(--btn-ink); }
+  .btn.primary:hover { background: #0077ed; }
+  .btn.soft { background: var(--soft-btn); color: var(--ink); }
+  .more { font-size: 17px; }
+  .more::after { content: " ›"; }
 
-  /* Conversation */
-  .chat { margin-top: 3.5rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; }
-  .chat-head { display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--muted); margin-bottom: 1.25rem; padding-bottom: 0.9rem; border-bottom: 1px solid var(--border); }
-  .who { font-size: 0.66rem; text-transform: uppercase; color: var(--muted); margin-bottom: 0.35rem; }
-  .who.r { text-align: right; }
-  .msg { max-width: 82%; padding: 0.7rem 1rem; border-radius: 12px; font-size: 0.93rem; line-height: 1.5; margin-bottom: 0.9rem; }
-  .me { margin-left: auto; background: var(--ink); color: var(--on-ink); border-bottom-right-radius: 4px; }
-  .ai { background: var(--bg); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
-  .ai b { font-weight: 500; font-variant-numeric: tabular-nums; }
-  .tool { font-size: 0.72rem; color: var(--muted); margin: 0 0 0.6rem 0.25rem; }
-  .tool code { font-size: 0.7rem; color: var(--dim); }
-  .tool .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); margin-right: 0.45rem; vertical-align: middle; }
-  .gap { height: 1.1rem; }
+  /* Hero */
+  .hero { text-align: center; padding-block: 88px 0; }
+  .eyebrow { font-size: 17px; font-weight: 600; color: var(--dim); margin-bottom: 10px; }
+  .hero h1 { font-size: clamp(44px, 8vw, 80px); line-height: 1.05; font-weight: 700; text-wrap: balance; }
+  .hero .lede { font-size: clamp(19px, 2.2vw, 24px); line-height: 1.35; color: var(--dim); max-width: 700px; margin: 20px auto 30px; text-wrap: balance; }
+  .fine { font-size: 12px; color: var(--faint); margin-top: 18px; }
 
-  .artifact { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; margin-bottom: 0.9rem; }
-  .artifact .head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin-bottom: 1rem; }
-  .artifact h4 { font-size: 0.95rem; font-weight: 500; }
-  .artifact .head span { font-size: 0.7rem; text-transform: uppercase; color: var(--muted); }
-  .rx { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) 6.5rem; gap: 0.35rem 1rem; align-items: center; font-size: 0.82rem; }
-  .rx .th { font-size: 0.7rem; color: var(--muted); padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
-  .rx .th:last-child, .rx .date { text-align: right; }
-  .rx .drug { padding-block: 0.55rem; }
-  .rx .drug small { display: block; color: var(--muted); font-size: 0.72rem; font-weight: 300; }
-  .rx .meter { display: flex; flex-direction: column; gap: 0.3rem; }
-  .rx .track { height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; }
-  .rx .fill { height: 100%; border-radius: 3px; background: var(--ink); }
-  .rx .fill.low { background: var(--warn); }
-  .rx .meter span { font-size: 0.72rem; color: var(--dim); font-variant-numeric: tabular-nums; }
-  .rx .date { font-variant-numeric: tabular-nums; color: var(--dim); font-size: 0.78rem; }
-  .rx .date.low { color: var(--warn); font-weight: 500; }
-  .artifact .note { margin-top: 1rem; padding-top: 0.8rem; border-top: 1px solid var(--border); font-size: 0.74rem; color: var(--muted); font-weight: 300; }
-  @media (max-width: 600px) {
-    .chat { padding: 1rem; } .msg { max-width: 94%; }
-    .rx { grid-template-columns: minmax(0, 1fr) 5.2rem; }
-    .rx .meter { grid-column: 1 / -1; margin-top: -0.3rem; padding-bottom: 0.4rem; }
-    .rx .th:nth-child(2) { display: none; }
-    .rx .drug { padding-bottom: 0.25rem; }
+  /* Hero stage: a Mac window with Claude */
+  .stage { margin-top: 56px; border-radius: 28px; padding: clamp(18px, 5vw, 64px) clamp(12px, 5vw, 64px) 0; background: radial-gradient(120% 90% at 50% 0%, #d9e6f7 0%, #eef0f5 45%, #f5f5f7 100%); overflow: hidden; }
+  :root[data-theme="dark"] .stage { background: radial-gradient(120% 90% at 50% 0%, #1b2a44 0%, #121418 50%, #101012 100%); }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .stage { background: radial-gradient(120% 90% at 50% 0%, #1b2a44 0%, #121418 50%, #101012 100%); } }
+  .window { max-width: 880px; margin: 0 auto; background: var(--tile); border-radius: 14px 14px 0 0; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.06); text-align: left; overflow: hidden; }
+  .chrome { height: 38px; display: flex; align-items: center; gap: 8px; padding-inline: 14px; border-bottom: 1px solid var(--line); background: var(--alt); }
+  .chrome i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; }
+  .chrome i:nth-child(2) { background: #febc2e; } .chrome i:nth-child(3) { background: #28c840; }
+  .chrome span { flex: 1; text-align: center; font-size: 13px; color: var(--dim); margin-right: 52px; }
+  .convo { padding: clamp(16px, 4vw, 32px); display: flex; flex-direction: column; gap: 12px; font-size: 15px; }
+  .bubble { max-width: 78%; padding: 10px 15px; border-radius: 18px; line-height: 1.4; }
+  .bubble.me { align-self: flex-end; background: var(--btn); color: #fff; border-bottom-right-radius: 6px; }
+  .bubble.ai { align-self: flex-start; background: var(--alt); border-bottom-left-radius: 6px; }
+  .bubble b { font-weight: 600; }
+  .tool { font-size: 12px; color: var(--faint); display: flex; align-items: center; gap: 6px; }
+  .tool::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
+  .tool code { font-size: 12px; color: var(--dim); }
+  .rx { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; margin-top: 4px; }
+  .rx-row { display: grid; grid-template-columns: minmax(0, 1fr) 130px 96px; gap: 14px; align-items: center; padding: 12px 16px; border-top: 1px solid var(--line); font-size: 14px; }
+  .rx-row:first-child { border-top: 0; font-size: 12px; color: var(--faint); padding-block: 9px; background: var(--alt); }
+  .rx-row small { display: block; color: var(--faint); font-size: 12px; }
+  .rx-row .date { text-align: right; font-variant-numeric: tabular-nums; color: var(--dim); }
+  .rx-row .date.low { color: var(--warn); font-weight: 600; }
+  .meter { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
+  .meter .t { flex: 1; height: 5px; border-radius: 3px; background: var(--line); overflow: hidden; }
+  .meter .f { height: 100%; background: var(--ink); border-radius: 3px; }
+  .meter .f.low { background: var(--warn); }
+  @media (max-width: 640px) {
+    .bubble { max-width: 92%; }
+    .rx-row { grid-template-columns: minmax(0, 1fr) 84px; }
+    .rx-row .meter { grid-column: 1 / -1; order: 3; }
+    .rx-row:first-child span:nth-child(2) { display: none; }
   }
 
-  section { padding-block: 4.5rem; border-top: 1px solid var(--border); }
-  @media (min-width: 768px) { section { padding-block: 5.5rem; } }
-  .eyebrow { font-size: 0.72rem; font-weight: 500; text-transform: uppercase; color: var(--muted); margin-bottom: 1.25rem; }
-  h2 { font-size: clamp(1.5rem, 2.8vw, 2.2rem); font-weight: 400; line-height: 1.15; max-width: 700px; margin-bottom: 1rem; text-wrap: balance; }
-  .section-subtitle { font-size: 0.97rem; color: var(--dim); max-width: 580px; font-weight: 300; line-height: 1.6; }
+  /* Sections */
+  section { padding-block: clamp(80px, 11vw, 140px); }
+  section.alt { background: var(--alt); }
+  .head { text-align: center; max-width: 760px; margin: 0 auto clamp(40px, 6vw, 64px); }
+  .head .eyebrow { font-size: 14px; }
+  .head h2 { font-size: clamp(34px, 5.4vw, 56px); line-height: 1.07; font-weight: 700; text-wrap: balance; }
+  .head p { font-size: clamp(17px, 1.9vw, 21px); color: var(--dim); margin-top: 16px; text-wrap: balance; }
+  .head .btns { margin-top: 26px; }
 
-  .steps { display: grid; grid-template-columns: 1fr; gap: 1rem; margin-top: 2.5rem; }
-  @media (min-width: 768px) { .steps { grid-template-columns: repeat(3, 1fr); } }
-  .step { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; }
-  .step .n { font-size: 0.72rem; color: var(--accent); font-weight: 500; margin-bottom: 0.9rem; }
-  .step h3 { font-size: 0.93rem; font-weight: 500; margin-bottom: 0.5rem; }
-  .step p { font-size: 0.85rem; color: var(--dim); font-weight: 300; line-height: 1.55; }
-  .step pre { margin-top: 0.9rem; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.75rem; overflow-x: auto; }
-  .step pre code { font-size: 0.72rem; color: var(--ink); white-space: pre; }
+  /* How it works: three scenes */
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media (max-width: 900px) { .steps { grid-template-columns: 1fr; max-width: 520px; margin-inline: auto; gap: 40px; } }
+  .scene { aspect-ratio: 4 / 5; border-radius: 22px; position: relative; overflow: hidden; display: grid; place-items: center; max-width: 100%; }
+  .scene.s1 { background: radial-gradient(90% 70% at 30% 20%, #3a3f4b 0%, #16181d 60%, #0b0c0f 100%); }
+  .scene.s2 { background: radial-gradient(80% 60% at 70% 15%, #6d5dfc 0%, #2b2d9e 35%, #0e1238 75%, #070a1f 100%); }
+  .scene.s3 { background: radial-gradient(90% 70% at 50% 100%, #ff9a5a 0%, #e0566f 35%, #6b2a6e 70%, #2a1537 100%); }
+  .scene .glow { position: absolute; inset: auto -20% -30% -20%; height: 60%; background: radial-gradient(50% 50% at 50% 50%, rgba(255, 255, 255, 0.18), transparent 70%); pointer-events: none; }
+  .step-text { padding: 20px 4px 0; }
+  .step-text h3 { font-size: 19px; font-weight: 600; display: flex; gap: 8px; }
+  .step-text h3 span { color: var(--faint); font-variant-numeric: tabular-nums; }
+  .step-text p { color: var(--dim); font-size: 16px; margin-top: 6px; }
 
-  .areas { margin-top: 2.5rem; border-top: 1px solid var(--border); }
-  .area { display: grid; grid-template-columns: 11rem 1fr; gap: 0.4rem 2rem; padding-block: 1.1rem; border-bottom: 1px solid var(--border); }
-  .area h3 { font-size: 0.93rem; font-weight: 500; }
-  .area h3 small { display: block; font-size: 0.74rem; font-weight: 400; color: var(--muted); font-style: italic; }
-  .area p { font-size: 0.87rem; color: var(--dim); font-weight: 300; }
-  .area code { font-size: 0.74rem; color: var(--ink); }
-  @media (max-width: 600px) { .area { grid-template-columns: 1fr; } }
+  /* Scene 1: terminal */
+  .term { width: 82%; border-radius: 12px; background: rgba(28, 28, 32, 0.92); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.08); color: #e6e6e6; font-size: 12px; line-height: 1.6; overflow: hidden; }
+  .term .bar { display: flex; gap: 6px; padding: 10px 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.07); }
+  .term .bar i { width: 9px; height: 9px; border-radius: 50%; background: #ff5f57; } .term .bar i:nth-child(2) { background: #febc2e; } .term .bar i:nth-child(3) { background: #28c840; }
+  .term pre { padding: 14px 14px 18px; white-space: pre-wrap; word-break: break-word; font-family: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, monospace; }
+  .term .p { color: #7ee787; } .term .d { color: #8b949e; } .term .ok { color: #7ee787; }
 
-  .asks { list-style: none; display: grid; grid-template-columns: 1fr; gap: 0.75rem; margin-top: 2.5rem; }
-  @media (min-width: 640px) { .asks { grid-template-columns: 1fr 1fr; } }
-  .asks li { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; font-size: 0.93rem; font-weight: 300; }
-  .asks li::before { content: "“"; color: var(--faint); } .asks li::after { content: "”"; color: var(--faint); }
+  /* Scene 2 and 3: phone */
+  .phone { width: 58%; aspect-ratio: 9 / 19; border-radius: 34px; background: #0a0a0a; padding: 7px; box-shadow: 0 30px 70px rgba(0, 0, 0, 0.55), inset 0 0 0 1.5px rgba(255, 255, 255, 0.14); transform: rotate(-4deg) translateY(6%); }
+  .s3 .phone { transform: rotate(3deg) translateY(8%); }
+  .screen { width: 100%; height: 100%; border-radius: 28px; overflow: hidden; background: #f2f2f7; position: relative; display: flex; flex-direction: column; color: #1d1d1f; }
+  .island { position: absolute; top: 8px; left: 50%; translate: -50% 0; width: 32%; height: 17px; border-radius: 10px; background: #000; }
+  .approve { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 34px 14px 14px; text-align: center; background: #fff; }
+  .approve .seal { width: 46px; height: 46px; border-radius: 50%; background: #0060e6; display: grid; place-items: center; }
+  .approve .seal svg { width: 22px; height: 22px; }
+  .approve strong { font-size: 14px; line-height: 1.25; }
+  .approve small { font-size: 11px; color: #6e6e73; line-height: 1.35; }
+  .approve .swipe { margin-top: auto; width: 100%; height: 38px; border-radius: 20px; background: #e9f0fd; position: relative; font-size: 11px; font-weight: 600; color: #0060e6; display: grid; place-items: center; }
+  .approve .swipe::before { content: ""; position: absolute; left: 4px; top: 4px; width: 30px; height: 30px; border-radius: 50%; background: #0060e6; }
+  .chat { flex: 1; display: flex; flex-direction: column; gap: 7px; padding: 36px 10px 12px; font-size: 10.5px; line-height: 1.35; }
+  .chat .bubble { max-width: 86%; padding: 7px 10px; border-radius: 14px; }
+  .chat .bubble.ai { background: #fff; }
+  .chat .tool { font-size: 9px; color: #86868b; } .chat .tool code { font-size: 9px; color: #6e6e73; }
 
-  .facts { display: grid; grid-template-columns: 1fr; gap: 2rem 3rem; margin-top: 2.5rem; }
-  @media (min-width: 640px) { .facts { grid-template-columns: 1fr 1fr; } }
-  .fact h3 { font-size: 0.93rem; font-weight: 500; margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.6rem; }
-  .fact h3::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none; }
-  .fact p { font-size: 0.87rem; color: var(--dim); font-weight: 300; line-height: 1.55; }
+  /* What it reads: bento */
+  .bento { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; }
+  .tile { background: var(--tile); border-radius: 22px; padding: 30px; display: flex; flex-direction: column; gap: 8px; min-height: 220px; }
+  .tile .da { font-size: 14px; color: var(--faint); font-weight: 500; }
+  .tile h3 { font-size: 26px; line-height: 1.12; font-weight: 700; }
+  .tile p { color: var(--dim); font-size: 16px; }
+  .tile.big { grid-column: span 4; grid-row: span 2; }
+  .tile.side { grid-column: span 2; }
+  .tile.third { grid-column: span 2; }
+  .tile.half { grid-column: span 4; }
+  @media (max-width: 900px) { .bento { grid-template-columns: 1fr 1fr; } .tile.big, .tile.half { grid-column: span 2; } .tile.side, .tile.third { grid-column: span 1; } }
+  @media (max-width: 560px) { .bento { grid-template-columns: 1fr; } .tile.big, .tile.half, .tile.side, .tile.third { grid-column: span 1; } }
+  .meds { margin-top: auto; display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+  .meds div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
+  .meds span { color: var(--faint); font-size: 13px; text-align: right; }
+  .tile .stat { color: var(--ink); font-size: clamp(44px, 5vw, 56px); font-weight: 700; line-height: 1; margin-top: auto; font-variant-numeric: tabular-nums; }
+  .tile .stat small { font-size: 17px; font-weight: 500; color: var(--dim); margin-left: 6px; }
 
-  .faq { margin-top: 2.5rem; max-width: 680px; }
-  .faq .q { border-top: 1px solid var(--border); padding-block: 1.25rem; }
-  .faq .q:last-child { border-bottom: 1px solid var(--border); }
-  .faq h3 { font-size: 0.97rem; font-weight: 500; margin-bottom: 0.4rem; }
-  .faq p { font-size: 0.9rem; color: var(--dim); font-weight: 300; line-height: 1.6; }
-  .faq code { font-size: 0.8rem; color: var(--ink); }
+  /* Privacy */
+  .privacy-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 48px 40px; }
+  @media (max-width: 900px) { .privacy-grid { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 560px) { .privacy-grid { grid-template-columns: 1fr; } }
+  .fact svg { width: 30px; height: 30px; margin-bottom: 14px; }
+  .fact svg * { stroke: var(--ink); }
+  .fact h3 { font-size: 19px; font-weight: 600; margin-bottom: 6px; }
+  .fact p { color: var(--dim); font-size: 16px; }
 
-  .fine { font-size: 0.85rem; color: var(--dim); font-weight: 300; line-height: 1.65; max-width: 680px; }
-  .fine p + p { margin-top: 0.85rem; }
-  .fine strong { color: var(--ink); font-weight: 500; }
+  /* Two ways to run */
+  .ways { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 760px) { .ways { grid-template-columns: 1fr; } }
+  .way { background: var(--tile); border-radius: 22px; padding: 34px; display: flex; flex-direction: column; gap: 10px; }
+  .way .da { font-size: 14px; color: var(--faint); font-weight: 500; }
+  .way h3 { font-size: 28px; line-height: 1.1; font-weight: 700; }
+  .way p { color: var(--dim); font-size: 16px; }
+  .way pre { margin-top: 10px; background: var(--alt); border-radius: 12px; padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+  .way ul { list-style: none; display: flex; flex-direction: column; gap: 6px; margin-top: 6px; font-size: 15px; }
+  .way li { display: flex; gap: 10px; }
+  .way li::before { content: "✓"; color: var(--ok); font-weight: 600; }
 
-  footer { padding-block: 3rem; border-top: 1px solid var(--border); }
-  footer .container { display: flex; flex-direction: column; gap: 1rem; align-items: center; text-align: center; }
-  @media (min-width: 640px) { footer .container { flex-direction: row; justify-content: space-between; text-align: left; } }
-  footer p { font-size: 0.78rem; color: var(--muted); }
-  footer nav { gap: 1.25rem; } footer a { font-size: 0.78rem; }
+  /* FAQ */
+  .faq { max-width: 760px; margin: 0 auto; border-top: 1px solid var(--line); }
+  details { border-bottom: 1px solid var(--line); }
+  summary { list-style: none; cursor: pointer; padding: 22px 0; font-size: 19px; font-weight: 600; display: flex; justify-content: space-between; gap: 20px; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: "+"; font-weight: 400; font-size: 24px; line-height: 1; color: var(--dim); transition: transform 0.2s; }
+  details[open] summary::after { transform: rotate(45deg); }
+  details p { color: var(--dim); padding: 0 0 22px; max-width: 64ch; }
+
+  /* Closing + footer */
+  .closing { text-align: center; }
+  .closing h2 { font-size: clamp(34px, 5.4vw, 56px); line-height: 1.07; font-weight: 700; margin-bottom: 26px; text-wrap: balance; }
+  footer { background: var(--alt); padding-block: 22px 36px; font-size: 12px; color: var(--faint); }
+  footer .wrap > * + * { margin-top: 10px; }
+  footer .rule { border-top: 1px solid var(--line); padding-top: 14px; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  footer a { color: var(--dim); }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 </style>
 </head>
 <body>
 
-<header>
-  <div class="container">
-    <a class="logo" href="#top" aria-label="SundhedMCP home">
-      <span class="mark" aria-hidden="true"><svg viewBox="0 0 12 12" fill="none"><path d="M6 1.5v9M1.5 6h9" stroke-width="2.2" stroke-linecap="round"/></svg></span>
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="SundhedMCP home">
+      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7"/><path d="M13.2 5h7.3l-1.2 7.6h7.2l-1.1 6.8h-7.2L17 27h-7.3l1.2-7.6H3.7l1.1-6.8H12z"/></svg>
       SundhedMCP
     </a>
     <nav aria-label="Sections">
-      <a href="#how">Get started</a>
+      <a href="#how">How it works</a>
       <a href="#reads">What it reads</a>
-      <a href="#safe">Security</a>
+      <a href="#privacy">Privacy</a>
       <a href="#faq">Questions</a>
       <a href="https://github.com/manas-katyal/sundhedmcp">GitHub</a>
+      <a class="cta" href="#run">Get started</a>
     </nav>
   </div>
 </header>
 
 <main id="top">
-  <div class="container hero">
-    <span class="badge"><i></i>In development · not yet on npm</span>
-    <h1>Your AI now reads your health record.</h1>
-    <p class="subtitle">SundhedMCP connects your sundhed.dk data to Claude or any MCP client: your medicine card, prescriptions, test results, vaccinations and referrals. You log in with MitID yourself. It is read-only and runs on your own machine.</p>
-    <div class="cta-row">
-      <a class="btn btn-primary" href="#how">Get started →</a>
-      <a class="btn btn-secondary" href="https://github.com/manas-katyal/sundhedmcp">View the code</a>
+  <div class="wrap hero">
+    <p class="eyebrow">SundhedMCP</p>
+    <h1>Your health record.<br>Now in your AI.</h1>
+    <p class="lede">Ask Claude about your medicine, prescriptions, test results and vaccinations from sundhed.dk. You log in with MitID. Nothing is stored.</p>
+    <div class="btns">
+      <a class="btn primary" href="#run">Get started</a>
+      <a class="more" href="#how">See how it works</a>
     </div>
-    <p class="proof"><strong>Standard MCP</strong> · Claude, Cursor or a local model · <strong>MitID</strong> in your own browser window · <strong>5</strong> areas of Min Sundhedsjournal · <strong>MIT</strong> licensed</p>
+    <p class="fine">Free and open source · In development · Not affiliated with sundhed.dk</p>
 
-    <div class="chat" role="figure" aria-label="Example conversation using SundhedMCP">
-      <div class="chat-head"><span>Claude · with SundhedMCP</span><span>Example data</span></div>
-
-      <p class="who r">You</p>
-      <div class="msg me">Which of my prescriptions run out soon?</div>
-      <p class="who">Assistant</p>
-      <p class="tool"><span class="dot"></span><code>get_prescriptions</code> · status open · 4 prescriptions</p>
-      <div class="msg ai">Two need attention. <b>Metformin</b> has one dispensing left, and your <b>Ventoline</b> prescription expires on <b>14 Oct</b>. Ask your GP to renew both before then.</div>
-
-      <div class="artifact">
-        <div class="head"><h4>Open prescriptions</h4><span>Artifact</span></div>
-        <div class="rx">
-          <div class="th">Medicine</div><div class="th">Dispensings left</div><div class="th">Valid until</div>
-
-          <div class="drug">Metformin "Teva" <small>500 mg · 1 tablet 2 times daily · diabetes</small></div>
-          <div class="meter"><div class="track"><div class="fill low" style="width:25%"></div></div><span>1 of 4</span></div>
-          <div class="date">02.03.2027</div>
-
-          <div class="drug">Ventoline Diskus <small>0.2 mg/dose · 1–2 puffs as needed · asthma</small></div>
-          <div class="meter"><div class="track"><div class="fill" style="width:50%"></div></div><span>1 of 2</span></div>
-          <div class="date low">14.10.2026</div>
-
-          <div class="drug">Atorvastatin "Krka" <small>20 mg · 1 tablet in the evening · high cholesterol</small></div>
-          <div class="meter"><div class="track"><div class="fill" style="width:75%"></div></div><span>3 of 4</span></div>
-          <div class="date">18.06.2027</div>
-
-          <div class="drug">Cetirizin "Orifarm" <small>10 mg · 1 tablet daily May–Aug · hay fever</small></div>
-          <div class="meter"><div class="track"><div class="fill" style="width:100%"></div></div><span>2 of 2</span></div>
-          <div class="date">30.04.2027</div>
+    <div class="stage" role="figure" aria-label="Example: Claude answering from SundhedMCP">
+      <div class="window">
+        <div class="chrome"><i></i><i></i><i></i><span>Claude</span></div>
+        <div class="convo">
+          <div class="bubble me">Which of my prescriptions run out soon?</div>
+          <p class="tool"><code>get_prescriptions</code> · 4 open prescriptions</p>
+          <div class="bubble ai">Two need attention. <b>Metformin</b> has one dispensing left, and <b>Ventoline</b> expires on <b>14 Oct</b>. Ask your GP to renew both.</div>
+          <div class="rx">
+            <div class="rx-row"><span>Medicine</span><span>Dispensings left</span><span class="date">Valid until</span></div>
+            <div class="rx-row"><div>Metformin "Teva"<small>500 mg · 1 tablet twice daily</small></div><div class="meter"><div class="t"><div class="f low" style="width:25%"></div></div>1 of 4</div><div class="date">02.03.2027</div></div>
+            <div class="rx-row"><div>Ventoline Diskus<small>0.2 mg/dose · as needed</small></div><div class="meter"><div class="t"><div class="f" style="width:50%"></div></div>1 of 2</div><div class="date low">14.10.2026</div></div>
+            <div class="rx-row"><div>Atorvastatin "Krka"<small>20 mg · 1 tablet in the evening</small></div><div class="meter"><div class="t"><div class="f" style="width:75%"></div></div>3 of 4</div><div class="date">18.06.2027</div></div>
+          </div>
         </div>
-        <p class="note">From Fælles Medicinkort via sundhed.dk. Made-up example; your own data never leaves your machine except to your AI.</p>
       </div>
-
-      <div class="gap"></div>
-      <p class="who r">You</p>
-      <div class="msg me">When did I last get a tetanus shot?</div>
-      <p class="who">Assistant</p>
-      <p class="tool"><span class="dot"></span><code>get_vaccinations</code> · 11 vaccinations since 1994</p>
-      <div class="msg ai">You got <b>diTeBooster</b> on <b>14 March 2019</b> at your GP. It covers diphtheria and tetanus for 10 years, so the next one is due in <b>March 2029</b>.</div>
     </div>
   </div>
 
   <section id="how">
-    <div class="container">
-      <p class="eyebrow">Get started</p>
-      <h2>Three steps, about five minutes.</h2>
-      <p class="section-subtitle">No developer account and no API key. sundhed.dk has no public API for citizens, so SundhedMCP uses your own logged-in session, the same way your browser does.</p>
+    <div class="wrap">
+      <div class="head">
+        <p class="eyebrow">How it works</p>
+        <h2>How SundhedMCP works</h2>
+        <p>sundhed.dk has no API for citizens. So SundhedMCP does what your browser does: you log in with MitID, and it reads the same pages you see on Min Side.</p>
+        <div class="btns"><a class="btn soft" href="#run">Get started</a></div>
+      </div>
       <div class="steps">
-        <div class="step">
-          <p class="n">Step 1</p>
-          <h3>Add it to your AI</h3>
-          <p>Needs Node 24 or newer. Works with any client that runs a local MCP server.</p>
-          <pre><code>claude mcp add sundhedmcp \
-  -- npx -y sundhedmcp</code></pre>
+        <div>
+          <div class="scene s1" aria-hidden="true">
+            <div class="term">
+              <div class="bar"><i></i><i></i><i></i></div>
+<pre><span class="p">~</span> claude mcp add sundhedmcp \
+    -- npx -y sundhedmcp
+<span class="ok">✓</span> Added stdio MCP server <b>sundhedmcp</b>
+
+<span class="p">~</span> claude
+<span class="d">› connect sundhed.dk</span></pre>
+            </div>
+            <div class="glow"></div>
+          </div>
+          <div class="step-text"><h3><span>1.</span> Add it to your AI</h3><p>One command in Claude Code, or a custom connector in claude.ai when you host it yourself. Works with any MCP client.</p></div>
         </div>
-        <div class="step">
-          <p class="n">Step 2</p>
-          <h3>Log in with MitID</h3>
-          <p>Say "connect sundhed.dk". A browser window opens on sundhed.dk. Approve in the MitID app and the window hides itself.</p>
+        <div>
+          <div class="scene s2" aria-hidden="true">
+            <div class="phone"><div class="screen"><div class="island"></div>
+              <div class="approve">
+                <div class="seal"><svg viewBox="0 0 24 24" fill="none"><path d="M6 12.5l4 4 8-9" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                <strong>Approve login to sundhed.dk?</strong>
+                <small>Requested just now</small>
+                <div class="swipe">Swipe to approve</div>
+              </div>
+            </div></div>
+            <div class="glow"></div>
+          </div>
+          <div class="step-text"><h3><span>2.</span> Log in with MitID</h3><p>A browser window opens on sundhed.dk. Approve in your MitID app, like any other login. SundhedMCP never sees your MitID.</p></div>
         </div>
-        <div class="step">
-          <p class="n">Step 3</p>
-          <h3>Ask anything</h3>
-          <p>Your AI calls the tools it needs. When sundhed.dk ends the session, it tells you and you log in again.</p>
+        <div>
+          <div class="scene s3" aria-hidden="true">
+            <div class="phone"><div class="screen"><div class="island"></div>
+              <div class="chat">
+                <div class="bubble me">When did I last get a tetanus shot?</div>
+                <p class="tool"><code>get_vaccinations</code></p>
+                <div class="bubble ai"><b>diTeBooster</b> on <b>14 March 2019</b>. It covers 10 years, so the next one is due in <b>March 2029</b>.</div>
+                <div class="bubble me">Anything I need before Vietnam?</div>
+              </div>
+            </div></div>
+            <div class="glow"></div>
+          </div>
+          <div class="step-text"><h3><span>3.</span> Ask anything</h3><p>Your AI picks the right tool and answers from your own record, in plain words and in your language.</p></div>
         </div>
       </div>
     </div>
   </section>
 
-  <section id="reads">
-    <div class="container">
-      <p class="eyebrow">What it reads</p>
-      <h2>Everything you can see on Min Side, nothing you cannot.</h2>
-      <p class="section-subtitle">Each area becomes a read-only tool. It uses the same pages sundhed.dk shows you after you log in, so it sees what you see.</p>
-      <div class="areas">
-        <div class="area"><h3>Medicine card <small>Medicinkort</small></h3><p>Current and stopped medicine: drug, strength, dosage, reason, ATC code, who prescribed it and when.</p></div>
-        <div class="area"><h3>Prescriptions <small>Recepter</small></h3><p>Open and closed prescriptions, dispensings left, expiry dates, pharmacy and package size.</p></div>
-        <div class="area"><h3>Test results <small>Prøvesvar</small></h3><p>Blood and lab results from regional labs for any date range, with reference intervals.</p></div>
-        <div class="area"><h3>Vaccinations <small>Vaccinationer</small></h3><p>Every registered vaccination, what it protects against, how long it covers and who gave it.</p></div>
-        <div class="area"><h3>Referrals <small>Henvisninger</small></h3><p>Active and earlier referrals to specialists and hospitals.</p></div>
+  <section id="reads" class="alt">
+    <div class="wrap">
+      <div class="head">
+        <p class="eyebrow">What it reads</p>
+        <h2>Everything on Min Side. Nothing more.</h2>
+        <p>Five parts of your health record, each a read-only tool.</p>
+      </div>
+      <div class="bento">
+        <div class="tile big">
+          <p class="da">Medicinkort</p>
+          <h3>Your medicine card.</h3>
+          <p>Every medicine you take, with strength, dosage, reason, ATC code and who prescribed it.</p>
+          <div class="meds" aria-label="Example medicine card">
+            <div>Metformin "Teva" 500 mg<span>1 tablet twice daily</span></div>
+            <div>Atorvastatin "Krka" 20 mg<span>1 tablet in the evening</span></div>
+            <div>Ventoline Diskus 0.2 mg/dose<span>1–2 puffs as needed</span></div>
+            <div>Cetirizin "Orifarm" 10 mg<span>1 tablet daily, May–Aug</span></div>
+          </div>
+        </div>
+        <div class="tile side">
+          <p class="da">Recepter</p>
+          <h3>Prescriptions.</h3>
+          <p>Dispensings left, expiry dates and pharmacy.</p>
+          <p class="stat">1<small>of 4 left</small></p>
+        </div>
+        <div class="tile side">
+          <p class="da">Vaccinationer</p>
+          <h3>Vaccinations.</h3>
+          <p>What each one covers, and for how long.</p>
+          <p class="stat">2029<small>next tetanus</small></p>
+        </div>
+        <div class="tile third">
+          <p class="da">Henvisninger</p>
+          <h3>Referrals.</h3>
+          <p>Active and earlier referrals to specialists and hospitals.</p>
+        </div>
+        <div class="tile half">
+          <p class="da">Prøvesvar</p>
+          <h3>Test results.</h3>
+          <p>Blood tests and lab results from the regions, for any date range. Ask how a value has changed over the years.</p>
+        </div>
+      </div>
+      <p class="fine" style="text-align:center;margin-top:22px">Example data. Your own record is only ever shown to you and your AI.</p>
+    </div>
+  </section>
+
+  <section id="privacy">
+    <div class="wrap">
+      <div class="head">
+        <p class="eyebrow">Privacy</p>
+        <h2>Private by design.</h2>
+        <p>Your health record is yours. SundhedMCP is built so it stays that way.</p>
+      </div>
+      <div class="privacy-grid">
+        <div class="fact">
+          <svg viewBox="0 0 30 30" fill="none" aria-hidden="true"><rect x="6" y="13" width="18" height="13" rx="3" stroke-width="1.8"/><path d="M10 13V9.5a5 5 0 0110 0V13" stroke-width="1.8"/></svg>
+          <h3>You log in. Not the software.</h3><p>MitID happens on sundhed.dk, in a real browser. SundhedMCP never sees a password or your MitID app.</p>
+        </div>
+        <div class="fact">
+          <svg viewBox="0 0 30 30" fill="none" aria-hidden="true"><path d="M5 15h20M15 5v20" stroke-width="1.8" stroke-linecap="round"/><circle cx="15" cy="15" r="10" stroke-width="1.8"/></svg>
+          <h3>Nothing is stored.</h3><p>The login lives in memory. Stop SundhedMCP and it is gone. No database, no logs of your data, no telemetry.</p>
+        </div>
+        <div class="fact">
+          <svg viewBox="0 0 30 30" fill="none" aria-hidden="true"><path d="M4 15s4-8 11-8 11 8 11 8-4 8-11 8S4 15 4 15z" stroke-width="1.8"/><circle cx="15" cy="15" r="3.5" stroke-width="1.8"/></svg>
+          <h3>Read-only.</h3><p>It can read your record. It cannot renew a prescription, change your medicine card or send a message.</p>
+        </div>
+        <div class="fact">
+          <svg viewBox="0 0 30 30" fill="none" aria-hidden="true"><rect x="4" y="8" width="22" height="14" rx="3" stroke-width="1.8"/><path d="M9 13h5M9 17h8" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <h3>CPR stays out.</h3><p>Your CPR number is masked in every answer before your AI sees it.</p>
+        </div>
+        <div class="fact">
+          <svg viewBox="0 0 30 30" fill="none" aria-hidden="true"><rect x="5" y="6" width="20" height="14" rx="2.5" stroke-width="1.8"/><path d="M11 25h8M15 20v5" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <h3>Runs where you choose.</h3><p>On your own computer, or on a server you control. There is no SundhedMCP company in between.</p>
+        </div>
+        <div class="fact">
+          <svg viewBox="0 0 30 30" fill="none" aria-hidden="true"><path d="M11 9l-6 6 6 6M19 9l6 6-6 6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <h3>Open source.</h3><p>MIT licensed and small enough to read in an afternoon. <a href="https://github.com/manas-katyal/sundhedmcp">Check it yourself</a>.</p>
+        </div>
       </div>
     </div>
   </section>
 
-  <section id="ask">
-    <div class="container">
-      <p class="eyebrow">Things to ask</p>
-      <h2>Your own record, in plain words.</h2>
-      <ul class="asks">
-        <li>Which prescriptions do I need to renew before I travel in December?</li>
-        <li>How has my cholesterol changed across my last three blood tests?</li>
-        <li>What do I need to get vaccinated against for a trip to Vietnam?</li>
-        <li>List everything I take, with doses, so I can show a new doctor.</li>
-        <li>Do any of my medicines contain the same active substance?</li>
-        <li>Has my referral to the dermatologist been received yet?</li>
-      </ul>
-    </div>
-  </section>
-
-  <section id="safe">
-    <div class="container">
-      <p class="eyebrow">Security</p>
-      <h2>Your health record stays with you.</h2>
-      <div class="facts">
-        <div class="fact"><h3>Runs on your machine</h3><p>No server, no account, no telemetry. The only place your data goes is the AI client you ask.</p></div>
-        <div class="fact"><h3>You log in, not the software</h3><p>MitID happens on sundhed.dk in a real browser window. SundhedMCP never sees a password or your MitID app.</p></div>
-        <div class="fact"><h3>Session lives in memory</h3><p>The login is held by the browser while SundhedMCP runs. Stop it and the session is gone. Nothing is written to disk.</p></div>
-        <div class="fact"><h3>Read-only</h3><p>No renewals, no changes to your medicine card, no messages. It can only read what is already there.</p></div>
-        <div class="fact"><h3>CPR stays out of answers</h3><p>Your CPR number is removed from every tool result before your AI sees it.</p></div>
-        <div class="fact"><h3>Open source</h3><p>MIT licensed and small enough to read in an afternoon, so you can check all of the above yourself.</p></div>
+  <section id="run" class="alt">
+    <div class="wrap">
+      <div class="head">
+        <p class="eyebrow">Get started</p>
+        <h2>Two ways to run it.</h2>
+        <p>Both read the same record with the same tools. Pick where the browser that holds your login should live.</p>
       </div>
+      <div class="ways">
+        <div class="way">
+          <p class="da">On your computer</p>
+          <h3>Local.</h3>
+          <p>For Claude Code, Claude Desktop and Cursor. A browser window opens for MitID and minimizes itself.</p>
+          <ul><li>Your data never leaves your machine, except to your AI</li><li>Needs Node 24 and Chrome or Edge</li></ul>
+<pre class="mono">claude mcp add sundhedmcp -- npx -y sundhedmcp</pre>
+        </div>
+        <div class="way">
+          <p class="da">On your own server</p>
+          <h3>Hosted.</h3>
+          <p>For claude.ai and your phone. You log in with MitID on a password-protected page on your server.</p>
+          <ul><li>Deploy the Docker image to Railway, Fly or any host</li><li>Sign in to the connector with your own password</li></ul>
+<pre class="mono">docker run -p 8080:8080 \
+  -e ADMIN_PASSWORD=… sundhedmcp</pre>
+        </div>
+      </div>
+      <p class="fine" style="text-align:center;margin-top:22px">In development: the npm package and Docker image are not published yet. <a href="https://github.com/manas-katyal/sundhedmcp">Run it from source</a>.</p>
     </div>
   </section>
 
   <section id="faq">
-    <div class="container">
-      <p class="eyebrow">Questions</p>
-      <h2>Good to know.</h2>
+    <div class="wrap">
+      <div class="head"><h2>Questions.</h2></div>
       <div class="faq">
-        <div class="q"><h3>Is this made by sundhed.dk?</h3><p>No. SundhedMCP is an independent open-source project, not affiliated with sundhed.dk, Sundhedsdatastyrelsen or MitID.</p></div>
-        <div class="q"><h3>Why do I have to log in again?</h3><p>sundhed.dk ends sessions after a while, and SundhedMCP does not keep your login between restarts. When a tool says the session has ended, say "connect sundhed.dk" again.</p></div>
-        <div class="q"><h3>Can I run it for my family or my patients?</h3><p>No. It is for one person reading their own record on their own machine. A service that holds other people's health data needs approval, agreements and certificates it does not have.</p></div>
-        <div class="q"><h3>Does it work in claude.ai or on my phone?</h3><p>Not yet. It needs a browser window for MitID on the same machine, so it runs with desktop clients like Claude Code and Claude Desktop.</p></div>
-        <div class="q"><h3>What happens if sundhed.dk changes its site?</h3><p>A tool may stop working until SundhedMCP is updated. It fails with a clear message rather than guessing.</p></div>
+        <details><summary>Is this made by sundhed.dk?</summary><p>No. SundhedMCP is an independent open-source project, not affiliated with sundhed.dk, Sundhedsdatastyrelsen or MitID.</p></details>
+        <details><summary>Why do I have to log in again?</summary><p>sundhed.dk ends sessions after a while, and SundhedMCP does not keep your login. When a tool says the session has ended, say "connect sundhed.dk" and approve in MitID again.</p></details>
+        <details><summary>Can I run it for my family or patients?</summary><p>No. It is for one person reading their own record. A service holding other people's health data needs approvals and agreements it does not have.</p></details>
+        <details><summary>Is my data sent anywhere?</summary><p>Only to the AI you ask. Locally, it goes from sundhed.dk to your computer to your AI. Hosted, it passes through your own server's memory on the way.</p></details>
+        <details><summary>Is this medical advice?</summary><p>No. Your AI can read and summarise your record, but it is not your doctor. Talk to your GP or pharmacist before changing how you take any medicine.</p></details>
       </div>
     </div>
   </section>
 
-  <section id="not">
-    <div class="container">
-      <p class="eyebrow">What it is not</p>
-      <div class="fine">
-        <p><strong>Not medical advice.</strong> Your AI can read and summarise your record, but it is not your doctor. Talk to your GP or pharmacist before changing how you take any medicine.</p>
-        <p><strong>Not an official integration.</strong> The official Fælles Medicinkort API is for approved healthcare systems. SundhedMCP reads the citizen pages you already have access to.</p>
+  <section class="closing alt">
+    <div class="wrap">
+      <h2>Ask your health record anything.</h2>
+      <div class="btns">
+        <a class="btn primary" href="#run">Get started</a>
+        <a class="more" href="https://github.com/manas-katyal/sundhedmcp">View on GitHub</a>
       </div>
     </div>
   </section>
 </main>
 
 <footer>
-  <div class="container">
-    <p>SundhedMCP · MIT licensed · Not affiliated with sundhed.dk</p>
-    <nav aria-label="Footer"><a href="#how">Get started</a><a href="#safe">Security</a><a href="#faq">Questions</a><a href="https://github.com/manas-katyal/sundhedmcp">GitHub</a></nav>
+  <div class="wrap">
+    <p>SundhedMCP reads your own record on sundhed.dk after you log in with MitID. It is not affiliated with sundhed.dk, Sundhedsdatastyrelsen or MitID, and it is not medical advice. Examples on this page use made-up data.</p>
+    <div class="rule"><span>MIT licensed · sundhedmcp.dk</span><span><a href="https://github.com/manas-katyal/sundhedmcp">GitHub</a></span></div>
   </div>
 </footer>
 </body>
