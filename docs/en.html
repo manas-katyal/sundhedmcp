@@ -341,9 +341,10 @@
 
   /* Copy buttons: icon swap + text states swap */
   :root { --icon-swap-dur: 250ms; --icon-swap-blur: 2px; --icon-swap-start-scale: 0.25; --text-swap-dur: 150ms; --text-swap-translate-y: 4px; --text-swap-blur: 2px; }
-  .cmd { position: relative; }
-  .cmd pre { padding-right: 96px !important; }
-  .copy { position: absolute; top: 8px; right: 8px; display: inline-flex; align-items: center; gap: 6px; appearance: none; border: 1px solid var(--line); background: var(--tile); color: var(--dim);
+  .cmd { position: relative; margin-top: 10px; }
+  .way ol.setup .cmd { margin-top: 8px; }
+  .cmd pre, .way ol.setup .cmd pre { margin-top: 0; padding-right: 104px !important; }
+  .copy { position: absolute; top: calc(14px + 10.4px - 13px); right: 10px; height: 26px; display: inline-flex; align-items: center; gap: 6px; appearance: none; border: 1px solid var(--line); background: var(--tile); color: var(--dim);
     font: inherit; font-size: 12px; font-weight: 500; padding: 5px 10px 5px 8px; border-radius: 999px; cursor: pointer; transition: color 200ms var(--t-ease), border-color 200ms var(--t-ease); }
   .copy:hover { color: var(--ink); border-color: var(--line-strong); }
   .copy.is-done { color: var(--ok); }
