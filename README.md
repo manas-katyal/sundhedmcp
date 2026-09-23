@@ -42,25 +42,23 @@ leave it running.
 
 ### Hosted on Railway (for claude.ai and your phone)
 
-The server runs a headless browser, and you log in with MitID on a
-password-protected `/connect` page that shows that browser and forwards your
-typing. Only OAuth tokens are written to disk.
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/sundhedmcp?utm_medium=integration&utm_source=button&utm_campaign=sundhedmcp)
 
-```bash
-railway init --name sundhedmcp
-railway add --service sundhedmcp \
-  --variables "ADMIN_PASSWORD=$(openssl rand -base64 24)"
-railway service link sundhedmcp
-railway volume add --mount-path /data
-railway domain
-railway up
-```
+1. Click the button. Railway creates your own server from the
+   `ghcr.io/manas-katyal/sundhedmcp` image, with a volume at `/data` and a
+   public address.
+2. Open the address. The first-run page asks you to choose the server's
+   password; it is stored hashed on the volume.
+3. In claude.ai: Settings → Connectors → Add custom connector, with
+   `https://<your-app>.up.railway.app/mcp`. Sign in with the password.
+4. When Claude says you are not logged in, open the link it gives you, type
+   your MitID user ID and approve in the app.
 
-Then add `https://<your-app>.up.railway.app/mcp` in claude.ai under
-Settings → Connectors → Add custom connector, and sign in with the password.
-When Claude says you are not logged in, open the link it gives you, type your
-MitID user ID and approve in the app. Any Docker host works the same way: set
-`ADMIN_PASSWORD` and mount a volume at `/data`.
+The server runs a headless browser and shows it to you on a
+password-protected `/connect` page for the MitID login. Only OAuth tokens and
+the password hash are written to disk. Any Docker host works the same way:
+run the image with a volume at `/data` (set `ADMIN_PASSWORD` to skip the
+first-run page).
 
 ## Tools
 

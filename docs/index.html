@@ -232,6 +232,8 @@
   .way ol.setup li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 22px; height: 22px; border-radius: 50%; background: var(--ink); color: var(--bg); font-size: 12px; font-weight: 600; display: grid; place-items: center; }
   .way ol.setup pre { margin-top: 8px; color: var(--ink); }
   .way ol.setup code { font-size: 13px; color: var(--ink); }
+  .way .deploy { margin-top: 12px; }
+  .way .deploy .btn { font-size: 15px; padding: 10px 18px; }
   .way .note { font-size: 14px; color: var(--faint); margin-top: 6px; }
 
   /* FAQ */
@@ -581,25 +583,18 @@ addEventListener("load", () => { const t = location.hash && document.getElementB
         <div class="way" id="way-hosted" role="tabpanel" aria-labelledby="tab-hosted">
           <p class="da">På din egen server</p>
           <h3>Hostet.</h3>
-          <p>Til claude.ai og din telefon. Læg den på Railway på få minutter. Du logger på med MitID på en adgangskodebeskyttet side på din egen server.</p>
+          <p>Til claude.ai og din telefon. Din egen server på Railway, sat op med ét klik. Du logger på med MitID på en adgangskodebeskyttet side på den.</p>
           <ol class="setup">
-            <li><b>Læg den på Railway.</b> Med <a href="https://docs.railway.com/guides/cli">Railway CLI</a>, fra en kopi af koden:
-<div class="cmd"><pre class="mono">git clone https://github.com/manas-katyal/sundhedmcp
-cd sundhedmcp
-railway init --name sundhedmcp
-railway add --service sundhedmcp \
-  --variables "ADMIN_PASSWORD=$(openssl rand -base64 24)"
-railway service link sundhedmcp
-railway volume add --mount-path /data
-railway domain
-railway up</pre><button class="copy" type="button" aria-label="Kopiér kommandoer"><span class="t-icon-swap" data-state="a"><svg class="t-icon" data-icon="a" viewBox="0 0 16 16"><rect x="5" y="5" width="8.5" height="8.5" rx="2"/><path d="M10.5 5V3.5a1.5 1.5 0 00-1.5-1.5H3.5A1.5 1.5 0 002 3.5V9a1.5 1.5 0 001.5 1.5H5"/></svg><svg class="t-icon" data-icon="b" viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7"/></svg></span><span class="t-text-swap">Kopiér</span></button></div></li>
+            <li><b>Læg den på Railway.</b> Ét klik opretter din egen server med det rigtige volume og en adresse. Det tager et par minutter.
+              <div class="deploy"><a class="btn primary" href="https://railway.com/deploy/sundhedmcp?utm_medium=integration&amp;utm_source=button&amp;utm_campaign=sundhedmcp">Deploy på Railway</a></div></li>
+            <li><b>Vælg en adgangskode.</b> Åbn din servers adresse fra Railway. Den første side beder dig vælge den adgangskode, der beskytter den.</li>
             <li><b>Tilføj den i claude.ai.</b> Settings → Connectors → Add custom connector, med din Railway-adresse plus <code>/mcp</code>. Log ind med adgangskoden.</li>
             <li><b>Log på med MitID.</b> Spørg Claude om noget om dit helbred. Du får et link til din server, hvor du skriver dit MitID bruger-ID og godkender i appen.</li>
           </ol>
-          <p class="note">Alle Docker-hosts virker også: imaget skal have <code>ADMIN_PASSWORD</code> og et volume på <code>/data</code>. Dine data passerer gennem serverens hukommelse og gemmes aldrig.</p>
+          <p class="note">Alle Docker-hosts virker også: kør <code>ghcr.io/manas-katyal/sundhedmcp</code> med et volume på <code>/data</code>. Dine data passerer gennem serverens hukommelse og gemmes aldrig.</p>
         </div>
       </div>
-      <p class="fine" style="text-align:center;margin-top:22px">Under udvikling: npm-pakken er ikke udgivet endnu, så kør den lokalt <a href="https://github.com/manas-katyal/sundhedmcp">fra kildekoden</a>. Railway bygger allerede fra kildekoden.</p>
+      <p class="fine" style="text-align:center;margin-top:22px">Under udvikling: npm-pakken er ikke udgivet endnu, så kør den lokalt <a href="https://github.com/manas-katyal/sundhedmcp">fra kildekoden</a>.</p>
     </div>
   </section>
 

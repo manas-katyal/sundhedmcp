@@ -232,6 +232,8 @@
   .way ol.setup li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 22px; height: 22px; border-radius: 50%; background: var(--ink); color: var(--bg); font-size: 12px; font-weight: 600; display: grid; place-items: center; }
   .way ol.setup pre { margin-top: 8px; color: var(--ink); }
   .way ol.setup code { font-size: 13px; color: var(--ink); }
+  .way .deploy { margin-top: 12px; }
+  .way .deploy .btn { font-size: 15px; padding: 10px 18px; }
   .way .note { font-size: 14px; color: var(--faint); margin-top: 6px; }
 
   /* FAQ */
@@ -581,25 +583,18 @@ addEventListener("load", () => { const t = location.hash && document.getElementB
         <div class="way" id="way-hosted" role="tabpanel" aria-labelledby="tab-hosted">
           <p class="da">On your own server</p>
           <h3>Hosted.</h3>
-          <p>For claude.ai and your phone. Deploy to Railway in a few minutes. You log in with MitID on a password-protected page on your own server.</p>
+          <p>For claude.ai and your phone. Your own server on Railway, set up with one click. You log in with MitID on a password-protected page on it.</p>
           <ol class="setup">
-            <li><b>Deploy to Railway.</b> With the <a href="https://docs.railway.com/guides/cli">Railway CLI</a>, from a copy of the code:
-<div class="cmd"><pre class="mono">git clone https://github.com/manas-katyal/sundhedmcp
-cd sundhedmcp
-railway init --name sundhedmcp
-railway add --service sundhedmcp \
-  --variables "ADMIN_PASSWORD=$(openssl rand -base64 24)"
-railway service link sundhedmcp
-railway volume add --mount-path /data
-railway domain
-railway up</pre><button class="copy" type="button" aria-label="Copy commands"><span class="t-icon-swap" data-state="a"><svg class="t-icon" data-icon="a" viewBox="0 0 16 16"><rect x="5" y="5" width="8.5" height="8.5" rx="2"/><path d="M10.5 5V3.5a1.5 1.5 0 00-1.5-1.5H3.5A1.5 1.5 0 002 3.5V9a1.5 1.5 0 001.5 1.5H5"/></svg><svg class="t-icon" data-icon="b" viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7"/></svg></span><span class="t-text-swap">Copy</span></button></div></li>
+            <li><b>Deploy on Railway.</b> One click creates your own server with the right volume and address. It takes a few minutes.
+              <div class="deploy"><a class="btn primary" href="https://railway.com/deploy/sundhedmcp?utm_medium=integration&amp;utm_source=button&amp;utm_campaign=sundhedmcp">Deploy on Railway</a></div></li>
+            <li><b>Choose a password.</b> Open your server's address from Railway. The first page asks you to choose the password that protects it.</li>
             <li><b>Add it to claude.ai.</b> Settings → Connectors → Add custom connector, with your Railway address plus <code>/mcp</code>. Sign in with the password.</li>
             <li><b>Log in with MitID.</b> Ask Claude anything about your health. It sends you a link to your server, where you type your MitID user ID and approve in the app.</li>
           </ol>
-          <p class="note">Any Docker host works too: the image needs <code>ADMIN_PASSWORD</code> and a volume at <code>/data</code>. Your data passes through your server's memory and is never stored.</p>
+          <p class="note">Any Docker host works too: run <code>ghcr.io/manas-katyal/sundhedmcp</code> with a volume at <code>/data</code>. Your data passes through your server's memory and is never stored.</p>
         </div>
       </div>
-      <p class="fine" style="text-align:center;margin-top:22px">In development: the npm package is not published yet, so run it locally <a href="https://github.com/manas-katyal/sundhedmcp">from source</a>. Railway builds from source already.</p>
+      <p class="fine" style="text-align:center;margin-top:22px">In development: the npm package is not published yet, so run it locally <a href="https://github.com/manas-katyal/sundhedmcp">from source</a>.</p>
     </div>
   </section>
 
