@@ -3,15 +3,15 @@
 // and the token endpoint; this file supplies the storage behind them and a
 // password login page. Tokens are stored hashed.
 // Adapted from BankMCP (MIT, github.com/noskillish/bankmcp).
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import type { Response } from "express";
 import type { OAuthServerProvider, AuthorizationParams } from "@modelcontextprotocol/sdk/server/auth/provider.js";
 import type { OAuthRegisteredClientsStore } from "@modelcontextprotocol/sdk/server/auth/clients.js";
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import type { OAuthClientInformationFull, OAuthTokenRevocationRequest, OAuthTokens } from "@modelcontextprotocol/sdk/shared/auth.js";
 import { InvalidGrantError, InvalidClientError, InvalidClientMetadataError } from "@modelcontextprotocol/sdk/server/auth/errors.js";
-import { config } from "./config.ts";
-import { loginPage } from "./pages.ts";
+import { checkPassword, config } from "./config.ts";
+import { langOf, loginPage } from "./pages.ts";
 import type { Store, OAuthClient } from "./store.ts";
 
 const ACCESS_TTL = 60 * 60; // 1 hour
@@ -23,11 +23,7 @@ const DONE_TTL = 30 * 60; // how long a used sign-in page is remembered, so a re
 // --- Password ---
 
 export function verifyPassword(password: string): boolean {
-  if (!config.adminPassword) return false;
-  // Compare digests so the comparison takes the same time whatever the length.
-  const a = createHash("sha256").update(password).digest();
-  const b = createHash("sha256").update(config.adminPassword).digest();
-  return timingSafeEqual(a, b);
+  return checkPassword(password);
 }
 
 export function redirectAllowed(uri: string): boolean {
@@ -113,7 +109,7 @@ export class SingleUserProvider implements OAuthServerProvider {
     this.sweep();
     const id = token();
     this.pendingLogins.set(id, { client, params, expires: now() + LOGIN_TTL, attempts: 0 });
-    res.status(200).type("html").send(loginPage({ requestId: id, clientName: client.client_name, returnTo: new URL(params.redirectUri).hostname }));
+    res.status(200).type("html").send(loginPage(langOf(res.req), { requestId: id, clientName: client.client_name, returnTo: new URL(params.redirectUri).hostname, back: res.req.originalUrl }));
   }
 
   /** Called by POST /login. Returns the redirect URL on success, or an error message. */
