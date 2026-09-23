@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>SundhedMCP</title>
 <link rel="icon" href="favicon.svg?v=3" type="image/svg+xml">
-<link rel="icon" href="favicon-48.png?v=3" sizes="48x48" type="image/png">
 <link rel="icon" href="favicon.ico?v=3" sizes="any">
+<link rel="icon" href="favicon-48.png?v=3" sizes="48x48" type="image/png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png?v=3">
 <link rel="alternate" hreflang="en" href="https://sundhedmcp.dk/">
 <link rel="alternate" hreflang="da" href="https://sundhedmcp.dk/da.html">
@@ -58,8 +58,12 @@
   .nav nav { display: flex; align-items: center; gap: 2px; font-size: 13px; }
   .nav nav a { color: var(--dim); padding: 6px 11px; border-radius: 999px; transition: background 300ms var(--t-ease), color 200ms var(--t-ease); }
   .nav nav a:hover { background: var(--alt); color: var(--ink); }
+  .langs { display: inline-flex; gap: 2px; padding: 2px; border-radius: 999px; background: var(--alt); margin-inline: 2px; }
+  .nav .langs a { padding: 4px 9px; font-size: 12px; font-weight: 500; font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; color: var(--faint); }
+  .nav .langs a.is-on { background: var(--tile); color: var(--ink); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); }
+  .nav .langs a:hover { background: var(--tile); color: var(--ink); }
   .nav .cta, .nav .cta:hover { background: var(--btn); color: var(--btn-ink); font-weight: 500; }
-  @media (max-width: 760px) { .nav nav a:not(.cta):not(.lang) { display: none; } }
+  @media (max-width: 760px) { .nav nav > a:not(.cta) { display: none; } }
 
   /* Buttons */
   .btns { display: flex; gap: 14px; align-items: center; justify-content: center; flex-wrap: wrap; }
@@ -136,6 +140,10 @@
   .how-cta { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 56px; }
   .how-cta::before, .how-cta::after { content: ""; flex: 1 1 0; border-top: 1px dashed var(--line-strong); }
   @media (max-width: 560px) { .how-cta { flex-wrap: wrap; } .how-cta::before, .how-cta::after { display: none; } }
+  .showcase { position: relative; margin-top: 56px; height: clamp(440px, 58vw, 640px); border-radius: 28px; overflow: hidden; display: grid; place-items: center;
+    background: radial-gradient(90% 70% at 50% 100%, #ff9a5a 0%, #e0566f 35%, #6b2a6e 70%, #2a1537 100%); }
+  .showcase .phone { width: clamp(220px, 25vw, 300px); transform: rotate(-3deg) translateY(12%); }
+  .showcase .glow { position: absolute; inset: auto -20% -30% -20%; height: 60%; background: radial-gradient(50% 50% at 50% 50%, rgba(255, 255, 255, 0.18), transparent 70%); pointer-events: none; }
   .scene .glow { position: absolute; inset: auto -20% -30% -20%; height: 60%; background: radial-gradient(50% 50% at 50% 50%, rgba(255, 255, 255, 0.18), transparent 70%); pointer-events: none; }
   .step-text { padding: 20px 4px 0; }
   .step-text h3 { font-size: 19px; font-weight: 500; }
@@ -355,7 +363,7 @@
 <header class="nav">
   <div class="wrap"><div class="navpill">
     <a class="brand" href="#top" aria-label="SundhedMCP home">
-      <svg class="mark" viewBox="0 0 512 512" aria-hidden="true"><defs><linearGradient id="sc" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff7a6b"/><stop offset="0.38" stop-color="#f0434b"/><stop offset="0.72" stop-color="#d91c2e"/><stop offset="1" stop-color="#b3122a"/></linearGradient><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.55"/><stop offset="0.5" stop-color="#fff" stop-opacity="0.08"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs><rect width="512" height="512" rx="114" fill="url(#sc)"/><rect width="512" height="512" rx="114" fill="url(#sg)"/><g fill="#fff"><path transform="translate(131.35 401.01) scale(0.41551 -0.41551)" d="M299 -12Q210 -12 146.5 20.0Q83 52 39 104L128 190Q164 148 208.5 126.0Q253 104 307 104Q368 104 399.0 131.0Q430 158 430 202Q430 226 421.5 243.5Q413 261 392.0 273.0Q371 285 335 291L269 301Q199 312 152.5 338.0Q106 364 83.0 406.0Q60 448 60 504Q60 567 91.0 613.0Q122 659 178.5 684.5Q235 710 313 710Q392 710 451.0 683.5Q510 657 552 607L462 522Q436 554 399.0 574.0Q362 594 306 594Q250 594 221.0 572.5Q192 551 192 512Q192 485 202.0 468.0Q212 451 234.0 441.5Q256 432 289 425L354 413Q425 401 471.0 375.0Q517 349 539.0 308.5Q561 268 561 210Q561 144 530.5 94.0Q500 44 441.0 16.0Q382 -12 299 -12Z"/></g></svg>
+      <svg class="mark" viewBox="0 0 512 512" aria-hidden="true"><defs><linearGradient id="sc" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4f7cff"/><stop offset="0.38" stop-color="#8b5cf6"/><stop offset="0.72" stop-color="#22c1dc"/><stop offset="1" stop-color="#34d399"/></linearGradient><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.55"/><stop offset="0.5" stop-color="#fff" stop-opacity="0.08"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs><rect width="512" height="512" rx="114" fill="url(#sc)"/><rect width="512" height="512" rx="114" fill="url(#sg)"/><g fill="#fff"><path transform="translate(131.35 401.01) scale(0.41551 -0.41551)" d="M299 -12Q210 -12 146.5 20.0Q83 52 39 104L128 190Q164 148 208.5 126.0Q253 104 307 104Q368 104 399.0 131.0Q430 158 430 202Q430 226 421.5 243.5Q413 261 392.0 273.0Q371 285 335 291L269 301Q199 312 152.5 338.0Q106 364 83.0 406.0Q60 448 60 504Q60 567 91.0 613.0Q122 659 178.5 684.5Q235 710 313 710Q392 710 451.0 683.5Q510 657 552 607L462 522Q436 554 399.0 574.0Q362 594 306 594Q250 594 221.0 572.5Q192 551 192 512Q192 485 202.0 468.0Q212 451 234.0 441.5Q256 432 289 425L354 413Q425 401 471.0 375.0Q517 349 539.0 308.5Q561 268 561 210Q561 144 530.5 94.0Q500 44 441.0 16.0Q382 -12 299 -12Z"/></g></svg>
       SundhedMCP
     </a>
     <nav aria-label="Sections">
@@ -364,7 +372,7 @@
       <a href="#privacy">Privacy</a>
       <a href="#faq">Questions</a>
       <a href="https://github.com/manas-katyal/sundhedmcp">GitHub</a>
-      <a class="lang" href="da.html" hreflang="da" lang="da">Dansk</a>
+      <span class="langs" aria-label="Language"><a class="is-on" aria-current="page" lang="en">EN</a><a href="da.html" hreflang="da" lang="da">DA</a></span>
       <a class="cta" href="#run">Get started</a>
     </nav>
   </div></div>
@@ -380,6 +388,12 @@
       <a class="more t-learn" href="#how">See how it works<span class="t-learn-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path class="t-learn-arm t-learn-arm-top" d="M6 4L10 8"/><path class="t-learn-arm t-learn-arm-bot" d="M10 8L6 12"/></svg></span></a>
     </div>
     <p class="fine t-stagger-line t-stagger-line--4">Free and open source · In development · Not affiliated with sundhed.dk</p>
+    <div class="showcase t-stagger-line t-stagger-line--4" role="img" aria-label="Claude on iPhone answering from sundhed.dk when the last tetanus vaccination was">
+      <div class="phone"><div class="screen dark"><div class="island"></div>
+        <img class="shot" src="claude-answer.jpg" alt="" width="620" height="1342">
+      </div></div>
+      <div class="glow"></div>
+    </div>
 
   </div>
 
