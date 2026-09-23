@@ -2,7 +2,7 @@
 // The person logs in with MitID in its window; every API call then runs as a
 // fetch() inside that browser, so cookies and headers are exactly the site's own.
 // Nothing is written to disk: the context is in-memory and dies with the process.
-import { chromium, devices, type Browser, type BrowserContext, type Page, type Route } from "playwright-core";
+import { chromium, devices, type Browser, type BrowserContext, type Page } from "playwright-core";
 
 export const ORIGIN = "https://www.sundhed.dk";
 // What sundhed.dk's own "Log på" button opens: it redirects through
@@ -467,11 +467,10 @@ export type AppLoginResult =
   | { kind: "qr" }
   | { kind: "error"; message: string };
 
-// Where the login itself happens. Any other page the login tab tries to open
-// while waiting for MitID is the app link.
-const LOGIN_HOSTS = /(^|\.)(sundhed\.dk|nemlog-in\.mitid\.dk)$/;
-const APP_LINK = /appswitch|app-switch|^mitid/i;
-const OPEN_APP_BUTTON = /åbn\s+mitid[\s-]*app|open\s+(the\s+)?mitid\s+app/i;
+const APP_SWITCH = "https://appswitch.mitid.dk/**";
+const AUTHENTICATOR = "iframe.mitid-core-authenticator__iframe";
+// "Åbn MitID app", not "Åbn app på anden enhed" (which is for a second device).
+const OPEN_APP_BUTTON = /^\s*(åbn\s+mitid[\s-]*app|open\s+(the\s+)?mitid\s+app)\s*$/i;
 const APP_WAIT_MS = 25_000;
 // MitID's screen while a request waits in the app. Without an app link after a
 // few seconds of it, the request went out as a notification.
@@ -496,28 +495,18 @@ export async function startAppLogin(userId: string): Promise<AppLoginResult> {
   const s = await ensureBrowser();
   const page = s.login;
 
+  // Tapping "Åbn MitID app" opens https://appswitch.mitid.dk/?ticket=… in a new
+  // tab. That link, opened on the person's phone, starts this login in their
+  // MitID app. Catch it, keep the server's browser from following it, and close
+  // the tab: the MitID page itself keeps waiting for the approval.
   let appUrl: string | null = null;
-  // Only after the user ID is sent: until then the tab is still on its way to MitID.
-  let armed = false;
-  const catchAppLink = async (route: Route) => {
-    const req = route.request();
-    const url = req.url();
-    const host = new URL(url).hostname;
-    if (armed && req.isNavigationRequest() && req.frame() === page.mainFrame() && (APP_LINK.test(url) || !LOGIN_HOSTS.test(host))) {
-      appUrl ??= url;
-      // 204 cancels the navigation, so the MitID page keeps waiting for the approval.
-      return route.fulfill({ status: 204 });
-    }
-    return route.fallback();
-  };
-  await page.route("**/*", catchAppLink);
-  // Links with an app scheme (mitid://…) never reach the network; catch them in the page.
-  await page.exposeBinding("__sundhedAppLink", (_src, url: string) => void (armed && (appUrl ??= url)));
-  await page.addInitScript(`(() => {
-    const report = (u) => { try { if (u && !/^https?:/i.test(String(u))) window.__sundhedAppLink(String(u)); } catch {} };
-    const open = window.open; window.open = function (u, ...rest) { report(u); return /^https?:/i.test(String(u)) ? open.call(this, u, ...rest) : null; };
-    document.addEventListener("click", (e) => { const a = e.target instanceof Element && e.target.closest("a[href]"); if (a) report(a.getAttribute("href")); }, true);
-  })()`);
+  await s.context.route(APP_SWITCH, (route) => {
+    appUrl ??= route.request().url();
+    return route.fulfill({ status: 204 });
+  });
+  s.context.on("page", (tab) => {
+    if (tab !== page) void tab.waitForLoadState("domcontentloaded").catch(() => {}).then(() => tab.close().catch(() => {}));
+  });
 
   try {
     await openMitId(page);
@@ -525,7 +514,6 @@ export async function startAppLogin(userId: string): Promise<AppLoginResult> {
     await field.waitFor({ timeout: 15_000 }).catch(() => {});
     if (!(await field.count())) return { kind: "error", message: "The MitID user ID field did not appear." };
     await page.keyboard.insertText(userId.trim().slice(0, 64));
-    armed = true;
     await page.keyboard.press("Enter");
     watchForLogin(s);
 
@@ -544,15 +532,17 @@ export async function startAppLogin(userId: string): Promise<AppLoginResult> {
       if (await loginWantsQr()) return { kind: "qr" };
       const problem = await mitIdError(page);
       if (problem) return { kind: "error", message: problem };
+      // The buttons live in MitID's authenticator iframe.
+      const button = page.frameLocator(AUTHENTICATOR).getByText(OPEN_APP_BUTTON);
+      if (!clicked && (await button.count().catch(() => 0))) {
+        clicked = true;
+        await button.first().click().catch((err) => log(`could not tap "Åbn MitID app": ${(err as Error).message.split("\n")[0]}`));
+      }
       const text = await page.evaluate<string>("document.body ? document.body.innerText : ''").catch(() => "");
       if (APPROVE_SCREEN.test(text)) {
         approveSince ||= Date.now();
-        if (Date.now() - approveSince > APPROVE_GRACE_MS) return { kind: "approve" };
-      }
-      const button = page.getByRole("button", { name: OPEN_APP_BUTTON });
-      if (!clicked && (await button.count())) {
-        clicked = true;
-        await button.first().click().catch(() => {});
+        // A request already on its way to the app, with no link to hand over.
+        if (Date.now() - approveSince > APPROVE_GRACE_MS + (clicked ? 5_000 : 0)) return { kind: "approve" };
       }
       await new Promise((r) => setTimeout(r, 500));
     }
