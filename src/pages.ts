@@ -7,7 +7,7 @@ type Kind = "neutral" | "ok" | "error";
 export function shell(title: string, body: string, opts: { kind?: Kind; pill?: string; head?: string; wide?: boolean } = {}): string {
   const pill = opts.pill ? `<div class="pill ${opts.kind ?? "neutral"}">${esc(opts.pill)}</div>` : "";
   return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="light dark"><title>${esc(title)} · SundhedMCP</title>${opts.head ?? ""}
+<meta name="color-scheme" content="light dark"><title>${esc(title)} · SundhedMCP</title><link rel="icon" href="/favicon.svg?v=2" type="image/svg+xml"><link rel="icon" href="/favicon.ico?v=2" sizes="any"><link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2">${opts.head ?? ""}
 <style>
   :root{--bg:#faf9f7;--card:#ffffff;--ink:#0a0a0a;--on-ink:#f5f5f3;--muted:#5c5c5e;--line:#e8e8ea;--ok:#0f7b4f;--err:#c1352a}
   @media (prefers-color-scheme:dark){:root{--bg:#0c0c0d;--card:#1b1b1d;--ink:#f2f2f0;--on-ink:#0c0c0d;--muted:#a1a1a6;--line:#2a2a2d;--ok:#3fbf85;--err:#ef6b5f}}

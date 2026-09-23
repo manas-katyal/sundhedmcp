@@ -1,6 +1,7 @@
 // Hosted mode over HTTP: the MCP endpoint behind OAuth, the OAuth server
 // itself, and the owner-only /connect page for logging in with MitID.
 import { createHash, randomBytes } from "node:crypto";
+import { readFileSync } from "node:fs";
 import express from "express";
 import { mcpAuthRouter, getOAuthProtectedResourceMetadataUrl } from "@modelcontextprotocol/sdk/server/auth/router.js";
 import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js";
@@ -21,7 +22,7 @@ export function createApp() {
   const app = express();
   app.set("trust proxy", 1);
   app.disable("x-powered-by");
-  const strictCsp = "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'";
+  const strictCsp = "default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'";
   app.use((_req, res, next) => {
     res.set({ "X-Frame-Options": "DENY", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "Content-Security-Policy": strictCsp });
     next();
@@ -40,6 +41,16 @@ export function createApp() {
     log("admin password changed: all tokens revoked");
   }
   if (store().data.password_fingerprint !== fingerprint) store().update((d) => void (d.password_fingerprint = fingerprint));
+
+  // --- Icons ---
+
+  const icon = (file: string, type: string) => {
+    const body = readFileSync(new URL(`./assets/${file}`, import.meta.url));
+    return (_req: express.Request, res: express.Response) => void res.set("Cache-Control", "public, max-age=86400").type(type).send(body);
+  };
+  app.get("/favicon.svg", icon("favicon.svg", "image/svg+xml"));
+  app.get("/favicon.ico", icon("favicon.ico", "image/x-icon"));
+  app.get("/apple-touch-icon.png", icon("apple-touch-icon.png", "image/png"));
 
   // --- Status and health ---
 
@@ -69,7 +80,7 @@ export function createApp() {
     await startLogin().catch((err) => log(`could not start the browser: ${(err as Error).message}`));
     // The viewer page runs one inline script and shows screenshots as blob: images.
     res
-      .set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src blob:; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
+      .set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' blob:; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
       .type("html")
       .send(connectPage(loginViewport()));
   });
