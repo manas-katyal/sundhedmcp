@@ -57,7 +57,7 @@
   .mark { width: 22px; height: 22px; display: block; flex: none; }
   
   .nav nav { display: flex; align-items: center; gap: 2px; font-size: 13px; }
-  .nav nav a { color: var(--dim); padding: 6px 11px; border-radius: 999px; transition: background 300ms var(--t-ease), color 200ms var(--t-ease); }
+  .nav nav a { color: var(--dim); padding: 6px 11px; border-radius: 999px; transition: background 450ms var(--t-ease), color 300ms var(--t-ease); }
   .nav nav a:hover { background: var(--alt); color: var(--ink); }
   /* Language switch: transitions.dev toggle, DA left and EN right */
   :root { --toggle-dur: 350ms; --toggle-travel: 30px; --toggle-ov1: 1px; --toggle-ov2: 0px; --toggle-ease: cubic-bezier(0.34, 1.35, 0.64, 1); }
@@ -77,7 +77,8 @@
 
   /* Buttons */
   .btns { display: flex; gap: 14px; align-items: center; justify-content: center; flex-wrap: wrap; }
-  .btn { display: inline-flex; align-items: center; justify-content: center; padding: 12px 22px; border-radius: 999px; font-size: 16px; font-weight: 500; transition: opacity 0.2s, border-color 0.2s; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; padding: 12px 22px; border-radius: 999px; font-size: 16px; font-weight: 500; transition: opacity 400ms var(--t-ease), border-color 400ms var(--t-ease), transform 400ms var(--t-ease); }
+  .btn:active { transform: scale(0.97); }
   .btn:hover { text-decoration: none; }
   .btn.primary { background: var(--btn); color: var(--btn-ink); }
   .btn.primary:hover { opacity: 0.86; }
@@ -253,12 +254,12 @@
 
   /* ── Transitions from transitions.dev (free set), adapted to this page's tokens ── */
   :root {
-    --stagger-dur: 500ms; --stagger-distance: 12px; --stagger-stagger: 40ms; --stagger-blur: 3px; --stagger-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --stagger-dur: 1100ms; --stagger-distance: 18px; --stagger-stagger: 70ms; --stagger-blur: 2px; --stagger-ease: cubic-bezier(0.16, 1, 0.3, 1);
     --think-swap: 150ms; --think-gap: 50ms; --think-distance: 8px; --think-blur: 2px; --think-shimmer: 2000ms; --think-ease: ease-in-out;
-    --stream-gap: 60ms; --stream-fade: 350ms; --stream-blur: 1px; --stream-ease: cubic-bezier(0.22, 1, 0.36, 1);
-    --learn-shift: 2px; --learn-spread: 8deg; --learn-in: 350ms; --learn-out: 350ms; --learn-ease: cubic-bezier(0.22, 1, 0.36, 1);
-    --tabs-dur: 250ms; --tabs-ease: cubic-bezier(0.22, 1, 0.36, 1);
-    --acc-expand: 250ms; --acc-collapse: 250ms; --acc-chevron: 250ms; --acc-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --stream-gap: 60ms; --stream-fade: 600ms; --stream-blur: 1px; --stream-ease: cubic-bezier(0.16, 1, 0.3, 1);
+    --learn-shift: 2px; --learn-spread: 8deg; --learn-in: 500ms; --learn-out: 600ms; --learn-ease: cubic-bezier(0.16, 1, 0.3, 1);
+    --tabs-dur: 450ms; --tabs-ease: cubic-bezier(0.16, 1, 0.3, 1);
+    --acc-expand: 500ms; --acc-collapse: 400ms; --acc-chevron: 450ms; --acc-ease: cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   /* Texts reveal. Hidden start states apply only once script has run (.t-js). */
@@ -308,7 +309,7 @@
   .t-tabs-pill { position: absolute; top: 3px; left: 0; height: 34px; width: 0; background: var(--seg-pill); border-radius: 48px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
     transform: translateX(0); transition: transform var(--tabs-dur) var(--tabs-ease), width var(--tabs-dur) var(--tabs-ease); z-index: 0; pointer-events: none; }
   .t-js .ways { grid-template-columns: 1fr; max-width: 640px; margin-inline: auto; }
-  .way.is-entering { animation: way-in var(--stagger-dur) var(--stagger-ease); }
+  .way.is-entering { animation: way-in 700ms var(--stagger-ease); }
   @keyframes way-in { from { opacity: 0; transform: translateY(var(--stagger-distance)); filter: blur(var(--stagger-blur)); } }
 
   /* Accordion expand: FAQ. */
@@ -326,13 +327,13 @@
   .t-acc-panel-inner p { color: var(--dim); padding: 0 0 22px; max-width: 64ch; }
 
   /* Scroll reveal (texts reveal, per element, staggered by --t-index) */
-  :root { --t-ease: cubic-bezier(0.22, 1, 0.36, 1); --t-dur: 700ms; --t-distance: 20px; --t-blur: 3px; --t-stagger: 80ms; }
+  :root { --t-ease: cubic-bezier(0.16, 1, 0.3, 1); --t-dur: 1100ms; --t-distance: 28px; --t-blur: 2px; --t-stagger: 90ms; }
   .t-js .t-reveal { opacity: 0; transform: translateY(var(--t-distance)); filter: blur(var(--t-blur)); }
   .t-reveal { transition: opacity var(--t-dur) var(--t-ease), transform var(--t-dur) var(--t-ease), filter var(--t-dur) var(--t-ease); transition-delay: calc(var(--t-index, 0) * var(--t-stagger)); }
   .t-js .t-reveal[data-inview="true"] { opacity: 1; transform: none; filter: none; }
 
   /* Number pop-in */
-  :root { --digit-dur: 500ms; --digit-distance: 8px; --digit-stagger: 70ms; --digit-blur: 2px; --digit-ease: cubic-bezier(0.34, 1.45, 0.64, 1); }
+  :root { --digit-dur: 800ms; --digit-distance: 8px; --digit-stagger: 70ms; --digit-blur: 2px; --digit-ease: cubic-bezier(0.16, 1, 0.3, 1); }
   @keyframes t-digit-pop-in { 0% { transform: translateY(var(--digit-distance)); opacity: 0; filter: blur(var(--digit-blur)); } 100% { transform: none; opacity: 1; filter: blur(0); } }
   .t-digit-group { display: inline-flex; align-items: baseline; }
   .t-digit { display: inline-block; }
@@ -340,7 +341,7 @@
   .t-digit-group.is-animating .t-digit { animation: t-digit-pop-in var(--digit-dur) var(--digit-ease) both; animation-delay: calc(var(--i, 0) * var(--digit-stagger)); }
 
   /* Copy buttons: icon swap + text states swap */
-  :root { --icon-swap-dur: 250ms; --icon-swap-blur: 2px; --icon-swap-start-scale: 0.25; --text-swap-dur: 150ms; --text-swap-translate-y: 4px; --text-swap-blur: 2px; }
+  :root { --icon-swap-dur: 350ms; --icon-swap-blur: 2px; --icon-swap-start-scale: 0.25; --text-swap-dur: 200ms; --text-swap-translate-y: 4px; --text-swap-blur: 2px; }
   .cmd { position: relative; margin-top: 10px; }
   .way ol.setup .cmd { margin-top: 8px; }
   .cmd pre, .way ol.setup .cmd pre { margin-top: 0; padding-right: 104px !important; }
@@ -357,7 +358,25 @@
   .t-text-swap.is-exit { transform: translateY(calc(var(--text-swap-translate-y) * -1)); filter: blur(var(--text-swap-blur)); opacity: 0; }
   .t-text-swap.is-enter-start { transform: translateY(var(--text-swap-translate-y)); filter: blur(var(--text-swap-blur)); opacity: 0; transition: none; }
 
+  /* Skeleton loader and reveal (transitions.dev): pulse while the screenshot loads, then cross-fade with a soft blur */
+  :root { --pulse-dur: 1400ms; --pulse-min: 0.45; --reveal-dur: 800ms; --reveal-blur: 4px; }
+  .t-skel { position: relative; }
+  .t-skel-skeleton { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; gap: 10px; padding: 26% 12% 0; pointer-events: none;
+    transition: opacity var(--reveal-dur) var(--t-ease), filter var(--reveal-dur) var(--t-ease); }
+  .t-skel-skeleton i { display: block; height: 11px; border-radius: 6px; background: rgba(0, 0, 0, 0.07); }
+  .t-skel-skeleton i:nth-child(1) { width: 55%; height: 16px; margin-bottom: 8px; } .t-skel-skeleton i:nth-child(2) { width: 90%; } .t-skel-skeleton i:nth-child(3) { width: 80%; }
+  .t-skel-skeleton i:nth-child(4) { width: 86%; margin-top: 14px; } .t-skel-skeleton i:nth-child(5) { width: 60%; }
+  .screen.dark .t-skel-skeleton i { background: rgba(255, 255, 255, 0.09); }
+  .t-skel-skeleton.is-pulsing > * { animation: t-skel-pulse var(--pulse-dur) ease-in-out infinite; }
+  .t-skel-skeleton.is-pulsing > :nth-child(2n) { animation-delay: 120ms; }
+  @keyframes t-skel-pulse { 0%, 100% { opacity: 1; } 50% { opacity: var(--pulse-min); } }
+  .t-skel-content { transition: opacity var(--reveal-dur) var(--t-ease), filter var(--reveal-dur) var(--t-ease); }
+  .t-js .t-skel:not(.is-revealed) .t-skel-content { opacity: 0; filter: blur(var(--reveal-blur)); }
+  .t-skel.is-revealed .t-skel-skeleton { opacity: 0; filter: blur(var(--reveal-blur)); }
+  html:not(.t-js) .t-skel-skeleton { display: none; }
+
   @media (prefers-reduced-motion: reduce) {
+    .t-skel-skeleton, .t-skel-content { transition: none !important; } .t-skel-skeleton.is-pulsing > * { animation: none !important; }
     .t-reveal, .t-icon-swap .t-icon, .t-text-swap { transition: none !important; }
     .t-js .t-reveal { opacity: 1 !important; transform: none !important; filter: none !important; }
     .t-digit-group .t-digit { animation: none !important; opacity: 1 !important; }
@@ -400,8 +419,8 @@
     </div>
     <p class="fine t-stagger-line t-stagger-line--4">Free and open source · In development · Not affiliated with sundhed.dk</p>
     <div class="showcase t-stagger-line t-stagger-line--4" role="img" aria-label="Claude on iPhone answering from sundhed.dk when the last tetanus vaccination was">
-      <div class="phone"><div class="screen dark"><div class="island"></div>
-        <img class="shot" src="claude-answer.jpg" alt="" width="620" height="1342">
+      <div class="phone"><div class="screen dark t-skel"><div class="island"></div>
+        <div class="t-skel-skeleton is-pulsing" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div><img class="shot t-skel-content" src="claude-answer.jpg" alt="" width="620" height="1342">
       </div></div>
       <div class="glow"></div>
     </div>
@@ -433,8 +452,8 @@
         </div>
         <div class="t-reveal" style="--t-index:1">
           <div class="scene s2" aria-hidden="true"><span class="badge">2</span>
-            <div class="phone"><div class="screen"><div class="island"></div>
-              <img class="shot" src="mitid-login.jpg" alt="The MitID login on NemLog-in: Log on at Sundhed.dk, with a user ID field and a Continue button" width="620" height="1341" loading="lazy">
+            <div class="phone"><div class="screen t-skel"><div class="island"></div>
+              <div class="t-skel-skeleton is-pulsing" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div><img class="shot t-skel-content" src="mitid-login.jpg" alt="The MitID login on NemLog-in: Log on at Sundhed.dk, with a user ID field and a Continue button" width="620" height="1341" loading="lazy">
             </div></div>
             <div class="glow"></div>
           </div>
@@ -442,8 +461,8 @@
         </div>
         <div class="t-reveal" style="--t-index:2">
           <div class="scene s3" aria-hidden="true"><span class="badge">3</span>
-            <div class="phone"><div class="screen dark"><div class="island"></div>
-              <img class="shot" src="claude-answer.jpg" alt="Claude on iPhone answering in Danish when the last tetanus vaccination was, from sundhed.dk" width="620" height="1342" loading="lazy">
+            <div class="phone"><div class="screen dark t-skel"><div class="island"></div>
+              <div class="t-skel-skeleton is-pulsing" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div><img class="shot t-skel-content" src="claude-answer.jpg" alt="Claude on iPhone answering in Danish when the last tetanus vaccination was, from sundhed.dk" width="620" height="1342" loading="lazy">
             </div></div>
             <div class="glow"></div>
           </div>
@@ -654,6 +673,14 @@ railway up</pre><button class="copy" type="button" aria-label="Copy commands"><s
   select(tabs[0], false);
   requestAnimationFrame(() => moveTo(tabs.find((t) => t.getAttribute("aria-selected") === "true"), false));
   addEventListener("resize", () => moveTo(tabs.find((t) => t.getAttribute("aria-selected") === "true"), false));
+
+  // Screenshots: skeleton until loaded, then reveal.
+  document.querySelectorAll(".t-skel").forEach((box) => {
+    const img = box.querySelector("img");
+    const done = () => { box.classList.add("is-revealed"); setTimeout(() => box.querySelector(".t-skel-skeleton")?.classList.remove("is-pulsing"), ms("--reveal-dur", 800)); };
+    if (img.complete && img.naturalWidth) requestAnimationFrame(done);
+    else { img.addEventListener("load", done, { once: true }); img.addEventListener("error", done, { once: true }); }
+  });
 
   // Language switch: slide the thumb, then go to the other language.
   document.querySelectorAll(".lang-toggle").forEach((t) => t.addEventListener("click", (e) => {
