@@ -21,7 +21,8 @@ export const config = {
   port,
   baseUrl: detectBaseUrl(),
   // Only OAuth clients and hashed tokens are stored here. Never health data.
-  dataDir: env.DATA_DIR ?? "./data",
+  // An empty DATA_DIR (as a platform template may set) counts as unset.
+  dataDir: env.DATA_DIR?.trim() || "./data",
   get statePath(): string {
     return join(this.dataDir, "oauth.json");
   },
