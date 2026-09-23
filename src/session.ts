@@ -473,6 +473,10 @@ const LOGIN_HOSTS = /(^|\.)(sundhed\.dk|nemlog-in\.mitid\.dk)$/;
 const APP_LINK = /appswitch|app-switch|^mitid/i;
 const OPEN_APP_BUTTON = /åbn\s+mitid[\s-]*app|open\s+(the\s+)?mitid\s+app/i;
 const APP_WAIT_MS = 25_000;
+// MitID's screen while a request waits in the app. Without an app link after a
+// few seconds of it, the request went out as a notification.
+const APPROVE_SCREEN = /åbn\s+mitid[\s-]*app\s+og\s+godkend|open\s+(the\s+)?mitid\s+app\s+and\s+approve/i;
+const APPROVE_GRACE_MS = 3_000;
 
 /**
  * Starts a fresh MitID login, types the user ID and presses Enter, then waits
@@ -526,6 +530,7 @@ export async function startAppLogin(userId: string): Promise<AppLoginResult> {
     watchForLogin(s);
 
     let clicked = false;
+    let approveSince = 0;
     const deadline = Date.now() + APP_WAIT_MS;
     while (Date.now() < deadline) {
       if (appUrl) {
@@ -539,6 +544,11 @@ export async function startAppLogin(userId: string): Promise<AppLoginResult> {
       if (await loginWantsQr()) return { kind: "qr" };
       const problem = await mitIdError(page);
       if (problem) return { kind: "error", message: problem };
+      const text = await page.evaluate<string>("document.body ? document.body.innerText : ''").catch(() => "");
+      if (APPROVE_SCREEN.test(text)) {
+        approveSince ||= Date.now();
+        if (Date.now() - approveSince > APPROVE_GRACE_MS) return { kind: "approve" };
+      }
       const button = page.getByRole("button", { name: OPEN_APP_BUTTON });
       if (!clicked && (await button.count())) {
         clicked = true;

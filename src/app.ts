@@ -135,7 +135,7 @@ export function createApp() {
     const userId = String((req.body as { userId?: unknown })?.userId ?? "").trim();
     if (!userId || userId.length > 64) return void res.status(400).json({ kind: "error", message: "Type your MitID user ID." });
     const result = await startAppLogin(userId).catch((err) => ({ kind: "error" as const, message: (err as Error).message }));
-    log(`phone login: ${result.kind}`);
+    log(`phone login: ${result.kind}${result.kind === "error" ? ` (${result.message})` : ""}`);
     res.set("Cache-Control", "no-store").json(result);
   });
 

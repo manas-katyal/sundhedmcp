@@ -44,7 +44,7 @@ const T = {
     openApp: "Åbn MitID-appen", openAppHelp: "Tryk for at åbne MitID-appen og godkende. Kom så tilbage hertil.",
     approve: "Godkend i MitID-appen. Kom så tilbage hertil.",
     qrPhone: "MitID vil have en QR-kode scannet denne gang, og den kan ikke scannes fra samme telefon. Prøv igen om lidt, eller brug serverens browser nedenfor fra en anden skærm.",
-    failedPrefix: "Det gik ikke:", showBrowser: "Vis serverens browser",
+    failedPrefix: "Det gik ikke:", noAnswer: "Serveren svarede ikke.", tryAgain: "Vent et minut, og tryk Log på igen.", showBrowser: "Vis serverens browser",
     browserHelp: "Serverens egen browser. Tryk på feltet til bruger-ID, skriv i feltet nedenfor, tryk Enter og godkend i MitID-appen.",
     langLabel: "Sprog",
   },
@@ -77,7 +77,7 @@ const T = {
     openApp: "Open the MitID app", openAppHelp: "Tap to open the MitID app and approve. Then come back here.",
     approve: "Approve in the MitID app. Then come back here.",
     qrPhone: "MitID wants a QR code scanned this time, and it cannot be scanned from the same phone. Try again in a moment, or use the server's browser below from another screen.",
-    failedPrefix: "That did not work:", showBrowser: "Show the server's browser",
+    failedPrefix: "That did not work:", noAnswer: "The server did not answer.", tryAgain: "Wait a minute, then tap Log in again.", showBrowser: "Show the server's browser",
     browserHelp: "The server's own browser. Tap the user ID field, type in the box below, press Enter and approve in the MitID app.",
     langLabel: "Language",
   },
@@ -269,17 +269,17 @@ export function connectPage(lang: Lang, viewport: { width: number; height: numbe
   </details>
   <script>
   const W = ${viewport.width}, H = ${viewport.height};
-  const TXT = ${JSON.stringify({ sending: t.sending, openAppHelp: t.openAppHelp, approve: t.approve, qr: t.qrPhone, failed: t.failedPrefix, done: t.done, logIn: t.logIn })};
+  const TXT = ${JSON.stringify({ sending: t.sending, openAppHelp: t.openAppHelp, approve: t.approve, qr: t.qrPhone, failed: t.failedPrefix, noAnswer: t.noAnswer, tryAgain: t.tryAgain, done: t.done, logIn: t.logIn })};
   const $ = (id) => document.getElementById(id);
   const img = $("screen"), keys = $("keys"), uid = $("uid"), remember = $("remember"), remote = $("remote");
   const KEY = "sundhedmcp-mitid-user";
   try { const saved = localStorage.getItem(KEY); if (saved) uid.value = saved; } catch {}
   let done = false;
-  function swap(text, ok) {
+  function swap(text, kind) {
     const el = $("statetext");
     el.classList.add("is-exit");
     setTimeout(() => {
-      el.textContent = text; if (ok) $("state").className = "pill ok";
+      el.textContent = text; $("state").className = "pill" + (kind ? " " + kind : "");
       el.classList.remove("is-exit"); el.classList.add("is-enter-start"); void el.offsetHeight; el.classList.remove("is-enter-start");
     }, 150);
   }
@@ -301,12 +301,12 @@ export function connectPage(lang: Lang, viewport: { width: number; height: numbe
     if (r.kind === "loggedIn") return finish();
     if (r.kind === "openApp") { swap(TXT.openAppHelp); next(TXT.openAppHelp, r.url); }
     else if (r.kind === "approve") { swap(TXT.approve); next(TXT.approve); }
-    else if (r.kind === "qr") { next(TXT.qr); remote.open = true; }
-    else next(TXT.failed + " " + (r.message || ""));
+    else if (r.kind === "qr") { swap(TXT.failed.replace(/:$/, ""), "err"); next(TXT.qr); remote.open = true; }
+    else { swap(TXT.failed.replace(/:$/, ""), "err"); next(TXT.failed + " " + (r.message || TXT.noAnswer) + " " + TXT.tryAgain); }
   });
   function finish() {
     if (done) return; done = true;
-    swap(TXT.done, true); $("next").hidden = true; $("phone").hidden = true;
+    swap(TXT.done, "ok"); $("next").hidden = true; $("phone").hidden = true;
     const check = $("check"); check.setAttribute("data-state", "in");
   }
   setInterval(async () => {
@@ -361,7 +361,7 @@ export function connectPage(lang: Lang, viewport: { width: number; height: numbe
     .t-text-swap.is-exit{transform:translateY(-4px);filter:blur(2px);opacity:0}
     .t-text-swap.is-enter-start{transform:translateY(4px);filter:blur(2px);opacity:0;transition:none}
     @media (prefers-reduced-motion:reduce){.t-success-check[data-state="in"]{animation:none;opacity:1}.t-success-check svg path{animation:none!important;stroke-dashoffset:0!important}.t-text-swap{transition:none}}.actions{display:flex;gap:8px;flex-wrap:wrap}.actions button{padding:8px 12px;font-size:14px}
-    .status{margin:6px 0 14px}
+    .status{margin:6px 0 14px}.pill.err{color:var(--err)}.pill.err::before{background:var(--err)}
     .check{display:flex;align-items:center;gap:8px;font-weight:400;margin:10px 0 14px}.check input{width:auto;margin:0}
     .next{margin:14px 0;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:var(--bg);font-size:15px}.next p{margin:0 0 10px}
     a.button{display:block;text-align:center;text-decoration:none;font-weight:500;padding:12px 16px;border-radius:10px;background:var(--ink);color:var(--on-ink)}
