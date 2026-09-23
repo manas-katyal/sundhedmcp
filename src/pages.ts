@@ -9,14 +9,13 @@ export function shell(title: string, body: string, opts: { kind?: Kind; pill?: s
   return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark"><title>${esc(title)} · SundhedMCP</title>${opts.head ?? ""}
 <style>
-  :root{--bg:#f4f3ee;--card:#faf9f5;--ink:#1a1b19;--on-ink:#f4f3ee;--muted:#62655f;--line:#dfdfd7;--ok:#2f7a5c;--err:#b3261e}
-  @media (prefers-color-scheme:dark){:root{--bg:#151614;--card:#1c1d1b;--ink:#ecede8;--on-ink:#151614;--muted:#a6a9a2;--line:#2b2d2a;--ok:#6cc39c;--err:#ff8a7a}}
+  :root{--bg:#faf9f7;--card:#ffffff;--ink:#0a0a0a;--on-ink:#f5f5f3;--muted:#5c5c5e;--line:#e8e8ea;--ok:#0f7b4f;--err:#c1352a}
+  @media (prefers-color-scheme:dark){:root{--bg:#0c0c0d;--card:#1b1b1d;--ink:#f2f2f0;--on-ink:#0c0c0d;--muted:#a1a1a6;--line:#2a2a2d;--ok:#3fbf85;--err:#ef6b5f}}
   *{box-sizing:border-box}
-  body{margin:0;font:16px/1.5 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased}
+  body{margin:0;font:16px/1.5 "IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased}
   .wrap{max-width:${opts.wide ? "1060px" : "460px"};margin:0 auto;padding:${opts.wide ? "24px" : "12vh"} 16px 48px}
   .brand{display:flex;align-items:center;gap:10px;margin:0 0 20px;font-weight:500;font-size:17px}
-  .mark{width:24px;height:24px;border-radius:7px;background:var(--ink);display:grid;place-items:center}
-  .mark svg{width:12px;height:12px}.mark path{stroke:var(--on-ink)}
+  .mark{width:24px;height:24px;display:block}.mark rect{fill:var(--ink)}.mark path{fill:var(--bg)}
   .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:26px}
   .pill{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:var(--muted);margin:0 0 10px}
   .pill::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--muted)}
@@ -39,7 +38,7 @@ export function shell(title: string, body: string, opts: { kind?: Kind; pill?: s
   footer{margin-top:20px;font-size:12px;color:var(--muted)}
 </style>
 <body><div class="wrap">
-  <div class="brand"><span class="mark"><svg viewBox="0 0 12 12" fill="none"><path d="M6 1.5v9M1.5 6h9" stroke-width="2.2" stroke-linecap="round"/></svg></span><span>SundhedMCP</span></div>
+  <div class="brand"><svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7"/><path d="M13.2 5h7.3l-1.2 7.6h7.2l-1.1 6.8h-7.2L17 27h-7.3l1.2-7.6H3.7l1.1-6.8H12z"/></svg><span>SundhedMCP</span></div>
   <div class="card">${pill}<h1>${esc(title)}</h1>${body}</div>
   <footer>SundhedMCP · read-only · self-hosted · not affiliated with sundhed.dk</footer>
 </div></body></html>`;
@@ -111,7 +110,7 @@ export function connectPage(viewport: { width: number; height: number }): string
   const body = `
   <p class="muted">This is the server's browser, open on MitID. Click the user ID field, type your MitID user ID in the box below, press Enter and approve in the MitID app.</p>
   <div class="bar">
-    <div class="pill" id="state">Waiting for login</div>
+    <div class="status"><span class="t-success-check" id="check" data-state="out" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" fill="var(--ok)"/><path d="M7 12.5l3.3 3.3L17 9" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div class="pill" id="state" role="status"><span class="t-text-swap" id="statetext">Waiting for login</span></div></div>
     <div class="actions"><button class="ghost" id="up" type="button">Scroll up</button><button class="ghost" id="down" type="button">Scroll down</button><button class="ghost" id="restart" type="button">Start over</button></div>
   </div>
   <div class="screen"><img id="screen" alt="The server's browser showing sundhed.dk" width="${viewport.width}" height="${viewport.height}"></div>
@@ -124,7 +123,7 @@ export function connectPage(viewport: { width: number; height: number }): string
   const W = ${viewport.width}, H = ${viewport.height};
   const img = document.getElementById("screen"), state = document.getElementById("state"), keys = document.getElementById("keys");
   const send = (ev) => fetch("/connect/input", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(ev) }).then(refresh);
-  let pending = false, url = null;
+  let pending = false, url = null, done = false;
   async function refresh() {
     if (pending) return; pending = true;
     try {
@@ -136,7 +135,17 @@ export function connectPage(viewport: { width: number; height: number }): string
   setInterval(refresh, 700); refresh();
   setInterval(async () => {
     const s = await fetch("/connect/status", { cache: "no-store" }).then((r) => r.json()).catch(() => null);
-    if (s && s.loggedIn) { state.textContent = "Logged in. Go back to your assistant; you can close this page."; state.className = "pill ok"; }
+    if (s && s.loggedIn && !done) {
+      done = true;
+      const text = document.getElementById("statetext");
+      text.classList.add("is-exit");
+      setTimeout(() => {
+        text.textContent = "Logged in. Go back to your assistant; you can close this page.";
+        state.className = "pill ok"; text.classList.remove("is-exit"); text.classList.add("is-enter-start");
+        void text.offsetHeight; text.classList.remove("is-enter-start");
+        const check = document.getElementById("check"); check.hidden = false; check.setAttribute("data-state", "in");
+      }, 150);
+    }
   }, 2000);
   img.addEventListener("click", (e) => {
     const b = img.getBoundingClientRect();
@@ -154,7 +163,24 @@ export function connectPage(viewport: { width: number; height: number }): string
   </script>`;
   const head = `<style>
     .bar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:6px 0 12px}
-    .bar .pill{margin:0}.actions{display:flex;gap:8px;flex-wrap:wrap}.actions button{padding:8px 12px;font-size:14px}
+    .bar .pill{margin:0}
+    .status{display:flex;align-items:center;gap:8px}
+    .pill.ok::before{display:none}
+    /* Success check and text states swap, from transitions.dev */
+    .t-success-check{display:none;width:22px;height:22px;transform-origin:center;opacity:0}
+    .t-success-check svg{display:block;width:22px;height:22px;overflow:visible}
+    .t-success-check svg path{stroke-dasharray:20;stroke-dashoffset:20}
+    .t-success-check[data-state="in"]{display:inline-block;animation:t-check-fade 500ms cubic-bezier(.22,1,.36,1) forwards,t-check-rotate 500ms cubic-bezier(.22,1,.36,1) forwards,t-check-blur 500ms cubic-bezier(.22,1,.36,1) forwards,t-check-bob 500ms cubic-bezier(.34,1.35,.64,1) forwards}
+    .t-success-check[data-state="in"] svg path{animation:t-check-draw 500ms cubic-bezier(.22,1,.36,1) 80ms forwards}
+    @keyframes t-check-fade{from{opacity:0}to{opacity:1}}
+    @keyframes t-check-rotate{from{transform:rotate(80deg)}to{transform:rotate(0)}}
+    @keyframes t-check-blur{from{filter:blur(10px)}to{filter:blur(0)}}
+    @keyframes t-check-bob{from{translate:0 16px}to{translate:0 0}}
+    @keyframes t-check-draw{to{stroke-dashoffset:0}}
+    .t-text-swap{display:inline-block;transition:transform 150ms ease-in-out,filter 150ms ease-in-out,opacity 150ms ease-in-out}
+    .t-text-swap.is-exit{transform:translateY(-4px);filter:blur(2px);opacity:0}
+    .t-text-swap.is-enter-start{transform:translateY(4px);filter:blur(2px);opacity:0;transition:none}
+    @media (prefers-reduced-motion:reduce){.t-success-check[data-state="in"]{animation:none;opacity:1}.t-success-check svg path{animation:none!important;stroke-dashoffset:0!important}.t-text-swap{transition:none}}.actions{display:flex;gap:8px;flex-wrap:wrap}.actions button{padding:8px 12px;font-size:14px}
     .screen{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}
     .screen img{display:block;width:100%;height:auto;cursor:pointer}
     .typing .row{display:flex;gap:8px}.typing .row input{flex:1;min-width:0}.typing .row button{padding:10px 14px}
