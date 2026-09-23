@@ -14,24 +14,25 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
   *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  [hidden] { display: none !important; }
   :root {
     --bg: #ffffff; --alt: #f5f5f7; --tile: #ffffff; --ink: #1d1d1f; --dim: #6e6e73; --faint: #86868b;
     --line: #d2d2d7; --link: #0066cc; --btn: #0071e3; --btn-ink: #ffffff; --soft-btn: #e8e8ed;
-    --nav: rgba(255, 255, 255, 0.78); --ok: #1d8348; --warn: #bf4800;
+    --nav: rgba(255, 255, 255, 0.78); --ok: #1d8348; --warn: #bf4800; --seg-pill: #ffffff;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
       color-scheme: dark;
       --bg: #000000; --alt: #101012; --tile: #1c1c1e; --ink: #f5f5f7; --dim: #a1a1a6; --faint: #86868b;
       --line: #38383a; --link: #2997ff; --btn: #0071e3; --btn-ink: #ffffff; --soft-btn: #2c2c2e;
-      --nav: rgba(22, 22, 23, 0.78); --ok: #30d158; --warn: #ff9f0a;
+      --nav: rgba(22, 22, 23, 0.78); --ok: #30d158; --warn: #ff9f0a; --seg-pill: #636366;
     }
   }
   :root[data-theme="dark"] {
     color-scheme: dark;
     --bg: #000000; --alt: #101012; --tile: #1c1c1e; --ink: #f5f5f7; --dim: #a1a1a6; --faint: #86868b;
     --line: #38383a; --link: #2997ff; --btn: #0071e3; --btn-ink: #ffffff; --soft-btn: #2c2c2e;
-    --nav: rgba(22, 22, 23, 0.78); --ok: #30d158; --warn: #ff9f0a;
+    --nav: rgba(22, 22, 23, 0.78); --ok: #30d158; --warn: #ff9f0a; --seg-pill: #636366;
   }
   html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
   body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", "Helvetica Neue", Arial, sans-serif; background: var(--bg); color: var(--ink); font-size: 17px; line-height: 1.47; }
@@ -63,7 +64,7 @@
   .btn.primary:hover { background: #0077ed; }
   .btn.soft { background: var(--soft-btn); color: var(--ink); }
   .more { font-size: 17px; }
-  .more::after { content: " ›"; }
+  
 
   /* Hero */
   .hero { text-align: center; padding-block: 88px 0; }
@@ -89,7 +90,8 @@
   .tool { font-size: 12px; color: var(--faint); display: flex; align-items: center; gap: 6px; }
   .tool::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
   .tool code { font-size: 12px; color: var(--dim); }
-  .rx { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; margin-top: 4px; }
+  .rx { margin-top: 4px; }
+  .rx > .t-stagger-line { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
   .rx-row { display: grid; grid-template-columns: minmax(0, 1fr) 130px 96px; gap: 14px; align-items: center; padding: 12px 16px; border-top: 1px solid var(--line); font-size: 14px; }
   .rx-row:first-child { border-top: 0; font-size: 12px; color: var(--faint); padding-block: 9px; background: var(--alt); }
   .rx-row small { display: block; color: var(--faint); font-size: 12px; }
@@ -208,7 +210,89 @@
   footer .rule { border-top: 1px solid var(--line); padding-top: 14px; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
   footer a { color: var(--dim); }
   @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+  /* ── Transitions from transitions.dev (free set), adapted to this page's tokens ── */
+  :root {
+    --stagger-dur: 500ms; --stagger-distance: 12px; --stagger-stagger: 40ms; --stagger-blur: 3px; --stagger-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --think-swap: 150ms; --think-gap: 50ms; --think-distance: 8px; --think-blur: 2px; --think-shimmer: 2000ms; --think-ease: ease-in-out;
+    --stream-gap: 60ms; --stream-fade: 350ms; --stream-blur: 1px; --stream-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --learn-shift: 2px; --learn-spread: 8deg; --learn-in: 350ms; --learn-out: 350ms; --learn-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --tabs-dur: 250ms; --tabs-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --acc-expand: 250ms; --acc-collapse: 250ms; --acc-chevron: 250ms; --acc-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* Texts reveal. Hidden start states apply only once script has run (.t-js). */
+  .t-js .t-stagger-line { opacity: 0; transform: translateY(var(--stagger-distance)); filter: blur(var(--stagger-blur)); }
+  .t-stagger-line { transition: opacity var(--stagger-dur) var(--stagger-ease), transform var(--stagger-dur) var(--stagger-ease), filter var(--stagger-dur) var(--stagger-ease); }
+  .t-stagger-line--2 { transition-delay: calc(var(--stagger-stagger) * 2); }
+  .t-stagger-line--3 { transition-delay: calc(var(--stagger-stagger) * 4); }
+  .t-stagger-line--4 { transition-delay: calc(var(--stagger-stagger) * 6); }
+  .t-js .t-stagger.is-shown .t-stagger-line { opacity: 1; transform: translateY(0); filter: blur(0); }
+  h1.t-stagger-line { display: block; }
+
+  /* Thinking states: the tool line shimmers while "reading", then settles. */
+  .t-think { position: relative; display: inline-block; }
+  .t-think-sizer { display: block; visibility: hidden; white-space: nowrap; }
+  .t-think-text { position: absolute; top: 0; left: 0; right: 0; display: block; white-space: nowrap; color: var(--faint);
+    transition: transform var(--think-swap) var(--think-ease), filter var(--think-swap) var(--think-ease), opacity var(--think-swap) var(--think-ease); }
+  .t-think-text.is-thinking::before { content: attr(data-text); position: absolute; inset: 0; pointer-events: none;
+    background-image: linear-gradient(90deg, transparent 0%, transparent 40%, var(--ink) 50%, transparent 60%, transparent 100%);
+    background-size: 400% 100%; background-repeat: no-repeat; -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent;
+    animation: t-think-shimmer var(--think-shimmer) linear infinite; }
+  @keyframes t-think-shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0% 0; } }
+  .t-think-text.is-exit { transform: translateY(calc(var(--think-distance) * -1)); filter: blur(var(--think-blur)); opacity: 0; }
+  .t-think-text.is-enter-start { transition: none; transform: translateY(var(--think-distance)); filter: blur(var(--think-blur)); opacity: 0; }
+  .t-think-text code { font-size: 12px; color: var(--dim); }
+
+  /* Streaming text: the answer resolves word by word. */
+  .t-js .t-stream-w { opacity: 0; filter: blur(var(--stream-blur)); }
+  .t-stream-w { transition: opacity var(--stream-fade) var(--stream-ease), filter var(--stream-fade) var(--stream-ease); }
+  .t-js .t-stream-w.is-in { opacity: 1; filter: blur(0); }
+
+  /* Learn more hover: the chevron slides and spreads into an arrow. */
+  .t-learn { display: inline-flex; align-items: center; gap: 2px; }
+  .t-learn-chevron { display: inline-flex; transform: translateX(0); transition: transform var(--learn-out) var(--learn-ease); }
+  .t-learn-chevron svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+  .t-learn-arm { transform-box: view-box; transform-origin: 10px 8px; vector-effect: non-scaling-stroke; transition: transform var(--learn-out) var(--learn-ease); }
+  .t-learn:hover .t-learn-chevron { transform: translateX(var(--learn-shift)); transition-duration: var(--learn-in); }
+  .t-learn:hover .t-learn-arm { transition-duration: var(--learn-in); }
+  .t-learn:hover .t-learn-arm-top { transform: rotate(var(--learn-spread)); }
+  .t-learn:hover .t-learn-arm-bot { transform: rotate(calc(var(--learn-spread) * -1)); }
+  .t-learn:hover { text-decoration: none; }
+
+  /* Tabs sliding: Local / Hosted. */
+  .seg-wrap { display: flex; justify-content: center; margin-bottom: 28px; }
+  .t-tabs { position: relative; display: inline-flex; align-items: center; gap: 3px; padding: 3px; border-radius: 48px; background: var(--soft-btn); }
+  .t-tab { position: relative; appearance: none; border: 0; background: transparent; height: 34px; padding: 4px 20px; font: inherit; font-size: 15px; font-weight: 500; color: var(--dim); cursor: pointer; border-radius: 48px; z-index: 1; transition: color var(--tabs-dur) var(--tabs-ease); }
+  .t-tab:not([aria-selected="true"]):hover, .t-tab[aria-selected="true"] { color: var(--ink); }
+  .t-tabs-pill { position: absolute; top: 3px; left: 0; height: 34px; width: 0; background: var(--seg-pill); border-radius: 48px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    transform: translateX(0); transition: transform var(--tabs-dur) var(--tabs-ease), width var(--tabs-dur) var(--tabs-ease); z-index: 0; pointer-events: none; }
+  .t-js .ways { grid-template-columns: 1fr; max-width: 640px; margin-inline: auto; }
+  .way.is-entering { animation: way-in var(--stagger-dur) var(--stagger-ease); }
+  @keyframes way-in { from { opacity: 0; transform: translateY(var(--stagger-distance)); filter: blur(var(--stagger-blur)); } }
+
+  /* Accordion expand: FAQ. */
+  .t-acc { border-bottom: 1px solid var(--line); }
+  .t-acc-head { width: 100%; appearance: none; border: 0; background: none; color: var(--ink); cursor: pointer; text-align: left;
+    padding: 22px 0; font: inherit; font-size: 19px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+  .t-acc-chevron { display: inline-flex; flex: none; transform: scaleY(1); transform-origin: center; transition: transform var(--acc-chevron) var(--acc-ease); }
+  .t-acc-chevron svg { width: 18px; height: 18px; fill: none; stroke: var(--dim); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .t-acc-chevron path { vector-effect: non-scaling-stroke; }
+  .t-acc[data-open="true"] .t-acc-chevron { transform: scaleY(-1); }
+  .t-acc-panel { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--acc-collapse) var(--acc-ease); }
+  .t-acc[data-open="true"] .t-acc-panel { grid-template-rows: 1fr; transition: grid-template-rows var(--acc-expand) var(--acc-ease); }
+  .t-acc-panel-inner { overflow: hidden; opacity: 0; filter: blur(2px); transition: opacity var(--acc-collapse) var(--acc-ease), filter var(--acc-collapse) var(--acc-ease); }
+  .t-acc[data-open="true"] .t-acc-panel-inner { opacity: 1; filter: blur(0); transition: opacity var(--acc-expand) var(--acc-ease), filter var(--acc-expand) var(--acc-ease); }
+  .t-acc-panel-inner p { color: var(--dim); padding: 0 0 22px; max-width: 64ch; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .t-stagger-line, .t-think-text, .t-stream-w, .t-learn-chevron, .t-learn-arm, .t-tab, .t-tabs-pill, .t-acc-panel, .t-acc-panel-inner, .t-acc-chevron { transition: none !important; }
+    .t-think-text::before { display: none !important; }
+    .t-js .t-stagger-line, .t-js .t-stream-w { opacity: 1 !important; transform: none !important; filter: none !important; }
+    .way.is-entering { animation: none; }
+  }
 </style>
+<script>document.documentElement.classList.add("t-js");</script>
 </head>
 <body>
 
@@ -230,29 +314,29 @@
 </header>
 
 <main id="top">
-  <div class="wrap hero">
-    <p class="eyebrow">SundhedMCP</p>
-    <h1>Your health record.<br>Now in your AI.</h1>
-    <p class="lede">Ask Claude about your medicine, prescriptions, test results and vaccinations from sundhed.dk. You log in with MitID. Nothing is stored.</p>
-    <div class="btns">
+  <div class="wrap hero t-stagger" id="hero">
+    <p class="eyebrow t-stagger-line">SundhedMCP</p>
+    <h1 class="t-stagger-line t-stagger-line--2">Your health record.<br>Now in your AI.</h1>
+    <p class="lede t-stagger-line t-stagger-line--3">Ask Claude about your medicine, prescriptions, test results and vaccinations from sundhed.dk. You log in with MitID. Nothing is stored.</p>
+    <div class="btns t-stagger-line t-stagger-line--4">
       <a class="btn primary" href="#run">Get started</a>
-      <a class="more" href="#how">See how it works</a>
+      <a class="more t-learn" href="#how">See how it works<span class="t-learn-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path class="t-learn-arm t-learn-arm-top" d="M6 4L10 8"/><path class="t-learn-arm t-learn-arm-bot" d="M10 8L6 12"/></svg></span></a>
     </div>
-    <p class="fine">Free and open source · In development · Not affiliated with sundhed.dk</p>
+    <p class="fine t-stagger-line t-stagger-line--4">Free and open source · In development · Not affiliated with sundhed.dk</p>
 
     <div class="stage" role="figure" aria-label="Example: Claude answering from SundhedMCP">
       <div class="window">
         <div class="chrome"><i></i><i></i><i></i><span>Claude</span></div>
         <div class="convo">
           <div class="bubble me">Which of my prescriptions run out soon?</div>
-          <p class="tool"><code>get_prescriptions</code> · 4 open prescriptions</p>
-          <div class="bubble ai">Two need attention. <b>Metformin</b> has one dispensing left, and <b>Ventoline</b> expires on <b>14 Oct</b>. Ask your GP to renew both.</div>
-          <div class="rx">
+          <p class="tool"><span class="t-think" id="think" role="status"><span class="t-think-sizer" aria-hidden="true">Reading your prescriptions on sundhed.dk…</span><span class="t-think-text" data-text="get_prescriptions · 4 open prescriptions"><code>get_prescriptions</code> · 4 open prescriptions</span></span></p>
+          <div class="bubble ai t-stream" id="answer">Two need attention. <b>Metformin</b> has one dispensing left, and <b>Ventoline</b> expires on <b>14 Oct</b>. Ask your GP to renew both.</div>
+          <div class="rx t-stagger" id="rx"><div class="t-stagger-line">
             <div class="rx-row"><span>Medicine</span><span>Dispensings left</span><span class="date">Valid until</span></div>
             <div class="rx-row"><div>Metformin "Teva"<small>500 mg · 1 tablet twice daily</small></div><div class="meter"><div class="t"><div class="f low" style="width:25%"></div></div>1 of 4</div><div class="date">02.03.2027</div></div>
             <div class="rx-row"><div>Ventoline Diskus<small>0.2 mg/dose · as needed</small></div><div class="meter"><div class="t"><div class="f" style="width:50%"></div></div>1 of 2</div><div class="date low">14.10.2026</div></div>
             <div class="rx-row"><div>Atorvastatin "Krka"<small>20 mg · 1 tablet in the evening</small></div><div class="meter"><div class="t"><div class="f" style="width:75%"></div></div>3 of 4</div><div class="date">18.06.2027</div></div>
-          </div>
+          </div></div>
         </div>
       </div>
     </div>
@@ -403,15 +487,20 @@
         <h2>Two ways to run it.</h2>
         <p>Both read the same record with the same tools. Pick where the browser that holds your login should live.</p>
       </div>
+      <div class="seg-wrap" hidden id="segwrap"><div class="t-tabs" role="tablist" aria-label="Where to run SundhedMCP">
+        <span class="t-tabs-pill" aria-hidden="true"></span>
+        <button class="t-tab" role="tab" id="tab-local" aria-controls="way-local" aria-selected="true">On your computer</button>
+        <button class="t-tab" role="tab" id="tab-hosted" aria-controls="way-hosted" aria-selected="false">On a server</button>
+      </div></div>
       <div class="ways">
-        <div class="way">
+        <div class="way" id="way-local" role="tabpanel" aria-labelledby="tab-local">
           <p class="da">On your computer</p>
           <h3>Local.</h3>
           <p>For Claude Code, Claude Desktop and Cursor. A browser window opens for MitID and minimizes itself.</p>
           <ul><li>Your data never leaves your machine, except to your AI</li><li>Needs Node 24 and Chrome or Edge</li></ul>
 <pre class="mono">claude mcp add sundhedmcp -- npx -y sundhedmcp</pre>
         </div>
-        <div class="way">
+        <div class="way" id="way-hosted" role="tabpanel" aria-labelledby="tab-hosted">
           <p class="da">On your own server</p>
           <h3>Hosted.</h3>
           <p>For claude.ai and your phone. You log in with MitID on a password-protected page on your server.</p>
@@ -428,11 +517,11 @@
     <div class="wrap">
       <div class="head"><h2>Questions.</h2></div>
       <div class="faq">
-        <details><summary>Is this made by sundhed.dk?</summary><p>No. SundhedMCP is an independent open-source project, not affiliated with sundhed.dk, Sundhedsdatastyrelsen or MitID.</p></details>
-        <details><summary>Why do I have to log in again?</summary><p>sundhed.dk ends sessions after a while, and SundhedMCP does not keep your login. When a tool says the session has ended, say "connect sundhed.dk" and approve in MitID again.</p></details>
-        <details><summary>Can I run it for my family or patients?</summary><p>No. It is for one person reading their own record. A service holding other people's health data needs approvals and agreements it does not have.</p></details>
-        <details><summary>Is my data sent anywhere?</summary><p>Only to the AI you ask. Locally, it goes from sundhed.dk to your computer to your AI. Hosted, it passes through your own server's memory on the way.</p></details>
-        <details><summary>Is this medical advice?</summary><p>No. Your AI can read and summarise your record, but it is not your doctor. Talk to your GP or pharmacist before changing how you take any medicine.</p></details>
+        <div class="t-acc" data-open="false"><button class="t-acc-head" aria-expanded="false" aria-controls="faq-1">Is this made by sundhed.dk?<span class="t-acc-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 6.5L8 10.5L12 6.5"/></svg></span></button><div class="t-acc-panel" id="faq-1"><div class="t-acc-panel-inner"><p>No. SundhedMCP is an independent open-source project, not affiliated with sundhed.dk, Sundhedsdatastyrelsen or MitID.</p></div></div></div>
+        <div class="t-acc" data-open="false"><button class="t-acc-head" aria-expanded="false" aria-controls="faq-2">Why do I have to log in again?<span class="t-acc-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 6.5L8 10.5L12 6.5"/></svg></span></button><div class="t-acc-panel" id="faq-2"><div class="t-acc-panel-inner"><p>sundhed.dk ends sessions after a while, and SundhedMCP does not keep your login. When a tool says the session has ended, say "connect sundhed.dk" and approve in MitID again.</p></div></div></div>
+        <div class="t-acc" data-open="false"><button class="t-acc-head" aria-expanded="false" aria-controls="faq-3">Can I run it for my family or patients?<span class="t-acc-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 6.5L8 10.5L12 6.5"/></svg></span></button><div class="t-acc-panel" id="faq-3"><div class="t-acc-panel-inner"><p>No. It is for one person reading their own record. A service holding other people's health data needs approvals and agreements it does not have.</p></div></div></div>
+        <div class="t-acc" data-open="false"><button class="t-acc-head" aria-expanded="false" aria-controls="faq-4">Is my data sent anywhere?<span class="t-acc-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 6.5L8 10.5L12 6.5"/></svg></span></button><div class="t-acc-panel" id="faq-4"><div class="t-acc-panel-inner"><p>Only to the AI you ask. Locally, it goes from sundhed.dk to your computer to your AI. Hosted, it passes through your own server's memory on the way.</p></div></div></div>
+        <div class="t-acc" data-open="false"><button class="t-acc-head" aria-expanded="false" aria-controls="faq-5">Is this medical advice?<span class="t-acc-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 6.5L8 10.5L12 6.5"/></svg></span></button><div class="t-acc-panel" id="faq-5"><div class="t-acc-panel-inner"><p>No. Your AI can read and summarise your record, but it is not your doctor. Talk to your GP or pharmacist before changing how you take any medicine.</p></div></div></div>
       </div>
     </div>
   </section>
@@ -442,7 +531,7 @@
       <h2>Ask your health record anything.</h2>
       <div class="btns">
         <a class="btn primary" href="#run">Get started</a>
-        <a class="more" href="https://github.com/manas-katyal/sundhedmcp">View on GitHub</a>
+        <a class="more t-learn" href="https://github.com/manas-katyal/sundhedmcp">View on GitHub<span class="t-learn-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path class="t-learn-arm t-learn-arm-top" d="M6 4L10 8"/><path class="t-learn-arm t-learn-arm-bot" d="M10 8L6 12"/></svg></span></a>
       </div>
     </div>
   </section>
@@ -454,5 +543,107 @@
     <div class="rule"><span>MIT licensed · sundhedmcp.dk</span><span><a href="https://github.com/manas-katyal/sundhedmcp">GitHub</a></span></div>
   </div>
 </footer>
+<script>
+(() => {
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const ms = (name, fb) => { const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name)); return Number.isFinite(v) ? v : fb; };
+  const wait = (t) => new Promise((r) => setTimeout(r, reduce ? 0 : t));
+
+  // Hero: staggered reveal on load.
+  const hero = document.getElementById("hero");
+  requestAnimationFrame(() => hero.classList.add("is-shown"));
+
+  // Hero chat: think, then stream the answer, then reveal the table.
+  const think = document.getElementById("think");
+  const answer = document.getElementById("answer");
+  const rx = document.getElementById("rx");
+  const settled = think.querySelector(".t-think-text");
+  const finalHTML = settled.innerHTML, finalText = settled.dataset.text;
+  const reading = "Reading your prescriptions on sundhed.dk…";
+  settled.textContent = reading; settled.dataset.text = reading; settled.classList.add("is-thinking");
+
+  // Wrap the answer's words (keeping <b> emphasis) into streamable spans.
+  const spans = [];
+  (function wrap(node) {
+    [...node.childNodes].forEach((child) => {
+      if (child.nodeType === 3) {
+        const frag = document.createDocumentFragment();
+        child.textContent.split(/(\s+)/).forEach((part) => {
+          if (!part) return;
+          if (/^\s+$/.test(part)) return frag.appendChild(document.createTextNode(part));
+          const s = document.createElement("span"); s.className = "t-stream-w"; s.textContent = part; spans.push(s); frag.appendChild(s);
+        });
+        child.replaceWith(frag);
+      } else wrap(child);
+    });
+  })(answer);
+
+  async function play() {
+    await wait(1600);
+    const leaving = think.querySelector(".t-think-text");
+    leaving.classList.add("is-exit");
+    const next = document.createElement("span");
+    next.className = "t-think-text is-enter-start"; next.innerHTML = finalHTML; next.dataset.text = finalText;
+    think.appendChild(next);
+    await wait(ms("--think-gap", 50));
+    void next.offsetWidth; next.classList.remove("is-enter-start");
+    setTimeout(() => leaving.remove(), ms("--think-swap", 150) + 50);
+    await wait(250);
+    const gap = ms("--stream-gap", 60);
+    for (const s of spans) { s.classList.add("is-in"); await wait(gap); }
+    await wait(150);
+    rx.classList.add("is-shown");
+  }
+  const stage = document.querySelector(".stage");
+  new IntersectionObserver((entries, io) => {
+    if (entries.some((e) => e.isIntersecting)) { io.disconnect(); play(); }
+  }, { threshold: 0.35 }).observe(stage);
+
+  // Local / Hosted segmented control.
+  const segwrap = document.getElementById("segwrap");
+  const bar = segwrap.querySelector(".t-tabs"), pill = bar.querySelector(".t-tabs-pill");
+  const tabs = [...bar.querySelectorAll(".t-tab")];
+  segwrap.hidden = false;
+  const panelOf = (tab) => document.getElementById(tab.getAttribute("aria-controls"));
+  function moveTo(tab, animate) {
+    const prev = pill.style.transition;
+    if (!animate) pill.style.transition = "none";
+    pill.style.transform = `translateX(${tab.offsetLeft}px)`;
+    pill.style.width = `${tab.offsetWidth}px`;
+    if (!animate) { void pill.offsetWidth; pill.style.transition = prev; }
+  }
+  function select(tab, animate) {
+    tabs.forEach((t) => {
+      const on = t === tab;
+      t.setAttribute("aria-selected", String(on)); t.tabIndex = on ? 0 : -1;
+      const panel = panelOf(t); panel.hidden = !on;
+      if (on && animate) { panel.classList.remove("is-entering"); void panel.offsetWidth; panel.classList.add("is-entering"); }
+    });
+    moveTo(tab, animate);
+  }
+  tabs.forEach((tab, i) => {
+    tab.addEventListener("click", () => select(tab, true));
+    tab.addEventListener("keydown", (e) => {
+      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+      const next = tabs[(i + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length];
+      next.focus(); select(next, true);
+    });
+  });
+  select(tabs[0], false);
+  requestAnimationFrame(() => moveTo(tabs.find((t) => t.getAttribute("aria-selected") === "true"), false));
+  addEventListener("resize", () => moveTo(tabs.find((t) => t.getAttribute("aria-selected") === "true"), false));
+
+  // FAQ accordion.
+  document.querySelectorAll(".t-acc").forEach((acc) => {
+    const head = acc.querySelector(".t-acc-head");
+    head.addEventListener("click", () => {
+      const open = acc.getAttribute("data-open") === "true";
+      acc.setAttribute("data-open", String(!open));
+      head.setAttribute("aria-expanded", String(!open));
+    });
+  });
+})();
+</script>
+
 </body>
 </html>

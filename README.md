@@ -76,4 +76,4 @@ is ignored for that reason.
 
 ## License
 
-MIT
+MIT. The landing page uses transitions from [transitions.dev](https://transitions.dev) by Jakub Antalík.
