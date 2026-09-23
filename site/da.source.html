@@ -402,7 +402,7 @@ addEventListener("load", () => { const t = location.hash && document.getElementB
 <main id="top">
   <div class="wrap hero t-stagger" id="hero">
     <h1 class="t-stagger-line t-stagger-line--2">Din sundhedsjournal.<br>Nu i din AI.</h1>
-    <p class="lede t-stagger-line t-stagger-line--3">Spørg Claude om din medicin, dine recepter, prøvesvar og vaccinationer fra sundhed.dk. Du logger på med MitID. Intet bliver gemt.</p>
+    <p class="lede t-stagger-line t-stagger-line--3">Spørg Claude om din medicin, dine recepter, prøvesvar og vaccinationer fra sundhed.dk. Du logger på med MitID. Dine data bliver på din egen computer eller server.</p>
     <div class="btns t-stagger-line t-stagger-line--4">
       <a class="btn primary" href="#run">Kom i gang</a>
       <a class="more t-learn" href="#how">Se hvordan det virker<span class="t-learn-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path class="t-learn-arm t-learn-arm-top" d="M6 4L10 8"/><path class="t-learn-arm t-learn-arm-bot" d="M10 8L6 12"/></svg></span></a>
@@ -523,7 +523,7 @@ addEventListener("load", () => { const t = location.hash && document.getElementB
         </div>
         <div class="fact t-reveal" style="--t-index:1">
           <svg viewBox="0 0 30 30" fill="none" aria-hidden="true"><path d="M5 15h20M15 5v20" stroke-width="1.8" stroke-linecap="round"/><circle cx="15" cy="15" r="10" stroke-width="1.8"/></svg>
-          <h3>Intet bliver gemt.</h3><p>Loginnet findes kun i hukommelsen. Stop SundhedMCP, og det er væk. Ingen database, ingen logs med dine data, ingen telemetri.</p>
+          <h3>Kun på din egen server.</h3><p>Kører du lokalt, ligger alt i hukommelsen og forsvinder, når du stopper SundhedMCP. Hostet gemmer din server én kopi af din journal på sit eget volume, hentet efter hvert login, så du kan spørge fra telefonen. Ingen telemetri.</p>
         </div>
         <div class="fact t-reveal" style="--t-index:2">
           <svg viewBox="0 0 30 30" fill="none" aria-hidden="true"><path d="M4 15s4-8 11-8 11 8 11 8-4 8-11 8S4 15 4 15z" stroke-width="1.8"/><circle cx="15" cy="15" r="3.5" stroke-width="1.8"/></svg>
@@ -576,7 +576,7 @@ addEventListener("load", () => { const t = location.hash && document.getElementB
             <li><b>Tilføj den i claude.ai.</b> Settings → Connectors → Add custom connector, med din Railway-adresse plus <code>/mcp</code>. Log ind med adgangskoden.</li>
             <li><b>Log på med MitID.</b> Spørg Claude om noget om dit helbred. Du får et link til din server: åbn det på en computer, ikke din telefon, og scan QR-koden med MitID-appen på din telefon.</li>
           </ol>
-          <p class="note">Alle Docker-hosts virker også: kør <code>ghcr.io/manas-katyal/sundhedmcp</code> med et volume på <code>/data</code>. Dine data passerer gennem serverens hukommelse og gemmes aldrig.</p>
+          <p class="note">Alle Docker-hosts virker også: kør <code>ghcr.io/manas-katyal/sundhedmcp</code> med et volume på <code>/data</code>. Efter hvert login gemmer din server en kopi af din journal på det volume, og ingen andre får den.</p>
         </div>
       </div>
       <p class="fine" style="text-align:center;margin-top:22px">Under udvikling: npm-pakken er ikke udgivet endnu, så kør den lokalt <a href="https://github.com/manas-katyal/sundhedmcp">fra kildekoden</a>.</p>

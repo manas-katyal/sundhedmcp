@@ -33,19 +33,14 @@ const T = {
     firstNote: "Den gemmes hashet på serverens volume. Den kan ikke gendannes, så gem den i din adgangskodemanager.",
     pwLabel: (n: number) => `Adgangskode (mindst ${n} tegn)`, pwRepeat: "Gentag den", save: "Gem adgangskode",
     connectTitle: "Log på sundhed.dk", ownerOnly: "Kun for ejeren",
-    connectSignin: "Her logger du på sundhed.dk med MitID, også fra din telefon. Bevis først, at det er dig.", continue: "Fortsæt",
+    connectSignin: "På grund af MitIDs regler kan du kun logge på fra en computer: MitID viser en QR-kode, som du scanner med MitID-appen på din telefon. Bagefter henter serveren hele din journal og gemmer en kopi, så du kan bruge den fra telefonen. Bevis først, at det er dig.", continue: "Fortsæt",
     mitidTitle: "Log på med MitID",
-    loginNote: "Du kan logge på fra telefonen: skriv dit MitID bruger-ID, og godkend i MitID-appen. Beder MitID om en QR-kode, så brug en anden skærm til den.",
+    computerNote: "På grund af MitIDs regler kan du kun logge på fra en computer. Åbn den ikke på telefonen: MitID beder om en QR-kode, og den skal scannes med MitID-appen på din telefon, ikke den enhed, koden vises på.",
+    mitidHelp: "Brug en computer. Når MitID beder om en QR-kode, skal du scanne den med MitID-appen på din telefon. Dette er serverens browser, åbnet på MitID. Klik på feltet til bruger-ID, skriv dit MitID bruger-ID i feltet nedenfor, tryk Enter og godkend i MitID-appen.",
     waiting: "Venter på login", scrollUp: "Rul op", scrollDown: "Rul ned", startOver: "Start forfra",
     screenAlt: "Serverens browser på sundhed.dk", typeLabel: "Skriv i det markerede felt", typePlaceholder: "Klik på et felt ovenfor, og skriv så her",
-    done: "Logget ind. Gå tilbage til din assistent; du kan lukke denne side.",
-    phoneHelp: "Skriv dit MitID bruger-ID og tryk Log på. Så sender vi dig videre til MitID-appen, hvor du godkender.",
-    userId: "MitID bruger-ID", rememberId: "Husk bruger-ID på denne enhed", logIn: "Log på", sending: "Sender til MitID…",
-    openApp: "Åbn MitID-appen", openAppHelp: "Tryk for at åbne MitID-appen og godkende. Kom så tilbage hertil.",
-    approve: "Godkend i MitID-appen. Kom så tilbage hertil.",
-    qrPhone: "MitID vil have en QR-kode scannet denne gang, og den kan ikke scannes fra samme telefon. Prøv igen om lidt, eller brug serverens browser nedenfor fra en anden skærm.",
-    failedPrefix: "Det gik ikke:", noAnswer: "Serveren svarede ikke.", tryAgain: "Vent et minut, og tryk Log på igen.", showBrowser: "Vis serverens browser",
-    browserHelp: "Serverens egen browser. Tryk på feltet til bruger-ID, skriv i feltet nedenfor, tryk Enter og godkend i MitID-appen.",
+    done: "Logget ind. Serveren henter nu hele din journal og gemmer en kopi. Gå tilbage til din assistent, også på telefonen; du kan lukke denne side.",
+    qr: "MitID vil have dig til at scanne en QR-kode. Den kan ikke scannes fra den samme telefon: åbn denne side på en computer, og scan koden med MitID-appen på din telefon.",
     langLabel: "Sprog",
   },
   en: {
@@ -66,19 +61,14 @@ const T = {
     firstNote: "It is stored hashed on this server's volume. There is no way to recover it, so keep it in your password manager.",
     pwLabel: (n: number) => `Password (at least ${n} characters)`, pwRepeat: "Repeat it", save: "Save password",
     connectTitle: "Log in to sundhed.dk", ownerOnly: "Owner only",
-    connectSignin: "Here you log in to sundhed.dk with MitID, from your phone too. First, prove it is you.", continue: "Continue",
+    connectSignin: "Because of MitID's rules you can only log in from a computer: MitID shows a QR code, which you scan with the MitID app on your phone. Afterwards the server fetches your whole record and keeps a copy, so you can use it from your phone. First, prove it is you.", continue: "Continue",
     mitidTitle: "Log in with MitID",
-    loginNote: "You can log in from your phone: type your MitID user ID and approve in the MitID app. If MitID asks for a QR code, use another screen for it.",
+    computerNote: "Because of MitID's rules you can only log in from a computer. Do not open it on your phone: MitID will ask for a QR code, and it must be scanned with the MitID app on your phone, not the device showing the code.",
+    mitidHelp: "Use a computer. When MitID asks for a QR code, scan it with the MitID app on your phone. This is the server's browser, open on MitID. Click the user ID field, type your MitID user ID in the box below, press Enter and approve in the MitID app.",
     waiting: "Waiting for login", scrollUp: "Scroll up", scrollDown: "Scroll down", startOver: "Start over",
     screenAlt: "The server's browser showing sundhed.dk", typeLabel: "Type into the focused field", typePlaceholder: "Click a field above, then type here",
-    done: "Logged in. Go back to your assistant; you can close this page.",
-    phoneHelp: "Type your MitID user ID and tap Log in. We then send you on to the MitID app, where you approve.",
-    userId: "MitID user ID", rememberId: "Remember user ID on this device", logIn: "Log in", sending: "Sending to MitID…",
-    openApp: "Open the MitID app", openAppHelp: "Tap to open the MitID app and approve. Then come back here.",
-    approve: "Approve in the MitID app. Then come back here.",
-    qrPhone: "MitID wants a QR code scanned this time, and it cannot be scanned from the same phone. Try again in a moment, or use the server's browser below from another screen.",
-    failedPrefix: "That did not work:", noAnswer: "The server did not answer.", tryAgain: "Wait a minute, then tap Log in again.", showBrowser: "Show the server's browser",
-    browserHelp: "The server's own browser. Tap the user ID field, type in the box below, press Enter and approve in the MitID app.",
+    done: "Logged in. The server is now fetching your whole record and keeping a copy. Go back to your assistant, on your phone too; you can close this page.",
+    qr: "MitID wants you to scan a QR code. It cannot be scanned from the same phone: open this page on a computer and scan the code with the MitID app on your phone.",
     langLabel: "Language",
   },
 } as const;
@@ -195,7 +185,7 @@ export function statusPage(lang: Lang, input: { problems: string[]; mcpUrl: stri
     `<p>${t.addConnector}</p><p><code>${esc(input.mcpUrl)}</code></p>
      <ul class="rows"><li>${t.session}<span class="r">${input.loggedIn ? t.loggedIn : t.notLoggedIn}</span></li></ul>
      <p><a href="/connect">${t.loginMitid}</a></p>
-     <p class="muted small">${t.loginNote}</p>`,
+     <p class="muted small">${t.computerNote}</p>`,
     { kind: "ok", pill: t.runningPill, back: "/" },
   );
 }
@@ -236,105 +226,59 @@ export function connectSignInPage(lang: Lang, error?: string): string {
   );
 }
 
-/**
- * Phone first: type the MitID user ID, and the server sends back the link that
- * opens the MitID app. The remote browser (a live screenshot you tap on, plus a
- * field for typing) stays below as a fallback.
- */
+/** The remote browser: a live screenshot you click on, plus a field for typing. */
 export function connectPage(lang: Lang, viewport: { width: number; height: number }): string {
   const t = T[lang];
   const body = `
-  <p class="muted">${t.phoneHelp}</p>
-  <div class="status"><span class="t-success-check" id="check" data-state="out" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" fill="var(--ok)"/><path d="M7 12.5l3.3 3.3L17 9" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div class="pill" id="state" role="status"><span class="t-text-swap" id="statetext">${t.waiting}</span></div></div>
-  <form id="phone">
-    <label for="uid">${t.userId}</label>
-    <input id="uid" name="uid" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" required>
-    <label class="check"><input type="checkbox" id="remember" checked> ${t.rememberId}</label>
-    <button class="full" id="go" type="submit">${t.logIn}</button>
-  </form>
-  <div class="next" id="next" hidden>
-    <p id="nexttext"></p>
-    <a class="button full" id="openapp" target="_blank" rel="noopener" hidden>${t.openApp}</a>
-  </div>
-  <details id="remote">
-    <summary>${t.showBrowser}</summary>
-    <p class="muted">${t.browserHelp}</p>
+  <p class="muted">${t.mitidHelp}</p>
+  <div class="bar">
+    <div class="status"><span class="t-success-check" id="check" data-state="out" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" fill="var(--ok)"/><path d="M7 12.5l3.3 3.3L17 9" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div class="pill" id="state" role="status"><span class="t-text-swap" id="statetext">${t.waiting}</span></div></div>
     <div class="actions"><button class="ghost" id="up" type="button">${t.scrollUp}</button><button class="ghost" id="down" type="button">${t.scrollDown}</button><button class="ghost" id="restart" type="button">${t.startOver}</button></div>
-    <div class="screen"><img id="screen" alt="${t.screenAlt}" width="${viewport.width}" height="${viewport.height}"></div>
-    <div class="typing">
-      <label for="keys">${t.typeLabel}</label>
-      <div class="row"><input id="keys" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${t.typePlaceholder}">
-      <button class="ghost" data-key="Backspace" type="button">⌫</button><button class="ghost" data-key="Tab" type="button">Tab</button><button data-key="Enter" type="button">Enter</button></div>
-    </div>
-  </details>
+  </div>
+  <p class="qrnote" id="qrnote" hidden>${t.qr}</p>
+  <div class="screen"><img id="screen" alt="${t.screenAlt}" width="${viewport.width}" height="${viewport.height}"></div>
+  <div class="typing">
+    <label for="keys">${t.typeLabel}</label>
+    <div class="row"><input id="keys" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${t.typePlaceholder}">
+    <button class="ghost" data-key="Backspace" type="button">⌫</button><button class="ghost" data-key="Tab" type="button">Tab</button><button data-key="Enter" type="button">Enter</button></div>
+  </div>
   <script>
   const W = ${viewport.width}, H = ${viewport.height};
-  const TXT = ${JSON.stringify({ sending: t.sending, openAppHelp: t.openAppHelp, approve: t.approve, qr: t.qrPhone, failed: t.failedPrefix, noAnswer: t.noAnswer, tryAgain: t.tryAgain, done: t.done, logIn: t.logIn })};
-  const $ = (id) => document.getElementById(id);
-  const img = $("screen"), keys = $("keys"), uid = $("uid"), remember = $("remember"), remote = $("remote");
-  const KEY = "sundhedmcp-mitid-user";
-  try { const saved = localStorage.getItem(KEY); if (saved) uid.value = saved; } catch {}
-  let done = false;
-  function swap(text, kind) {
-    const el = $("statetext");
-    el.classList.add("is-exit");
-    setTimeout(() => {
-      el.textContent = text; $("state").className = "pill" + (kind ? " " + kind : "");
-      el.classList.remove("is-exit"); el.classList.add("is-enter-start"); void el.offsetHeight; el.classList.remove("is-enter-start");
-    }, 150);
-  }
-  function next(text, url) {
-    $("nexttext").textContent = text;
-    const a = $("openapp");
-    if (url) { a.href = url; a.hidden = false; } else a.hidden = true;
-    $("next").hidden = false;
-  }
-  $("phone").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const id = uid.value.trim(); if (!id) return;
-    try { remember.checked ? localStorage.setItem(KEY, id) : localStorage.removeItem(KEY); } catch {}
-    $("go").disabled = true; $("next").hidden = true; swap(TXT.sending);
-    const r = await fetch("/connect/app", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: id }) })
-      .then((r) => r.status === 401 ? location.reload() : r.json()).catch(() => ({ kind: "error", message: "" }));
-    $("go").disabled = false;
-    if (!r) return;
-    if (r.kind === "loggedIn") return finish();
-    if (r.kind === "openApp") { swap(TXT.openAppHelp); next(TXT.openAppHelp, r.url); }
-    else if (r.kind === "approve") { swap(TXT.approve); next(TXT.approve); }
-    else if (r.kind === "qr") { swap(TXT.failed.replace(/:$/, ""), "err"); next(TXT.qr); remote.open = true; }
-    else { swap(TXT.failed.replace(/:$/, ""), "err"); next(TXT.failed + " " + (r.message || TXT.noAnswer) + " " + TXT.tryAgain); }
-  });
-  function finish() {
-    if (done) return; done = true;
-    swap(TXT.done, "ok"); $("next").hidden = true; $("phone").hidden = true;
-    const check = $("check"); check.setAttribute("data-state", "in");
-  }
-  setInterval(async () => {
-    const s = await fetch("/connect/status", { cache: "no-store" }).then((r) => r.json()).catch(() => null);
-    if (s && s.loggedIn) finish();
-  }, 2000);
-
-  // The fallback: the server's browser, refreshed only while it is open.
+  const img = document.getElementById("screen"), state = document.getElementById("state"), keys = document.getElementById("keys");
   const send = (ev) => fetch("/connect/input", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(ev) }).then(refresh);
-  let pending = false, url = null;
+  let pending = false, url = null, done = false;
   async function refresh() {
-    if (pending || !remote.open) return; pending = true;
+    if (pending) return; pending = true;
     try {
       const r = await fetch("/connect/frame", { cache: "no-store" });
       if (r.status === 401) return location.reload();
       if (r.ok) { const u = URL.createObjectURL(await r.blob()); img.src = u; if (url) URL.revokeObjectURL(url); url = u; }
     } finally { pending = false; }
   }
-  setInterval(refresh, 700);
-  remote.addEventListener("toggle", () => { if (remote.open) fetch("/connect/start", { method: "POST" }).then(refresh); });
+  setInterval(refresh, 700); refresh();
+  setInterval(async () => {
+    const s = await fetch("/connect/status", { cache: "no-store" }).then((r) => r.json()).catch(() => null);
+    document.getElementById("qrnote").hidden = !(s && s.qr && !s.loggedIn);
+    if (s && s.loggedIn && !done) {
+      done = true;
+      const text = document.getElementById("statetext");
+      text.classList.add("is-exit");
+      setTimeout(() => {
+        text.textContent = ${JSON.stringify(t.done)};
+        state.className = "pill ok"; text.classList.remove("is-exit"); text.classList.add("is-enter-start");
+        void text.offsetHeight; text.classList.remove("is-enter-start");
+        const check = document.getElementById("check"); check.hidden = false; check.setAttribute("data-state", "in");
+      }, 150);
+    }
+  }, 2000);
   img.addEventListener("click", (e) => {
     const b = img.getBoundingClientRect();
     send({ type: "click", x: Math.round((e.clientX - b.left) * W / b.width), y: Math.round((e.clientY - b.top) * H / b.height) });
   });
   img.addEventListener("wheel", (e) => { e.preventDefault(); send({ type: "wheel", dy: Math.round(e.deltaY) }); }, { passive: false });
-  $("up").onclick = () => send({ type: "wheel", dy: -400 });
-  $("down").onclick = () => send({ type: "wheel", dy: 400 });
-  $("restart").onclick = () => fetch("/connect/restart", { method: "POST" }).then(refresh);
+  document.getElementById("up").onclick = () => send({ type: "wheel", dy: -400 });
+  document.getElementById("down").onclick = () => send({ type: "wheel", dy: 400 });
+  document.getElementById("restart").onclick = () => fetch("/connect/restart", { method: "POST" }).then(refresh);
   document.querySelectorAll("[data-key]").forEach((b) => b.onclick = () => send({ type: "key", key: b.dataset.key }));
   keys.addEventListener("input", () => { if (keys.value) { send({ type: "text", text: keys.value }); keys.value = ""; } });
   keys.addEventListener("keydown", (e) => {
@@ -361,11 +305,7 @@ export function connectPage(lang: Lang, viewport: { width: number; height: numbe
     .t-text-swap.is-exit{transform:translateY(-4px);filter:blur(2px);opacity:0}
     .t-text-swap.is-enter-start{transform:translateY(4px);filter:blur(2px);opacity:0;transition:none}
     @media (prefers-reduced-motion:reduce){.t-success-check[data-state="in"]{animation:none;opacity:1}.t-success-check svg path{animation:none!important;stroke-dashoffset:0!important}.t-text-swap{transition:none}}.actions{display:flex;gap:8px;flex-wrap:wrap}.actions button{padding:8px 12px;font-size:14px}
-    .status{margin:6px 0 14px}.pill.err{color:var(--err)}.pill.err::before{background:var(--err)}
-    .check{display:flex;align-items:center;gap:8px;font-weight:400;margin:10px 0 14px}.check input{width:auto;margin:0}
-    .next{margin:14px 0;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:var(--bg);font-size:15px}.next p{margin:0 0 10px}
-    a.button{display:block;text-align:center;text-decoration:none;font-weight:500;padding:12px 16px;border-radius:10px;background:var(--ink);color:var(--on-ink)}
-    details{margin-top:22px}summary{cursor:pointer;color:var(--muted,inherit)}details .actions{margin:10px 0}
+    .qrnote{margin:0 0 12px;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:var(--bg);font-size:14px}
     [hidden]{display:none!important}
     .screen{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}
     .screen img{display:block;width:100%;height:auto;cursor:pointer}

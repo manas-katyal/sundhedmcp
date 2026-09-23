@@ -21,8 +21,13 @@ on sundhed.dk, you log in with MitID, and every tool then calls the same JSON
 endpoints the site's own pages use, from inside that logged-in browser.
 
 - **Local or self-hosted.** No SundhedMCP service in between, no telemetry.
-- **In memory.** The session lives in the browser this process owns. Stop the
-  server or close the window and it is gone. Nothing is written to disk.
+- **In memory, locally.** The session lives in the browser this process owns.
+  Stop the server or close the window and it is gone. Nothing is written to disk.
+- **A saved copy, hosted.** MitID only allows the login from a computer, so
+  right after each login the hosted server fetches the whole record and keeps
+  one copy on its volume (`/data/snapshot.json`, owner-only). When sundhed.dk
+  ends the session, the tools answer from that copy and say when it was saved.
+  `disconnect_sundhed` with `forget_saved_copy` deletes it.
 - **Read-only.** Only GET requests to the citizen pages.
 - **CPR masked.** CPR numbers are replaced with `[CPR]` in every result.
 
@@ -55,8 +60,8 @@ leave it running.
    your MitID user ID and approve in the app.
 
 The server runs a headless browser and shows it to you on a
-password-protected `/connect` page for the MitID login. Only OAuth tokens and
-the password hash are written to disk. Any Docker host works the same way:
+password-protected `/connect` page for the MitID login. OAuth tokens, the
+password hash and the saved copy of your record are written to disk. Any Docker host works the same way:
 run the image with a volume at `/data` (set `ADMIN_PASSWORD` to skip the
 first-run page).
 

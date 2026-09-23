@@ -2,7 +2,11 @@
 // clients. Nothing may write to stdout except the transport.
 const { StdioServerTransport } = await import("@modelcontextprotocol/sdk/server/stdio.js");
 const { createServer } = await import("./mcp.ts");
-const { disconnect } = await import("./session.ts");
+const { disconnect, onLogin } = await import("./session.ts");
+const { refresh } = await import("./snapshot.ts");
+
+// After each MitID login, fetch the whole record into memory, for when the session ends.
+onLogin(() => void refresh().catch((err) => console.error(`[snapshot] failed: ${(err as Error).message}`)));
 
 // Exit with the client, and take the browser (and the session in it) down too.
 let exiting = false;

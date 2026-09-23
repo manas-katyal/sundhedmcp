@@ -11,7 +11,7 @@ import { store } from "./store.ts";
 import { SingleUserProvider, verifyPassword } from "./auth.ts";
 import { connectPage, connectSignInPage, firstRunPage, LANG_COOKIE, langOf, loginPage, returningPage, signedInPage, signInFailedPage, statusPage } from "./pages.ts";
 import { createServer, VERSION } from "./mcp.ts";
-import { loginInput, loginScreenshot, loginViewport, loginWantsQr, restartLogin, startAppLogin, startLogin, status, type LoginInput } from "./session.ts";
+import { loginInput, loginScreenshot, loginViewport, loginWantsQr, restartLogin, startLogin, status, type LoginInput } from "./session.ts";
 
 const VIEWER_COOKIE = "sundhed_viewer";
 const VIEWER_TTL_MS = 30 * 60_000;
@@ -103,6 +103,7 @@ export function createApp() {
   app.get("/connect", async (req, res) => {
     if (setupProblems().length || !passwordConfigured()) return void res.redirect(303, "/");
     if (!viewerOk(req)) return void res.type("html").send(connectSignInPage(langOf(req)));
+    await startLogin().catch((err) => log(`could not start the browser: ${(err as Error).message}`));
     // The viewer page runs one inline script and shows screenshots as blob: images.
     res
       .set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' blob:; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
@@ -128,21 +129,6 @@ export function createApp() {
     log(`/connect sign-in from ${ip}`);
     const secure = baseUrl.protocol === "https:" ? "; Secure" : "";
     res.set("Set-Cookie", `${VIEWER_COOKIE}=${id}; Path=/connect; HttpOnly; SameSite=Strict; Max-Age=${VIEWER_TTL_MS / 1000}${secure}`).redirect(303, "/connect");
-  });
-
-  // Phone login: the server types the user ID into MitID and answers with what comes next.
-  app.post("/connect/app", requireViewer, express.json({ limit: "1kb" }), async (req, res) => {
-    const userId = String((req.body as { userId?: unknown })?.userId ?? "").trim();
-    if (!userId || userId.length > 64) return void res.status(400).json({ kind: "error", message: "Type your MitID user ID." });
-    const result = await startAppLogin(userId).catch((err) => ({ kind: "error" as const, message: (err as Error).message }));
-    log(`phone login: ${result.kind}${result.kind === "error" ? ` (${result.message})` : ""}`);
-    res.set("Cache-Control", "no-store").json(result);
-  });
-
-  // The fallback: opens the server's browser on MitID for the remote view.
-  app.post("/connect/start", requireViewer, async (_req, res) => {
-    await startLogin().catch((err) => log(`could not start the browser: ${(err as Error).message}`));
-    res.status(204).end();
   });
 
   app.get("/connect/frame", requireViewer, async (_req, res) => {

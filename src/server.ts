@@ -2,10 +2,15 @@
 // browser, and the /connect page for logging in with MitID.
 import { createServer as createHttpServer } from "node:http";
 import { config, passwordConfigured, rememberEnvPassword, setupProblems } from "./config.ts";
-import { configureHosted, disconnect } from "./session.ts";
+import { join } from "node:path";
+import { configureHosted, disconnect, onLogin } from "./session.ts";
+import { persistTo, refresh } from "./snapshot.ts";
 import { createApp } from "./app.ts";
 
 configureHosted(config.baseUrl);
+// After each MitID login, fetch the whole record and keep a copy on the volume.
+persistTo(join(config.dataDir, "snapshot.json"));
+onLogin(() => void refresh().catch((err) => console.error(`[snapshot] failed: ${(err as Error).message}`)));
 if (rememberEnvPassword()) console.log("[sundhed] stored a hash of ADMIN_PASSWORD on the volume; the variable can now be removed");
 const httpServer = createHttpServer(createApp());
 httpServer.listen(config.port, () => {

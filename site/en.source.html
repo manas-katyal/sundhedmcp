@@ -402,7 +402,7 @@ addEventListener("load", () => { const t = location.hash && document.getElementB
 <main id="top">
   <div class="wrap hero t-stagger" id="hero">
     <h1 class="t-stagger-line t-stagger-line--2">Your health record.<br>Now in your AI.</h1>
-    <p class="lede t-stagger-line t-stagger-line--3">Ask Claude about your medicine, prescriptions, test results and vaccinations from sundhed.dk. You log in with MitID. Nothing is stored.</p>
+    <p class="lede t-stagger-line t-stagger-line--3">Ask Claude about your medicine, prescriptions, test results and vaccinations from sundhed.dk. You log in with MitID. Your data stays on your own machine or server.</p>
     <div class="btns t-stagger-line t-stagger-line--4">
       <a class="btn primary" href="#run">Get started</a>
       <a class="more t-learn" href="#how">See how it works<span class="t-learn-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path class="t-learn-arm t-learn-arm-top" d="M6 4L10 8"/><path class="t-learn-arm t-learn-arm-bot" d="M10 8L6 12"/></svg></span></a>
@@ -523,7 +523,7 @@ addEventListener("load", () => { const t = location.hash && document.getElementB
         </div>
         <div class="fact t-reveal" style="--t-index:1">
           <svg viewBox="0 0 30 30" fill="none" aria-hidden="true"><path d="M5 15h20M15 5v20" stroke-width="1.8" stroke-linecap="round"/><circle cx="15" cy="15" r="10" stroke-width="1.8"/></svg>
-          <h3>Nothing is stored.</h3><p>The login lives in memory. Stop SundhedMCP and it is gone. No database, no logs of your data, no telemetry.</p>
+          <h3>Only on your own server.</h3><p>Run locally, everything lives in memory and is gone when you stop SundhedMCP. Hosted, your server keeps one copy of your record on its own volume, fetched after each login, so you can ask from your phone. No telemetry.</p>
         </div>
         <div class="fact t-reveal" style="--t-index:2">
           <svg viewBox="0 0 30 30" fill="none" aria-hidden="true"><path d="M4 15s4-8 11-8 11 8 11 8-4 8-11 8S4 15 4 15z" stroke-width="1.8"/><circle cx="15" cy="15" r="3.5" stroke-width="1.8"/></svg>
@@ -576,7 +576,7 @@ addEventListener("load", () => { const t = location.hash && document.getElementB
             <li><b>Add it to claude.ai.</b> Settings → Connectors → Add custom connector, with your Railway address plus <code>/mcp</code>. Sign in with the password.</li>
             <li><b>Log in with MitID.</b> Ask Claude anything about your health. It sends you a link to your server: open it on a computer, not your phone, and scan the QR code with the MitID app on your phone.</li>
           </ol>
-          <p class="note">Any Docker host works too: run <code>ghcr.io/manas-katyal/sundhedmcp</code> with a volume at <code>/data</code>. Your data passes through your server's memory and is never stored.</p>
+          <p class="note">Any Docker host works too: run <code>ghcr.io/manas-katyal/sundhedmcp</code> with a volume at <code>/data</code>. After each login your server keeps a copy of your record on that volume, and nobody else gets it.</p>
         </div>
       </div>
       <p class="fine" style="text-align:center;margin-top:22px">In development: the npm package is not published yet, so run it locally <a href="https://github.com/manas-katyal/sundhedmcp">from source</a>.</p>
