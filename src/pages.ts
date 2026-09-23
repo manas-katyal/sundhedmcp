@@ -39,6 +39,7 @@ const T = {
     waiting: "Venter på login", scrollUp: "Rul op", scrollDown: "Rul ned", startOver: "Start forfra",
     screenAlt: "Serverens browser på sundhed.dk", typeLabel: "Skriv i det markerede felt", typePlaceholder: "Klik på et felt ovenfor, og skriv så her",
     done: "Logget ind. Gå tilbage til din assistent; du kan lukke denne side.",
+    qr: "MitID vil have dig til at scanne en QR-kode. Den kan ikke scannes fra den samme telefon: åbn denne side på en computer, og scan koden med MitID-appen på din telefon.",
     langLabel: "Sprog",
   },
   en: {
@@ -65,6 +66,7 @@ const T = {
     waiting: "Waiting for login", scrollUp: "Scroll up", scrollDown: "Scroll down", startOver: "Start over",
     screenAlt: "The server's browser showing sundhed.dk", typeLabel: "Type into the focused field", typePlaceholder: "Click a field above, then type here",
     done: "Logged in. Go back to your assistant; you can close this page.",
+    qr: "MitID wants you to scan a QR code. It cannot be scanned from the same phone: open this page on a computer and scan the code with the MitID app on your phone.",
     langLabel: "Language",
   },
 } as const;
@@ -230,6 +232,7 @@ export function connectPage(lang: Lang, viewport: { width: number; height: numbe
     <div class="status"><span class="t-success-check" id="check" data-state="out" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" fill="var(--ok)"/><path d="M7 12.5l3.3 3.3L17 9" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div class="pill" id="state" role="status"><span class="t-text-swap" id="statetext">${t.waiting}</span></div></div>
     <div class="actions"><button class="ghost" id="up" type="button">${t.scrollUp}</button><button class="ghost" id="down" type="button">${t.scrollDown}</button><button class="ghost" id="restart" type="button">${t.startOver}</button></div>
   </div>
+  <p class="qrnote" id="qrnote" hidden>${t.qr}</p>
   <div class="screen"><img id="screen" alt="${t.screenAlt}" width="${viewport.width}" height="${viewport.height}"></div>
   <div class="typing">
     <label for="keys">${t.typeLabel}</label>
@@ -252,6 +255,7 @@ export function connectPage(lang: Lang, viewport: { width: number; height: numbe
   setInterval(refresh, 700); refresh();
   setInterval(async () => {
     const s = await fetch("/connect/status", { cache: "no-store" }).then((r) => r.json()).catch(() => null);
+    document.getElementById("qrnote").hidden = !(s && s.qr && !s.loggedIn);
     if (s && s.loggedIn && !done) {
       done = true;
       const text = document.getElementById("statetext");
@@ -298,6 +302,8 @@ export function connectPage(lang: Lang, viewport: { width: number; height: numbe
     .t-text-swap.is-exit{transform:translateY(-4px);filter:blur(2px);opacity:0}
     .t-text-swap.is-enter-start{transform:translateY(4px);filter:blur(2px);opacity:0;transition:none}
     @media (prefers-reduced-motion:reduce){.t-success-check[data-state="in"]{animation:none;opacity:1}.t-success-check svg path{animation:none!important;stroke-dashoffset:0!important}.t-text-swap{transition:none}}.actions{display:flex;gap:8px;flex-wrap:wrap}.actions button{padding:8px 12px;font-size:14px}
+    .qrnote{margin:0 0 12px;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:var(--bg);font-size:14px}
+    [hidden]{display:none!important}
     .screen{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}
     .screen img{display:block;width:100%;height:auto;cursor:pointer}
     .typing .row{display:flex;gap:8px}.typing .row input{flex:1;min-width:0}.typing .row button{padding:10px 14px}

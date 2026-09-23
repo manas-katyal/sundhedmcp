@@ -1,6 +1,17 @@
 {
   "$schema": "https://railway.com/railway.schema.json",
-  "build": { "builder": "DOCKERFILE", "dockerfilePath": "Dockerfile" },
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "Dockerfile",
+    "watchPatterns": [
+      "src/**",
+      "Dockerfile",
+      "docker-entrypoint.sh",
+      "package.json",
+      "package-lock.json",
+      "railway.json"
+    ]
+  },
   "deploy": {
     "healthcheckPath": "/healthz",
     "healthcheckTimeout": 60,

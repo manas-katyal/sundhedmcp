@@ -11,7 +11,7 @@ import { store } from "./store.ts";
 import { SingleUserProvider, verifyPassword } from "./auth.ts";
 import { connectPage, connectSignInPage, firstRunPage, LANG_COOKIE, langOf, loginPage, returningPage, signedInPage, signInFailedPage, statusPage } from "./pages.ts";
 import { createServer, VERSION } from "./mcp.ts";
-import { loginInput, loginScreenshot, loginViewport, restartLogin, startLogin, status, type LoginInput } from "./session.ts";
+import { loginInput, loginScreenshot, loginViewport, loginWantsQr, restartLogin, startLogin, status, type LoginInput } from "./session.ts";
 
 const VIEWER_COOKIE = "sundhed_viewer";
 const VIEWER_TTL_MS = 30 * 60_000;
@@ -151,7 +151,8 @@ export function createApp() {
 
   app.get("/connect/status", requireViewer, async (_req, res) => {
     const s = await status().catch(() => ({ loggedIn: false }));
-    res.set("Cache-Control", "no-store").json({ loggedIn: s.loggedIn });
+    const qr = s.loggedIn ? false : await loginWantsQr().catch(() => false);
+    res.set("Cache-Control", "no-store").json({ loggedIn: s.loggedIn, qr });
   });
 
   // --- OAuth server for the MCP connector (single user) ---

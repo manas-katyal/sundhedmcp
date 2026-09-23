@@ -424,3 +424,16 @@ export async function loginInput(input: LoginInput): Promise<void> {
 }
 
 export const loginViewport = () => VIEWPORT;
+
+/**
+ * True when MitID asks for its QR code. MitID does that when the login comes
+ * from a browser it does not recognise, such as this server's; the code has to
+ * be scanned from a screen the person can point their phone at.
+ */
+export async function loginWantsQr(): Promise<boolean> {
+  const s = state;
+  if (!s || s.login.isClosed()) return false;
+  // A string expression: it runs in the page, and this project has no DOM types.
+  const text = await s.login.evaluate<string>("document.body ? document.body.innerText : ''").catch(() => "");
+  return /scan qr/i.test(text);
+}
