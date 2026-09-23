@@ -20,7 +20,7 @@ sundhed.dk has no public API for citizens. SundhedMCP opens a browser window
 on sundhed.dk, you log in with MitID, and every tool then calls the same JSON
 endpoints the site's own pages use, from inside that logged-in browser.
 
-- **Local only.** No server, no account, no telemetry.
+- **Local or self-hosted.** No SundhedMCP service in between, no telemetry.
 - **In memory.** The session lives in the browser this process owns. Stop the
   server or close the window and it is gone. Nothing is written to disk.
 - **Read-only.** Only GET requests to the citizen pages.
@@ -39,6 +39,28 @@ claude mcp add sundhedmcp -- node /path/to/sundhedmcp/src/stdio.ts
 Then ask your assistant to "connect sundhed.dk", click **Log på** in the
 window that opens and approve in the MitID app. The window minimizes itself;
 leave it running.
+
+### Hosted on Railway (for claude.ai and your phone)
+
+The server runs a headless browser, and you log in with MitID on a
+password-protected `/connect` page that shows that browser and forwards your
+typing. Only OAuth tokens are written to disk.
+
+```bash
+railway init --name sundhedmcp
+railway add --service sundhedmcp \
+  --variables "ADMIN_PASSWORD=$(openssl rand -base64 24)"
+railway service link sundhedmcp
+railway volume add --mount-path /data
+railway domain
+railway up
+```
+
+Then add `https://<your-app>.up.railway.app/mcp` in claude.ai under
+Settings → Connectors → Add custom connector, and sign in with the password.
+When Claude says you are not logged in, open the link it gives you, type your
+MitID user ID and approve in the app. Any Docker host works the same way: set
+`ADMIN_PASSWORD` and mount a volume at `/data`.
 
 ## Tools
 

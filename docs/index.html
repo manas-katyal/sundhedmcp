@@ -144,6 +144,7 @@
   .island { position: absolute; top: 8px; left: 50%; translate: -50% 0; width: 32%; height: 17px; border-radius: 10px; background: #000; }
   .shot { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; }
   .screen.web { padding-top: 30px; background: #f4f4f4; }
+  .screen.dark { background: #161616; }
   .approve { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 34px 14px 14px; text-align: center; background: #fff; }
   .approve .seal { width: 46px; height: 46px; border-radius: 50%; background: #0060e6; display: grid; place-items: center; }
   .approve .seal svg { width: 22px; height: 22px; }
@@ -194,6 +195,13 @@
   .way ul { list-style: none; display: flex; flex-direction: column; gap: 6px; margin-top: 6px; font-size: 15px; }
   .way li { display: flex; gap: 10px; }
   .way li::before { content: "✓"; color: var(--ok); font-weight: 600; }
+  .way ol.setup { list-style: none; counter-reset: step; display: flex; flex-direction: column; gap: 16px; margin-top: 10px; font-size: 15px; }
+  .way ol.setup li { display: block; counter-increment: step; padding-left: 34px; position: relative; color: var(--dim); }
+  .way ol.setup li b { color: var(--ink); font-weight: 600; }
+  .way ol.setup li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 22px; height: 22px; border-radius: 50%; background: var(--ink); color: var(--bg); font-size: 12px; font-weight: 600; display: grid; place-items: center; }
+  .way ol.setup pre { margin-top: 8px; color: var(--ink); }
+  .way ol.setup code { font-size: 13px; color: var(--ink); }
+  .way .note { font-size: 14px; color: var(--faint); margin-top: 6px; }
 
   /* FAQ */
   .faq { max-width: 760px; margin: 0 auto; border-top: 1px solid var(--line); }
@@ -366,7 +374,7 @@
             </div>
             <div class="glow"></div>
           </div>
-          <div class="step-text"><h3><span>1.</span> Add it to your AI</h3><p>One command in Claude Code, or a custom connector in claude.ai when you host it yourself. Works with any MCP client.</p></div>
+          <div class="step-text"><h3><span>1.</span> Add it to your AI</h3><p>One command in Claude Code, or a custom connector in claude.ai when you host it on Railway. Works with any MCP client.</p></div>
         </div>
         <div>
           <div class="scene s2" aria-hidden="true">
@@ -379,13 +387,8 @@
         </div>
         <div>
           <div class="scene s3" aria-hidden="true">
-            <div class="phone"><div class="screen"><div class="island"></div>
-              <div class="chat">
-                <div class="bubble me">When did I last get a tetanus shot?</div>
-                <p class="tool"><code>get_vaccinations</code></p>
-                <div class="bubble ai"><b>diTeBooster</b> on <b>14 March 2019</b>. It covers 10 years, so the next one is due in <b>March 2029</b>.</div>
-                <div class="bubble me">Anything I need before Vietnam?</div>
-              </div>
+            <div class="phone"><div class="screen dark"><div class="island"></div>
+              <img class="shot" src="claude-answer.jpg" alt="Claude on iPhone answering in Danish when the last tetanus vaccination was, from sundhed.dk" width="620" height="1342" loading="lazy">
             </div></div>
             <div class="glow"></div>
           </div>
@@ -500,13 +503,25 @@
         <div class="way" id="way-hosted" role="tabpanel" aria-labelledby="tab-hosted">
           <p class="da">On your own server</p>
           <h3>Hosted.</h3>
-          <p>For claude.ai and your phone. You log in with MitID on a password-protected page on your server.</p>
-          <ul><li>Deploy the Docker image to Railway, Fly or any host</li><li>Sign in to the connector with your own password</li></ul>
-<pre class="mono">docker run -p 8080:8080 \
-  -e ADMIN_PASSWORD=… sundhedmcp</pre>
+          <p>For claude.ai and your phone. Deploy to Railway in a few minutes. You log in with MitID on a password-protected page on your own server.</p>
+          <ol class="setup">
+            <li><b>Deploy to Railway.</b> With the <a href="https://docs.railway.com/guides/cli">Railway CLI</a>, from a copy of the code:
+<pre class="mono">git clone https://github.com/manas-katyal/sundhedmcp
+cd sundhedmcp
+railway init --name sundhedmcp
+railway add --service sundhedmcp \
+  --variables "ADMIN_PASSWORD=$(openssl rand -base64 24)"
+railway service link sundhedmcp
+railway volume add --mount-path /data
+railway domain
+railway up</pre></li>
+            <li><b>Add it to claude.ai.</b> Settings → Connectors → Add custom connector, with your Railway address plus <code>/mcp</code>. Sign in with the password.</li>
+            <li><b>Log in with MitID.</b> Ask Claude anything about your health. It sends you a link to your server, where you type your MitID user ID and approve in the app.</li>
+          </ol>
+          <p class="note">Any Docker host works too: the image needs <code>ADMIN_PASSWORD</code> and a volume at <code>/data</code>. Your data passes through your server's memory and is never stored.</p>
         </div>
       </div>
-      <p class="fine" style="text-align:center;margin-top:22px">In development: the npm package and Docker image are not published yet. <a href="https://github.com/manas-katyal/sundhedmcp">Run it from source</a>.</p>
+      <p class="fine" style="text-align:center;margin-top:22px">In development: the npm package is not published yet, so run it locally <a href="https://github.com/manas-katyal/sundhedmcp">from source</a>. Railway builds from source already.</p>
     </div>
   </section>
 
