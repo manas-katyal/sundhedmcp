@@ -59,10 +59,19 @@
   .nav nav { display: flex; align-items: center; gap: 2px; font-size: 13px; }
   .nav nav a { color: var(--dim); padding: 6px 11px; border-radius: 999px; transition: background 300ms var(--t-ease), color 200ms var(--t-ease); }
   .nav nav a:hover { background: var(--alt); color: var(--ink); }
-  .langs { display: inline-flex; gap: 2px; padding: 2px; border-radius: 999px; background: var(--alt); margin-inline: 2px; }
-  .nav .langs a { padding: 4px 9px; font-size: 12px; font-weight: 500; font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; color: var(--faint); }
-  .nav .langs a.is-on { background: var(--tile); color: var(--ink); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); }
-  .nav .langs a:hover { background: var(--tile); color: var(--ink); }
+  /* Language switch: transitions.dev toggle, DA left and EN right */
+  :root { --toggle-dur: 350ms; --toggle-travel: 30px; --toggle-ov1: 1px; --toggle-ov2: 0px; --toggle-ease: cubic-bezier(0.34, 1.35, 0.64, 1); }
+  .nav .lang-toggle { position: relative; display: inline-grid; grid-template-columns: 30px 30px; align-items: center; height: 28px; padding: 0; margin-inline: 2px; border-radius: 999px; background: var(--alt); border: 1px solid var(--line); }
+  .nav .lang-toggle:hover { background: var(--alt); }
+  .lang-toggle .lt { position: relative; z-index: 1; text-align: center; font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-size: 11px; font-weight: 500; color: var(--faint); transition: color 200ms var(--t-ease); }
+  .lang-toggle[data-on="false"] .lt:nth-of-type(2), .lang-toggle[data-on="true"] .lt:nth-of-type(3) { color: var(--ink); }
+  .t-toggle-thumb { position: absolute; top: 2px; left: 2px; width: 26px; height: 22px; border-radius: 999px; background: var(--tile); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14); translate: 0 0; }
+  .t-toggle[data-on="true"] .t-toggle-thumb { translate: var(--toggle-travel) 0; }
+  .t-toggle.is-init[data-on="true"] .t-toggle-thumb { animation: t-toggle-on var(--toggle-dur) var(--toggle-ease) both; }
+  .t-toggle.is-init[data-on="false"] .t-toggle-thumb { animation: t-toggle-off var(--toggle-dur) var(--toggle-ease) both; }
+  @keyframes t-toggle-on { 0% { translate: 0 0; } 55% { translate: calc(var(--toggle-travel) + var(--toggle-ov1)) 0; } 80% { translate: calc(var(--toggle-travel) - var(--toggle-ov2)) 0; } 100% { translate: var(--toggle-travel) 0; } }
+  @keyframes t-toggle-off { 0% { translate: var(--toggle-travel) 0; } 55% { translate: calc(0px - var(--toggle-ov1)) 0; } 80% { translate: var(--toggle-ov2) 0; } 100% { translate: 0 0; } }
+  @media (prefers-reduced-motion: reduce) { .t-toggle-thumb { animation: none !important; } }
   .nav .cta, .nav .cta:hover { background: var(--btn); color: var(--btn-ink); font-weight: 500; }
   @media (max-width: 760px) { .nav nav > a:not(.cta) { display: none; } }
 
@@ -373,7 +382,7 @@
       <a href="#privacy">Privacy</a>
       <a href="#faq">Questions</a>
       <a href="https://github.com/manas-katyal/sundhedmcp">GitHub</a>
-      <span class="langs" aria-label="Language"><a href="./" hreflang="da" lang="da">DA</a><a class="is-on" aria-current="page" lang="en">EN</a></span>
+      <a class="t-toggle lang-toggle" role="switch" aria-checked="true" data-on="true" href="./" hreflang="da" aria-label="Language: English. Switch to Danish"><span class="t-toggle-thumb" aria-hidden="true"></span><span class="lt" lang="da">DA</span><span class="lt" lang="en">EN</span></a>
       <a class="cta" href="#run">Get started</a>
     </nav>
   </div></div>
@@ -644,6 +653,15 @@ railway up</pre><button class="copy" type="button" aria-label="Copy commands"><s
   select(tabs[0], false);
   requestAnimationFrame(() => moveTo(tabs.find((t) => t.getAttribute("aria-selected") === "true"), false));
   addEventListener("resize", () => moveTo(tabs.find((t) => t.getAttribute("aria-selected") === "true"), false));
+
+  // Language switch: slide the thumb, then go to the other language.
+  document.querySelectorAll(".lang-toggle").forEach((t) => t.addEventListener("click", (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button) return;
+    e.preventDefault();
+    const on = t.dataset.on === "true";
+    t.classList.add("is-init"); t.dataset.on = String(!on); t.setAttribute("aria-checked", String(!on));
+    setTimeout(() => { location.href = t.href; }, reduce ? 0 : ms("--toggle-dur", 350));
+  }));
 
   // Scroll reveals.
   const io = new IntersectionObserver((entries) => entries.forEach((e) => {
