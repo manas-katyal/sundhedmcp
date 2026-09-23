@@ -15,7 +15,7 @@ export function shell(title: string, body: string, opts: { kind?: Kind; pill?: s
   body{margin:0;font:16px/1.5 "IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased}
   .wrap{max-width:${opts.wide ? "1060px" : "460px"};margin:0 auto;padding:${opts.wide ? "24px" : "12vh"} 16px 48px}
   .brand{display:flex;align-items:center;gap:10px;margin:0 0 20px;font-weight:500;font-size:17px}
-  .mark{width:24px;height:24px;display:block}.mark rect{fill:var(--ink)}.mark path{fill:var(--bg)}
+  .mark{width:24px;height:24px;display:block}
   .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:26px}
   .pill{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:var(--muted);margin:0 0 10px}
   .pill::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--muted)}
@@ -38,7 +38,7 @@ export function shell(title: string, body: string, opts: { kind?: Kind; pill?: s
   footer{margin-top:20px;font-size:12px;color:var(--muted)}
 </style>
 <body><div class="wrap">
-  <div class="brand"><svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7"/><path d="M13.2 5h7.3l-1.2 7.6h7.2l-1.1 6.8h-7.2L17 27h-7.3l1.2-7.6H3.7l1.1-6.8H12z"/></svg><span>SundhedMCP</span></div>
+  <div class="brand"><svg class="mark" viewBox="0 0 512 512" aria-hidden="true"><defs><linearGradient id="sc" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4f7cff"/><stop offset="0.38" stop-color="#8b5cf6"/><stop offset="0.72" stop-color="#22c1dc"/><stop offset="1" stop-color="#34d399"/></linearGradient><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.55"/><stop offset="0.5" stop-color="#fff" stop-opacity="0.08"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs><rect width="512" height="512" rx="114" fill="url(#sc)"/><rect width="512" height="512" rx="114" fill="url(#sg)"/><g fill="#fff"><rect x="150" y="128" width="212" height="58" rx="16"/><rect x="150" y="128" width="58" height="157" rx="16"/><rect x="150" y="227" width="212" height="58" rx="16"/><rect x="304" y="227" width="58" height="157" rx="16"/><rect x="150" y="326" width="212" height="58" rx="16"/></g></svg><span>SundhedMCP</span></div>
   <div class="card">${pill}<h1>${esc(title)}</h1>${body}</div>
   <footer>SundhedMCP · read-only · self-hosted · not affiliated with sundhed.dk</footer>
 </div></body></html>`;
