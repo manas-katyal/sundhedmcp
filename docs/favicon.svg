@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="SundhedMCP">
   <defs>
     <linearGradient id="chip" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0"    stop-color="#ff7a6b"/>
-      <stop offset="0.38" stop-color="#f0434b"/>
-      <stop offset="0.72" stop-color="#d91c2e"/>
-      <stop offset="1"    stop-color="#b3122a"/>
+      <stop offset="0"    stop-color="#ffa3be"/>
+      <stop offset="0.38" stop-color="#ff6f96"/>
+      <stop offset="0.72" stop-color="#ff4d7a"/>
+      <stop offset="1"    stop-color="#ff2d55"/>
     </linearGradient>
     <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0"   stop-color="#fff" stop-opacity="0.55"/>
@@ -16,7 +16,7 @@
       <stop offset="1" stop-color="#fff" stop-opacity="0.82"/>
     </linearGradient>
     <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#5c0a12" flood-opacity="0.28"/>
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#0b1026" flood-opacity="0.28"/>
     </filter>
   </defs>
 
