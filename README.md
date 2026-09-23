@@ -91,6 +91,11 @@ npm test          # unit tests (synthetic data only)
 npm run typecheck
 ```
 
+The landing page is built from `site/`: edit `site/en.source.html` (English),
+then `python3 site/translate.py` writes the Danish page (it lists any
+translation pair that no longer matches) and `python3 site/build.py` writes
+`docs/` for GitHub Pages.
+
 Never commit captured responses: they are real health data. `fixtures/private/`
 is ignored for that reason.
 
