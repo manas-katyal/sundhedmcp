@@ -374,11 +374,15 @@ export async function startLogin(): Promise<boolean> {
   return false;
 }
 
-/** Starts the MitID login over, for when an attempt went astray. */
+/**
+ * Starts the MitID login over in a fresh browser. Reusing the old one fails:
+ * NemLog-in remembers the half-finished login and answers "Du er allerede
+ * logget ind" (you cannot run two login flows at once).
+ */
 export async function restartLogin(): Promise<void> {
-  const s = await ensureBrowser();
-  await openMitId(s.login);
-  watchForLogin(s);
+  await disconnect();
+  watching = false;
+  await startLogin();
 }
 
 export async function loginScreenshot(): Promise<Buffer | null> {
