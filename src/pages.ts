@@ -33,9 +33,10 @@ const T = {
     firstNote: "Den gemmes hashet på serverens volume. Den kan ikke gendannes, så gem den i din adgangskodemanager.",
     pwLabel: (n: number) => `Adgangskode (mindst ${n} tegn)`, pwRepeat: "Gentag den", save: "Gem adgangskode",
     connectTitle: "Log på sundhed.dk", ownerOnly: "Kun for ejeren",
-    connectSignin: "Denne side viser serverens browser, så du kan logge på med MitID. Bevis først, at det er dig.", continue: "Fortsæt",
+    connectSignin: "Log på skal ske på en computer: MitID vil bede om en QR-kode, som du scanner med MitID-appen på din telefon. Denne side viser serverens browser, så du kan logge på med MitID. Bevis først, at det er dig.", continue: "Fortsæt",
     mitidTitle: "Log på med MitID",
-    mitidHelp: "Dette er serverens browser, åbnet på MitID. Klik på feltet til bruger-ID, skriv dit MitID bruger-ID i feltet nedenfor, tryk Enter og godkend i MitID-appen.",
+    computerNote: "Brug en computer til denne side. Åbn den ikke på telefonen: MitID beder om en QR-kode, og den skal scannes med MitID-appen på din telefon, ikke den enhed, koden vises på.",
+    mitidHelp: "Brug en computer. Når MitID beder om en QR-kode, skal du scanne den med MitID-appen på din telefon. Dette er serverens browser, åbnet på MitID. Klik på feltet til bruger-ID, skriv dit MitID bruger-ID i feltet nedenfor, tryk Enter og godkend i MitID-appen.",
     waiting: "Venter på login", scrollUp: "Rul op", scrollDown: "Rul ned", startOver: "Start forfra",
     screenAlt: "Serverens browser på sundhed.dk", typeLabel: "Skriv i det markerede felt", typePlaceholder: "Klik på et felt ovenfor, og skriv så her",
     done: "Logget ind. Gå tilbage til din assistent; du kan lukke denne side.",
@@ -60,9 +61,10 @@ const T = {
     firstNote: "It is stored hashed on this server's volume. There is no way to recover it, so keep it in your password manager.",
     pwLabel: (n: number) => `Password (at least ${n} characters)`, pwRepeat: "Repeat it", save: "Save password",
     connectTitle: "Log in to sundhed.dk", ownerOnly: "Owner only",
-    connectSignin: "This page shows the server's browser so you can log in with MitID. First, prove it is you.", continue: "Continue",
+    connectSignin: "Do this on a computer: MitID will ask for a QR code, which you scan with the MitID app on your phone. This page shows the server's browser so you can log in with MitID. First, prove it is you.", continue: "Continue",
     mitidTitle: "Log in with MitID",
-    mitidHelp: "This is the server's browser, open on MitID. Click the user ID field, type your MitID user ID in the box below, press Enter and approve in the MitID app.",
+    computerNote: "Use a computer for this page. Do not open it on your phone: MitID will ask for a QR code, and it must be scanned with the MitID app on your phone, not the device showing the code.",
+    mitidHelp: "Use a computer. When MitID asks for a QR code, scan it with the MitID app on your phone. This is the server's browser, open on MitID. Click the user ID field, type your MitID user ID in the box below, press Enter and approve in the MitID app.",
     waiting: "Waiting for login", scrollUp: "Scroll up", scrollDown: "Scroll down", startOver: "Start over",
     screenAlt: "The server's browser showing sundhed.dk", typeLabel: "Type into the focused field", typePlaceholder: "Click a field above, then type here",
     done: "Logged in. Go back to your assistant; you can close this page.",
@@ -182,7 +184,8 @@ export function statusPage(lang: Lang, input: { problems: string[]; mcpUrl: stri
     t.running,
     `<p>${t.addConnector}</p><p><code>${esc(input.mcpUrl)}</code></p>
      <ul class="rows"><li>${t.session}<span class="r">${input.loggedIn ? t.loggedIn : t.notLoggedIn}</span></li></ul>
-     <p><a href="/connect">${t.loginMitid}</a></p>`,
+     <p><a href="/connect">${t.loginMitid}</a></p>
+     <p class="muted small">${t.computerNote}</p>`,
     { kind: "ok", pill: t.runningPill, back: "/" },
   );
 }

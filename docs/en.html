@@ -462,7 +462,7 @@ addEventListener("load", () => { const t = location.hash && document.getElementB
             </div></div>
             <div class="glow"></div>
           </div>
-          <div class="step-text"><h3>Log in with MitID</h3><p>The real MitID login opens, ready for your user ID. Type it, then approve in your MitID app like any other login.</p></div>
+          <div class="step-text"><h3>Log in with MitID</h3><p>The real MitID login opens, ready for your user ID. Type it, then approve in your MitID app like any other login. Hosted, do this on a computer: MitID may ask for a QR code, scanned with the app on your phone.</p></div>
         </div>
         <div class="t-reveal" style="--t-index:2">
           <div class="scene s3" aria-hidden="true"><span class="badge">3</span>
@@ -589,7 +589,7 @@ addEventListener("load", () => { const t = location.hash && document.getElementB
               <div class="deploy"><a class="btn primary" href="https://railway.com/deploy/sundhedmcp?utm_medium=integration&amp;utm_source=button&amp;utm_campaign=sundhedmcp">Deploy on Railway</a></div></li>
             <li><b>Choose a password.</b> Open your server's address from Railway. The first page asks you to choose the password that protects it.</li>
             <li><b>Add it to claude.ai.</b> Settings → Connectors → Add custom connector, with your Railway address plus <code>/mcp</code>. Sign in with the password.</li>
-            <li><b>Log in with MitID.</b> Ask Claude anything about your health. It sends you a link to your server, where you type your MitID user ID and approve in the app.</li>
+            <li><b>Log in with MitID.</b> Ask Claude anything about your health. It sends you a link to your server: open it on a computer, not your phone, and scan the QR code with the MitID app on your phone.</li>
           </ol>
           <p class="note">Any Docker host works too: run <code>ghcr.io/manas-katyal/sundhedmcp</code> with a volume at <code>/data</code>. Your data passes through your server's memory and is never stored.</p>
         </div>
@@ -607,6 +607,7 @@ addEventListener("load", () => { const t = location.hash && document.getElementB
         <div class="t-acc" data-open="false"><button class="t-acc-head" aria-expanded="false" aria-controls="faq-3">Can I run it for my family or patients?<span class="t-acc-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 6.5L8 10.5L12 6.5"/></svg></span></button><div class="t-acc-panel" id="faq-3"><div class="t-acc-panel-inner"><p>No. It is for one person reading their own record. A service holding other people's health data needs approvals and agreements it does not have.</p></div></div></div>
         <div class="t-acc" data-open="false"><button class="t-acc-head" aria-expanded="false" aria-controls="faq-4">Is my data sent anywhere?<span class="t-acc-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 6.5L8 10.5L12 6.5"/></svg></span></button><div class="t-acc-panel" id="faq-4"><div class="t-acc-panel-inner"><p>Only to the AI you ask. Locally, it goes from sundhed.dk to your computer to your AI. Hosted, it passes through your own server's memory on the way.</p></div></div></div>
         <div class="t-acc" data-open="false"><button class="t-acc-head" aria-expanded="false" aria-controls="faq-5">Is this medical advice?<span class="t-acc-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 6.5L8 10.5L12 6.5"/></svg></span></button><div class="t-acc-panel" id="faq-5"><div class="t-acc-panel-inner"><p>No. Your AI can read and summarise your record, but it is not your doctor. Talk to your GP or pharmacist before changing how you take any medicine.</p></div></div></div>
+        <div class="t-acc" data-open="false"><button class="t-acc-head" aria-expanded="false" aria-controls="faq-6">Why do I log in on a computer?<span class="t-acc-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 6.5L8 10.5L12 6.5"/></svg></span></button><div class="t-acc-panel" id="faq-6"><div class="t-acc-panel-inner"><p>Hosted, MitID does not recognise the server's browser and asks for a QR code instead of your user ID. That code must be scanned with the MitID app on your phone, so open the login link on a computer and keep your phone free to scan it.</p></div></div></div>
       </div>
     </div>
   </section>

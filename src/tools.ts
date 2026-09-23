@@ -32,7 +32,7 @@ export function registerTools(server: McpServer): void {
     {
       title: "Connect sundhed.dk",
       description:
-        "Starts a sundhed.dk login with MitID. Locally it opens a browser window and waits up to 3 minutes; tell the person to enter their MitID user ID there and approve in the MitID app. On a hosted server it returns a link the person opens to log in; relay the link and ask them to say when they are done. Call this when another tool says the person is not logged in.",
+        "Starts a sundhed.dk login with MitID. Locally it opens a browser window and waits up to 3 minutes; tell the person to enter their MitID user ID there and approve in the MitID app. On a hosted server it returns a link the person must open IN A BROWSER ON A COMPUTER (not on their phone): MitID will show a QR code there, which they scan with the MitID app on their phone. Relay the link with that instruction and ask them to say when they are done. Call this when another tool says the person is not logged in.",
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
     guard(async () => {
@@ -40,7 +40,7 @@ export function registerTools(server: McpServer): void {
       if (loginUrl) {
         if (await startLogin()) return text("Logged in to sundhed.dk.");
         return text(
-          `Not logged in yet. Ask the person to open ${loginUrl}, enter the server password, type their MitID user ID in the page and approve in the MitID app. When they say they are done, call the tool they asked for.`,
+          `Not logged in yet. Ask the person to open ${loginUrl} in a browser ON A COMPUTER, not on their phone: MitID will show a QR code there, which cannot be scanned from the same device. Tell them to enter the server password, then scan the QR code with the MitID app on their phone (or type their MitID user ID in the page and approve in the app). When they say they are done, call the tool they asked for.`,
         );
       }
       const result = await connect();

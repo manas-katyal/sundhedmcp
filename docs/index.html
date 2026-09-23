@@ -462,7 +462,7 @@ addEventListener("load", () => { const t = location.hash && document.getElementB
             </div></div>
             <div class="glow"></div>
           </div>
-          <div class="step-text"><h3>Log på med MitID</h3><p>Det rigtige MitID-login åbner, klar til dit bruger-ID. Skriv det, og godkend i MitID-appen som ved ethvert andet login.</p></div>
+          <div class="step-text"><h3>Log på med MitID</h3><p>Det rigtige MitID-login åbner, klar til dit bruger-ID. Skriv det, og godkend i MitID-appen som ved ethvert andet login. Er den hostet, så gør det på en computer: MitID kan bede om en QR-kode, som du scanner med appen på din telefon.</p></div>
         </div>
         <div class="t-reveal" style="--t-index:2">
           <div class="scene s3" aria-hidden="true"><span class="badge">3</span>
@@ -589,7 +589,7 @@ addEventListener("load", () => { const t = location.hash && document.getElementB
               <div class="deploy"><a class="btn primary" href="https://railway.com/deploy/sundhedmcp?utm_medium=integration&amp;utm_source=button&amp;utm_campaign=sundhedmcp">Deploy på Railway</a></div></li>
             <li><b>Vælg en adgangskode.</b> Åbn din servers adresse fra Railway. Den første side beder dig vælge den adgangskode, der beskytter den.</li>
             <li><b>Tilføj den i claude.ai.</b> Settings → Connectors → Add custom connector, med din Railway-adresse plus <code>/mcp</code>. Log ind med adgangskoden.</li>
-            <li><b>Log på med MitID.</b> Spørg Claude om noget om dit helbred. Du får et link til din server, hvor du skriver dit MitID bruger-ID og godkender i appen.</li>
+            <li><b>Log på med MitID.</b> Spørg Claude om noget om dit helbred. Du får et link til din server: åbn det på en computer, ikke din telefon, og scan QR-koden med MitID-appen på din telefon.</li>
           </ol>
           <p class="note">Alle Docker-hosts virker også: kør <code>ghcr.io/manas-katyal/sundhedmcp</code> med et volume på <code>/data</code>. Dine data passerer gennem serverens hukommelse og gemmes aldrig.</p>
         </div>
@@ -607,6 +607,7 @@ addEventListener("load", () => { const t = location.hash && document.getElementB
         <div class="t-acc" data-open="false"><button class="t-acc-head" aria-expanded="false" aria-controls="faq-3">Kan jeg køre den for min familie eller mine patienter?<span class="t-acc-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 6.5L8 10.5L12 6.5"/></svg></span></button><div class="t-acc-panel" id="faq-3"><div class="t-acc-panel-inner"><p>Nej. Den er til én person, der læser sin egen journal. En tjeneste med andres helbredsdata kræver godkendelser og aftaler, som den ikke har.</p></div></div></div>
         <div class="t-acc" data-open="false"><button class="t-acc-head" aria-expanded="false" aria-controls="faq-4">Bliver mine data sendt nogen steder hen?<span class="t-acc-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 6.5L8 10.5L12 6.5"/></svg></span></button><div class="t-acc-panel" id="faq-4"><div class="t-acc-panel-inner"><p>Kun til den AI, du spørger. Lokalt går de fra sundhed.dk til din computer og videre til din AI. Hostet passerer de gennem din egen servers hukommelse på vejen.</p></div></div></div>
         <div class="t-acc" data-open="false"><button class="t-acc-head" aria-expanded="false" aria-controls="faq-5">Er det lægelig rådgivning?<span class="t-acc-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 6.5L8 10.5L12 6.5"/></svg></span></button><div class="t-acc-panel" id="faq-5"><div class="t-acc-panel-inner"><p>Nej. Din AI kan læse og opsummere din journal, men den er ikke din læge. Tal med din egen læge eller dit apotek, før du ændrer, hvordan du tager din medicin.</p></div></div></div>
+        <div class="t-acc" data-open="false"><button class="t-acc-head" aria-expanded="false" aria-controls="faq-6">Hvorfor logger jeg på fra en computer?<span class="t-acc-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 6.5L8 10.5L12 6.5"/></svg></span></button><div class="t-acc-panel" id="faq-6"><div class="t-acc-panel-inner"><p>Er den hostet, genkender MitID ikke serverens browser og beder om en QR-kode i stedet for dit bruger-ID. Koden skal scannes med MitID-appen på din telefon, så åbn login-linket på en computer og hold telefonen fri til at scanne den.</p></div></div></div>
       </div>
     </div>
   </section>
