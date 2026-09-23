@@ -2,7 +2,7 @@
 // The person logs in with MitID in its window; every API call then runs as a
 // fetch() inside that browser, so cookies and headers are exactly the site's own.
 // Nothing is written to disk: the context is in-memory and dies with the process.
-import { chromium, type Browser, type BrowserContext, type Page } from "playwright-core";
+import { chromium, devices, type Browser, type BrowserContext, type Page, type Route } from "playwright-core";
 
 export const ORIGIN = "https://www.sundhed.dk";
 // What sundhed.dk's own "Log på" button opens: it redirects through
@@ -54,7 +54,13 @@ let launching: Promise<State> | null = null;
 // Hosted mode: the browser runs headless on a server, and the person logs in
 // through the /connect page, which shows it as screenshots and forwards input.
 let hostedBaseUrl: string | null = null;
-const VIEWPORT = { width: 1000, height: 760 };
+// Hosted, the browser presents itself as a phone. On a phone MitID offers to
+// open the MitID app instead of showing a QR code, and that app link can be
+// handed to the person's own phone. SUNDHEDMCP_MOBILE=0 turns it off.
+const MOBILE = process.env.SUNDHEDMCP_MOBILE !== "0";
+const PHONE = devices["iPhone 15"];
+const DESKTOP_VIEWPORT = { width: 1000, height: 760 };
+const viewport = () => (MOBILE ? PHONE.viewport : DESKTOP_VIEWPORT);
 
 export function configureHosted(baseUrl: string): void {
   hostedBaseUrl = baseUrl;
@@ -89,7 +95,9 @@ async function ensureBrowser(): Promise<State> {
   if (state) return state;
   launching ??= (async () => {
     const browser = await launchBrowser();
-    const context = await browser.newContext({ locale: "da-DK", viewport: hostedBaseUrl ? VIEWPORT : null });
+    const context = await browser.newContext(
+      hostedBaseUrl ? (MOBILE ? { ...PHONE, locale: "da-DK" } : { locale: "da-DK", viewport: DESKTOP_VIEWPORT }) : { locale: "da-DK", viewport: null },
+    );
     const login = await context.newPage();
     const s: State = { browser, context, login, api: null, apps: new Map(), connectedAt: null, lastConfirmedAt: null, endedAt: null, lastSessionMinutes: null, keepAlive: null };
     browser.on("disconnected", () => {
@@ -406,9 +414,10 @@ export async function loginInput(input: LoginInput): Promise<void> {
   const page = s.login;
   switch (input.type) {
     case "click": {
-      const x = Math.max(0, Math.min(VIEWPORT.width, input.x));
-      const y = Math.max(0, Math.min(VIEWPORT.height, input.y));
-      await page.mouse.click(x, y);
+      const x = Math.max(0, Math.min(viewport().width, input.x));
+      const y = Math.max(0, Math.min(viewport().height, input.y));
+      if (MOBILE) await page.touchscreen.tap(x, y);
+      else await page.mouse.click(x, y);
       break;
     }
     case "text":
@@ -423,7 +432,7 @@ export async function loginInput(input: LoginInput): Promise<void> {
   }
 }
 
-export const loginViewport = () => VIEWPORT;
+export const loginViewport = () => viewport();
 
 /**
  * True when MitID asks for its QR code. MitID does that when the login comes
@@ -436,4 +445,109 @@ export async function loginWantsQr(): Promise<boolean> {
   // A string expression: it runs in the page, and this project has no DOM types.
   const text = await s.login.evaluate<string>("document.body ? document.body.innerText : ''").catch(() => "");
   return /scan qr/i.test(text);
+}
+
+/** MitID's own error box, e.g. "Bruger-ID eksisterer ikke. Indtast et eksisterende bruger-ID. (CTL003)". */
+async function mitIdError(page: Page): Promise<string | null> {
+  const text = await page.evaluate<string>("document.body ? document.body.innerText : ''").catch(() => "");
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  const at = lines.findIndex((l) => /\([A-Z]{2,5}\d{3}\)/.test(l));
+  return at < 0 ? null : lines.slice(Math.max(0, at - 2), at + 1).join(" ");
+}
+
+// --- Phone login: the person types their user ID, the server does the rest ---
+
+export type AppLoginResult =
+  | { kind: "loggedIn" }
+  /** MitID wants its app opened: send the phone to this link. */
+  | { kind: "openApp"; url: string }
+  /** The request went out; approve it in the MitID app. */
+  | { kind: "approve" }
+  /** MitID insists on a QR code, which the same phone cannot scan. */
+  | { kind: "qr" }
+  | { kind: "error"; message: string };
+
+// Where the login itself happens. Any other page the login tab tries to open
+// while waiting for MitID is the app link.
+const LOGIN_HOSTS = /(^|\.)(sundhed\.dk|nemlog-in\.mitid\.dk)$/;
+const APP_LINK = /appswitch|app-switch|^mitid/i;
+const OPEN_APP_BUTTON = /åbn\s+mitid[\s-]*app|open\s+(the\s+)?mitid\s+app/i;
+const APP_WAIT_MS = 25_000;
+
+/**
+ * Starts a fresh MitID login, types the user ID and presses Enter, then waits
+ * to see what MitID wants: its app opened (the link is caught before the
+ * server's browser follows it), an approval, or a QR code.
+ */
+export async function startAppLogin(userId: string): Promise<AppLoginResult> {
+  if (!MOBILE) return { kind: "error", message: "Phone login is off (SUNDHEDMCP_MOBILE=0)." };
+  const existing = state;
+  if (existing && (await checkLoggedIn(existing))) {
+    markConnected(existing);
+    return { kind: "loggedIn" };
+  }
+  // A half-finished login blocks a new one ("Du er allerede logget ind"), so start clean.
+  await disconnect();
+  watching = false;
+  const s = await ensureBrowser();
+  const page = s.login;
+
+  let appUrl: string | null = null;
+  // Only after the user ID is sent: until then the tab is still on its way to MitID.
+  let armed = false;
+  const catchAppLink = async (route: Route) => {
+    const req = route.request();
+    const url = req.url();
+    const host = new URL(url).hostname;
+    if (armed && req.isNavigationRequest() && req.frame() === page.mainFrame() && (APP_LINK.test(url) || !LOGIN_HOSTS.test(host))) {
+      appUrl ??= url;
+      // 204 cancels the navigation, so the MitID page keeps waiting for the approval.
+      return route.fulfill({ status: 204 });
+    }
+    return route.fallback();
+  };
+  await page.route("**/*", catchAppLink);
+  // Links with an app scheme (mitid://…) never reach the network; catch them in the page.
+  await page.exposeBinding("__sundhedAppLink", (_src, url: string) => void (armed && (appUrl ??= url)));
+  await page.addInitScript(`(() => {
+    const report = (u) => { try { if (u && !/^https?:/i.test(String(u))) window.__sundhedAppLink(String(u)); } catch {} };
+    const open = window.open; window.open = function (u, ...rest) { report(u); return /^https?:/i.test(String(u)) ? open.call(this, u, ...rest) : null; };
+    document.addEventListener("click", (e) => { const a = e.target instanceof Element && e.target.closest("a[href]"); if (a) report(a.getAttribute("href")); }, true);
+  })()`);
+
+  try {
+    await openMitId(page);
+    const field = page.locator("input.mitid-core-user__user-id:focus");
+    await field.waitFor({ timeout: 15_000 }).catch(() => {});
+    if (!(await field.count())) return { kind: "error", message: "The MitID user ID field did not appear." };
+    await page.keyboard.insertText(userId.trim().slice(0, 64));
+    armed = true;
+    await page.keyboard.press("Enter");
+    watchForLogin(s);
+
+    let clicked = false;
+    const deadline = Date.now() + APP_WAIT_MS;
+    while (Date.now() < deadline) {
+      if (appUrl) {
+        log("caught the MitID app link");
+        return { kind: "openApp", url: appUrl };
+      }
+      if (await checkLoggedIn(s)) {
+        markConnected(s);
+        return { kind: "loggedIn" };
+      }
+      if (await loginWantsQr()) return { kind: "qr" };
+      const problem = await mitIdError(page);
+      if (problem) return { kind: "error", message: problem };
+      const button = page.getByRole("button", { name: OPEN_APP_BUTTON });
+      if (!clicked && (await button.count())) {
+        clicked = true;
+        await button.first().click().catch(() => {});
+      }
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    return { kind: "approve" };
+  } catch (err) {
+    return { kind: "error", message: (err as Error).message.split("\n")[0] };
+  }
 }
