@@ -386,7 +386,11 @@
     .way.is-entering { animation: none; }
   }
 </style>
-<script>document.documentElement.classList.add("t-js");</script>
+<script>document.documentElement.classList.add("t-js");
+// Start each load at the top (or at the #section in the address). The browser's own
+// restore lands before fonts and images settle, so the spot drifts down on every reload.
+if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+addEventListener("load", () => { const t = location.hash && document.getElementById(decodeURIComponent(location.hash.slice(1))); if (t) t.scrollIntoView({ behavior: "instant" }); });</script>
 </head>
 <body>
 
@@ -626,7 +630,7 @@ railway up</pre><button class="copy" type="button" aria-label="Copy commands"><s
 <footer>
   <div class="wrap">
     <p>SundhedMCP reads your own record on sundhed.dk after you log in with MitID. It is not affiliated with sundhed.dk, Sundhedsdatastyrelsen or MitID, and it is not medical advice. Examples on this page use made-up data.</p>
-    <div class="rule"><span>MIT licensed · sundhedmcp.dk</span><span><a href="https://github.com/manas-katyal/sundhedmcp">GitHub</a></span></div>
+    <div class="rule"><span>MIT licensed · sundhedmcp.dk</span><span>Made by <a href="https://github.com/manas-katyal">manas-katyal</a> · <a href="https://github.com/manas-katyal/sundhedmcp">GitHub</a></span></div>
   </div>
 </footer>
 <script>
