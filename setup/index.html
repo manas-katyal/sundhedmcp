@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Opsætning · SundhedMCP</title>
+<meta name="description" content="Brug SundhedMCP fra Claude på telefonen: din egen computer bliver serveren. Fire trin.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon.ico" sizes="any"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  :root {
+    --bg: #faf9f7; --alt: #f4f4f5; --tile: #ffffff; --ink: #0a0a0a; --dim: #5c5c5e; --faint: #8e8e93;
+    --line: #e8e8ea; --line-strong: #d4d4d8; --btn: #0a0a0a; --btn-ink: #f5f5f3; --ok: #0f7b4f; --rose: #c2456d;
+    --t-ease: cubic-bezier(0.2, 0.8, 0.2, 1); --spring: cubic-bezier(0.34, 1.35, 0.64, 1);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { color-scheme: dark;
+      --bg: #0c0c0d; --alt: #161618; --tile: #1b1b1d; --ink: #f2f2f0; --dim: #a1a1a6; --faint: #7c7c82;
+      --line: #2a2a2d; --line-strong: #3a3a3e; --btn: #f2f2f0; --btn-ink: #0c0c0d; --ok: #3fbf85; --rose: #f07c98; }
+  }
+  :root[data-theme="dark"] { color-scheme: dark;
+    --bg: #0c0c0d; --alt: #161618; --tile: #1b1b1d; --ink: #f2f2f0; --dim: #a1a1a6; --faint: #7c7c82;
+    --line: #2a2a2d; --line-strong: #3a3a3e; --btn: #f2f2f0; --btn-ink: #0c0c0d; --ok: #3fbf85; --rose: #f07c98; }
+  html { -webkit-font-smoothing: antialiased; }
+  body { font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; background: var(--bg); color: var(--ink); font-size: 17px; line-height: 1.5; }
+  code, .mono { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; }
+  a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 6px; }
+  .wrap { max-width: 880px; margin: 0 auto; padding-inline: 20px; }
+  /* Top bar */
+  .top { display: flex; justify-content: space-between; align-items: center; padding-block: 18px; }
+  .brand { display: flex; align-items: center; gap: 9px; font-weight: 500; font-size: 15px; text-decoration: none; }
+  .brand img { width: 24px; height: 24px; }
+  .lang-toggle { position: relative; display: inline-grid; grid-template-columns: 30px 30px; align-items: center; height: 28px; border-radius: 999px; background: var(--alt); border: 1px solid var(--line); cursor: pointer; font: inherit; color: inherit; }
+  .lang-toggle .lt { position: relative; z-index: 1; text-align: center; font: 500 11px "IBM Plex Mono", ui-monospace, Menlo, monospace; color: var(--faint); transition: color 200ms var(--t-ease); }
+  .lang-toggle[data-on="false"] .lt:nth-of-type(1), .lang-toggle[data-on="true"] .lt:nth-of-type(2) { color: var(--ink); }
+  .thumb { position: absolute; top: 2px; left: 2px; width: 26px; height: 22px; border-radius: 999px; background: var(--tile); box-shadow: 0 1px 3px rgba(0,0,0,.14); transition: translate 350ms var(--spring); }
+  .lang-toggle[data-on="true"] .thumb { translate: 30px 0; }
+  /* Hero */
+  .hero { padding-block: 48px 36px; }
+  .eyebrow { display: inline-block; font: 12px "IBM Plex Mono", ui-monospace, Menlo, monospace; text-transform: uppercase; color: var(--dim); border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px; margin-bottom: 18px; background: var(--tile); }
+  h1 { font-size: clamp(36px, 6.4vw, 60px); line-height: 1.05; font-weight: 500; text-wrap: balance; }
+  .lede { font-size: clamp(18px, 2.2vw, 22px); line-height: 1.4; color: var(--dim); max-width: 640px; margin-top: 18px; text-wrap: balance; }
+  /* Route: phone to sundhed.dk */
+  .route { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 28px; font-size: 14px; }
+  .route span { padding: 7px 12px; border-radius: 999px; background: var(--tile); border: 1px solid var(--line); }
+  .route span.you { border-color: var(--rose); color: var(--rose); font-weight: 500; }
+  .route i { color: var(--faint); font-style: normal; }
+  /* Steps */
+  ol.steps { list-style: none; display: grid; gap: 14px; padding-block: 8px 56px; }
+  .step { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 18px; background: var(--tile); border: 1px solid var(--line); border-radius: 20px; padding: 24px; transition: border-color 400ms var(--t-ease); }
+  .step.done { border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); }
+  .num { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--btn); color: var(--btn-ink); font: 500 15px "IBM Plex Mono", ui-monospace, Menlo, monospace; position: relative; transition: background 350ms var(--t-ease); }
+  .num svg { position: absolute; width: 18px; height: 18px; opacity: 0; transform: scale(.4); transition: opacity 250ms, transform 400ms var(--spring); }
+  .num b { transition: opacity 200ms; font-weight: 500; }
+  .step.done .num { background: var(--ok); } .step.done .num b { opacity: 0; } .step.done .num svg { opacity: 1; transform: scale(1); color: #fff; }
+  h2 { font-size: 22px; font-weight: 500; line-height: 1.25; margin: 6px 0 8px; text-wrap: balance; }
+  .step p { color: var(--dim); max-width: 62ch; }
+  .step p + p { margin-top: 10px; }
+  .items { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+  .item { border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: grid; gap: 4px; align-content: start; }
+  .item b { font-weight: 500; } .item small { color: var(--dim); font-size: 14px; line-height: 1.4; }
+  .item a { font-size: 14px; margin-top: 6px; }
+  @media (max-width: 640px) { .items { grid-template-columns: 1fr; } .step { grid-template-columns: 1fr; gap: 10px; padding: 20px; } }
+  .cmd { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+  .cmd code { flex: 1 1 260px; min-width: 0; font-size: 15px; background: var(--alt); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; overflow-x: auto; white-space: nowrap; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 18px; border-radius: 999px; font: 500 15px "IBM Plex Sans", sans-serif; border: 0; cursor: pointer; text-decoration: none; transition: opacity 300ms var(--t-ease), transform 300ms var(--t-ease); }
+  .btn:active { transform: scale(.97); }
+  .btn.primary { background: var(--btn); color: var(--btn-ink); } .btn.primary:hover { opacity: .86; }
+  .btn.line { background: transparent; color: var(--ink); border: 1px solid var(--line-strong); }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; align-items: center; }
+  .alt { margin-top: 14px; font-size: 15px; color: var(--dim); }
+  .alt code { font-size: 14px; background: var(--alt); border-radius: 6px; padding: 2px 6px; }
+  .mark-done { font: 500 13px "IBM Plex Sans", sans-serif; color: var(--dim); background: none; border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; cursor: pointer; margin-top: 18px; transition: color 250ms, border-color 250ms; }
+  .step.done .mark-done { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); }
+  /* Guide screenshots */
+  .shots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 18px; }
+  @media (max-width: 640px) { .shots { grid-template-columns: 1fr 1fr; } .shots figure:last-child { grid-column: 1 / -1; max-width: 50%; justify-self: center; } }
+  figure { display: grid; gap: 8px; }
+  .frame { border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: #faf9f7; aspect-ratio: 560 / 820; }
+  .frame img { width: 100%; height: 100%; object-fit: cover; object-position: center 12%; display: block; }
+  figcaption { font-size: 14px; color: var(--dim); line-height: 1.4; } figcaption b { color: var(--ink); font-weight: 500; display: block; }
+  .phone { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 22px; align-items: start; }
+  .phone img { width: 100%; border-radius: 26px; border: 1px solid var(--line); display: block; }
+  @media (max-width: 640px) { .phone { grid-template-columns: 1fr; } .phone img { max-width: 240px; } }
+  /* Facts */
+  .facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding-bottom: 56px; }
+  @media (max-width: 640px) { .facts { grid-template-columns: 1fr; } }
+  .fact { border-top: 1px solid var(--line-strong); padding-top: 14px; }
+  .fact b { font-weight: 500; display: block; margin-bottom: 4px; } .fact p { color: var(--dim); font-size: 15px; }
+  footer { border-top: 1px solid var(--line); padding-block: 22px 40px; font-size: 13px; color: var(--faint); }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="https://sundhedmcp.dk"><img src="/favicon.svg" alt=""><span>SundhedMCP</span></a>
+    <button class="lang-toggle" type="button" data-on="false" aria-label="Sprog / Language"><span class="thumb"></span><span class="lt">DA</span><span class="lt">EN</span></button>
+  </header>
+
+  <section class="hero">
+    <span class="eyebrow" data-i18n="eyebrow">Opsætning · ca. 5 minutter</span>
+    <h1 data-i18n="h1">Brug SundhedMCP fra telefonen</h1>
+    <p class="lede" data-i18n="lede">Din egen computer bliver serveren. Følg de fire trin, så kan Claude på telefonen læse din journal, når computeren er tændt.</p>
+    <div class="route" aria-hidden="true"><span data-i18n="r1">Claude på telefonen</span><i>→</i><span>claude.ai</span><i>→</i><span class="you" data-i18n="r2">Din computer</span><i>→</i><span>sundhed.dk</span></div>
+  </section>
+
+  <ol class="steps">
+    <li class="step" id="s1"><div class="num"><b>1</b><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div>
+      <h2 data-i18n="s1h">Installér tre programmer på din computer</h2>
+      <p data-i18n="s1p">Brug en Mac, Windows- eller Linux-computer. Log ind på Tailscale, når det er installeret.</p>
+      <div class="items">
+        <div class="item"><b>Node.js 24+</b><small data-i18n="i1">Kører SundhedMCP.</small><a href="https://nodejs.org/en/download" target="_blank" rel="noopener" data-i18n="get">Hent</a></div>
+        <div class="item"><b>Google Chrome</b><small data-i18n="i2">Til MitID-login. Edge virker også.</small><a href="https://www.google.com/chrome/" target="_blank" rel="noopener" data-i18n="get">Hent</a></div>
+        <div class="item"><b>Tailscale</b><small data-i18n="i3">Giver computeren en fast adresse, som claude.ai kan nå. Gratis.</small><a href="https://tailscale.com/download" target="_blank" rel="noopener" data-i18n="get">Hent</a></div>
+      </div>
+      <button class="mark-done" type="button" data-i18n="done">Markér som gjort</button>
+    </div></li>
+
+    <li class="step" id="s2"><div class="num"><b>2</b><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div>
+      <h2 data-i18n="s2h">Start SundhedMCP</h2>
+      <p data-i18n="s2p">Åbn Terminal (Mac: tryk ⌘ + mellemrum, og skriv Terminal). Indsæt kommandoen, og tryk Enter. Guiden åbner i din browser.</p>
+      <div class="cmd"><code id="cmd">npx -y sundhedmcp serve</code><button class="btn primary" type="button" data-copy="cmd" data-i18n="copy">Kopiér</button></div>
+      <p class="alt" data-i18n-html="s2alt">Bruger du allerede SundhedMCP i Claude Desktop eller Claude Code? Skriv i stedet: <code>Sæt SundhedMCP op til min telefon</code></p>
+      <div class="row"><a class="btn line" href="http://localhost:8787/guide" target="_blank" rel="noopener" data-i18n="open">Åbn guiden igen</a></div>
+      <button class="mark-done" type="button" data-i18n="done">Markér som gjort</button>
+    </div></li>
+
+    <li class="step" id="s3"><div class="num"><b>3</b><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div>
+      <h2 data-i18n="s3h">Følg guiden på computeren</h2>
+      <p data-i18n="s3p">Guiden tager dig gennem fem trin og krydser dem af, efterhånden som du når dem. Log på med MitID på computeren, ikke på telefonen: MitID viser en QR-kode, som du scanner med MitID-appen.</p>
+      <div class="shots">
+        <figure><div class="frame"><img src="guide-password.jpg" alt="" loading="lazy"></div><figcaption><b data-i18n="f1">Vælg en adgangskode</b><span data-i18n="f1p">Du skal bruge den i claude.ai.</span></figcaption></figure>
+        <figure><div class="frame"><img src="guide-address.jpg" alt="" loading="lazy"></div><figcaption><b data-i18n="f2">Klik “Åbn for claude.ai”</b><span data-i18n="f2p">Tailscale giver computeren sin adresse.</span></figcaption></figure>
+        <figure><div class="frame"><img src="guide-connector.jpg" alt="" loading="lazy"></div><figcaption><b data-i18n="f3">Tilføj i claude.ai</b><span data-i18n="f3p">Kopiér adressen, og klik Start ved login.</span></figcaption></figure>
+      </div>
+      <button class="mark-done" type="button" data-i18n="done">Markér som gjort</button>
+    </div></li>
+
+    <li class="step" id="s4"><div class="num"><b>4</b><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="phone"><div>
+      <h2 data-i18n="s4h">Spørg fra telefonen</h2>
+      <p data-i18n="s4p">Åbn Claude-appen, og spørg fx: “Hvornår fik jeg sidst min stivkrampevaccination?” Connectoren fra claude.ai er allerede på telefonen.</p>
+      <p data-i18n="s4p2">Er computeren slukket, svarer SundhedMCP ikke. Tænd den, så virker det igen.</p>
+      <button class="mark-done" type="button" data-i18n="done">Markér som gjort</button>
+    </div><img src="claude-answer.jpg" alt="" loading="lazy"></div></li>
+  </ol>
+
+  <section class="facts">
+    <div class="fact"><b data-i18n="k1">Din computer er serveren</b><p data-i18n="k1p">SundhedMCP kører intet på en server af sin egen. Kopien af journalen ligger i ~/.sundhedmcp på din computer.</p></div>
+    <div class="fact"><b data-i18n="k2">Din AI ser, hvad den læser</b><p data-i18n="k2p">Det, Claude læser fra journalen, sendes til Anthropic. Spørg kun om det, du vil dele.</p></div>
+    <div class="fact"><b data-i18n="k3">Beskyttet af din adgangskode</b><p data-i18n="k3p">Adressen er offentlig, men connectoren kræver din adgangskode, og guiden svarer kun på din egen computer.</p></div>
+    <div class="fact"><b data-i18n="k4">Kun din egen journal</b><p data-i18n="k4p">SundhedMCP henter og viser. Det tolker ikke svar. Spørg din læge om medicin.</p></div>
+  </section>
+</div>
+<footer><div class="wrap"><span data-i18n="foot">SundhedMCP · open source · ikke tilknyttet sundhed.dk ·</span> <a href="https://sundhedmcp.dk">sundhedmcp.dk</a> · <a href="https://github.com/manas-katyal/sundhedmcp">GitHub</a></div></footer>
+<script>
+const EN = {
+  eyebrow: "Setup · about 5 minutes", h1: "Use SundhedMCP from your phone",
+  lede: "Your own computer becomes the server. Follow the four steps, and Claude on your phone can read your record while the computer is on.",
+  r1: "Claude on your phone", r2: "Your computer",
+  s1h: "Install three programs on your computer", s1p: "Use a Mac, Windows or Linux computer. Log in to Tailscale once it is installed.",
+  i1: "Runs SundhedMCP.", i2: "For the MitID login. Edge works too.", i3: "Gives the computer a fixed address that claude.ai can reach. Free.", get: "Download",
+  s2h: "Start SundhedMCP", s2p: "Open Terminal (Mac: press ⌘ + Space and type Terminal). Paste the command and press Enter. The guide opens in your browser.",
+  s2alt: "Already use SundhedMCP in Claude Desktop or Claude Code? Type this instead: <code>Set up SundhedMCP for my phone</code>",
+  copy: "Copy", copied: "Copied", open: "Open the guide again", done: "Mark as done", undone: "Done",
+  s3h: "Follow the guide on your computer", s3p: "The guide takes you through five steps and ticks them off as you go. Log in with MitID on the computer, not the phone: MitID shows a QR code that you scan with the MitID app.",
+  f1: "Choose a password", f1p: "You need it in claude.ai.", f2: "Click “Open to claude.ai”", f2p: "Tailscale gives the computer its address.", f3: "Add it in claude.ai", f3p: "Copy the address and click Start at login.",
+  s4h: "Ask from your phone", s4p: "Open the Claude app and ask, for example: “When did I last get my tetanus vaccination?” The connector from claude.ai is already on your phone.",
+  s4p2: "When the computer is off, SundhedMCP does not answer. Turn it on and it works again.",
+  k1: "Your computer is the server", k1p: "SundhedMCP runs nothing on a server of its own. The copy of your record stays in ~/.sundhedmcp on your computer.",
+  k2: "Your AI sees what it reads", k2p: "What Claude reads from the record goes to Anthropic. Only ask about what you want to share.",
+  k3: "Protected by your password", k3p: "The address is public, but the connector needs your password, and the guide only answers on your own computer.",
+  k4: "Only your own record", k4p: "SundhedMCP retrieves and shows. It does not interpret results. Ask your GP about medicine.",
+  foot: "SundhedMCP · open source · not affiliated with sundhed.dk ·",
+};
+const DA = {}; document.querySelectorAll("[data-i18n]").forEach(e => DA[e.dataset.i18n] = e.textContent);
+document.querySelectorAll("[data-i18n-html]").forEach(e => DA[e.dataset.i18nHtml] = e.innerHTML);
+Object.assign(DA, { copied: "Kopieret", undone: "Gjort" });
+const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+let lang = store.get("sundhed_lang") === "en" ? "en" : "da";
+const t = (k) => (lang === "en" ? EN : DA)[k];
+function apply() {
+  document.documentElement.lang = lang;
+  document.title = lang === "en" ? "Setup · SundhedMCP" : "Opsætning · SundhedMCP";
+  document.querySelector(".lang-toggle").dataset.on = String(lang === "en");
+  document.querySelectorAll("[data-i18n]").forEach(e => { const v = t(e.dataset.i18n); if (v) e.textContent = v; });
+  document.querySelectorAll("[data-i18n-html]").forEach(e => { e.innerHTML = t(e.dataset.i18nHtml); });
+  document.querySelectorAll(".step").forEach(s => { const b = s.querySelector(".mark-done"); b.textContent = s.classList.contains("done") ? t("undone") : t("done"); });
+}
+document.querySelector(".lang-toggle").addEventListener("click", () => { lang = lang === "en" ? "da" : "en"; store.set("sundhed_lang", lang); apply(); });
+document.querySelectorAll(".step").forEach(s => {
+  if (store.get("setup_" + s.id) === "1") s.classList.add("done");
+  s.querySelector(".mark-done").addEventListener("click", () => { s.classList.toggle("done"); store.set("setup_" + s.id, s.classList.contains("done") ? "1" : "0"); apply(); });
+});
+document.addEventListener("click", e => { const b = e.target.closest("[data-copy]"); if (!b) return;
+  const el = document.getElementById(b.dataset.copy);
+  navigator.clipboard.writeText(el.textContent).then(() => { b.textContent = t("copied"); setTimeout(() => b.textContent = t("copy"), 1500); })
+    .catch(() => { const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }); });
+apply();
+</script>
+</body>
+</html>
