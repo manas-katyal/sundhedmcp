@@ -1,6 +1,6 @@
 FROM node:24-bookworm-slim
 LABEL org.opencontainers.image.title="SundhedMCP" \
-      org.opencontainers.image.description="Read-only MCP server for your own sundhed.dk record. Self-hosted, one user." \
+      org.opencontainers.image.description="SundhedMCP runs locally only; this image serves a page that says so." \
       org.opencontainers.image.source="https://github.com/manas-katyal/sundhedmcp" \
       org.opencontainers.image.licenses="MIT"
 WORKDIR /app

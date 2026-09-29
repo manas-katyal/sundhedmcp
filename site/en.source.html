@@ -205,6 +205,7 @@
   /* Two ways to run */
   .ways { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
   @media (max-width: 760px) { .ways { grid-template-columns: 1fr; } }
+  .ways.one { grid-template-columns: 1fr; max-width: 640px; margin: 0 auto; }
   .way { min-width: 0; background: var(--tile); border-radius: 22px; padding: 34px; display: flex; flex-direction: column; gap: 10px; }
   .way .da { font-size: 14px; color: var(--faint); font-weight: 500; }
   .way h3 { font-size: 26px; line-height: 1.1; font-weight: 500; }
@@ -402,7 +403,7 @@ addEventListener("load", () => { const t = location.hash && document.getElementB
 <main id="top">
   <div class="wrap hero t-stagger" id="hero">
     <h1 class="t-stagger-line t-stagger-line--2">Your health record.<br>Now in your AI.</h1>
-    <p class="lede t-stagger-line t-stagger-line--3">Ask Claude about your medicine, prescriptions, test results and vaccinations from sundhed.dk. You log in with MitID. Your data stays on your own machine or server.</p>
+    <p class="lede t-stagger-line t-stagger-line--3">Ask Claude about your medicine, prescriptions, test results and vaccinations from sundhed.dk. You log in with MitID. It runs on your own computer, and what your AI reads goes to your AI provider.</p>
     <div class="btns t-stagger-line t-stagger-line--4">
       <a class="btn primary" href="#run">Get started</a>
       <a class="more t-learn" href="#how">See how it works<span class="t-learn-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path class="t-learn-arm t-learn-arm-top" d="M6 4L10 8"/><path class="t-learn-arm t-learn-arm-bot" d="M10 8L6 12"/></svg></span></a>
@@ -438,7 +439,7 @@ addEventListener("load", () => { const t = location.hash && document.getElementB
             </div>
             <div class="glow"></div>
           </div>
-          <div class="step-text"><h3>Add it to your AI</h3><p>One command in Claude Code, or a custom connector in claude.ai when you host it on Railway. Works with any MCP client.</p></div>
+          <div class="step-text"><h3>Add it to your AI</h3><p>One command in Claude Code or Claude Desktop, on your own computer. Works with any local MCP client.</p></div>
         </div>
         <div class="t-reveal" style="--t-index:1">
           <div class="scene s2" aria-hidden="true"><span class="badge">2</span>
@@ -447,7 +448,7 @@ addEventListener("load", () => { const t = location.hash && document.getElementB
             </div></div>
             <div class="glow"></div>
           </div>
-          <div class="step-text"><h3>Log in with MitID</h3><p>The real MitID login opens, ready for your user ID. Type it, then approve in your MitID app like any other login. Hosted, do this on a computer: MitID may ask for a QR code, scanned with the app on your phone.</p></div>
+          <div class="step-text"><h3>Log in with MitID</h3><p>The real MitID login opens in a window on your computer, ready for your user ID. Type it, then approve in your MitID app like any other login.</p></div>
         </div>
         <div class="t-reveal" style="--t-index:2">
           <div class="scene s3" aria-hidden="true"><span class="badge">3</span>
@@ -523,7 +524,7 @@ addEventListener("load", () => { const t = location.hash && document.getElementB
         </div>
         <div class="fact t-reveal" style="--t-index:1">
           <svg viewBox="0 0 30 30" fill="none" aria-hidden="true"><path d="M5 15h20M15 5v20" stroke-width="1.8" stroke-linecap="round"/><circle cx="15" cy="15" r="10" stroke-width="1.8"/></svg>
-          <h3>Only on your own server.</h3><p>Run locally, everything lives in memory and is gone when you stop SundhedMCP. Hosted, your server keeps one copy of your record on its own volume, fetched after each login, so you can ask from your phone. No telemetry.</p>
+          <h3>Your AI provider sees it.</h3><p>SundhedMCP runs on your computer, but the medicine, test results and referrals your AI reads are sent to the AI provider you use, under their terms. That is your choice; make it knowingly.</p>
         </div>
         <div class="fact t-reveal" style="--t-index:2">
           <svg viewBox="0 0 30 30" fill="none" aria-hidden="true"><path d="M4 15s4-8 11-8 11 8 11 8-4 8-11 8S4 15 4 15z" stroke-width="1.8"/><circle cx="15" cy="15" r="3.5" stroke-width="1.8"/></svg>
@@ -535,7 +536,7 @@ addEventListener("load", () => { const t = location.hash && document.getElementB
         </div>
         <div class="fact t-reveal" style="--t-index:4">
           <svg viewBox="0 0 30 30" fill="none" aria-hidden="true"><rect x="5" y="6" width="20" height="14" rx="2.5" stroke-width="1.8"/><path d="M11 25h8M15 20v5" stroke-width="1.8" stroke-linecap="round"/></svg>
-          <h3>Runs where you choose.</h3><p>On your own computer, or on a server you control. There is no SundhedMCP company in between.</p>
+          <h3>Nothing stored.</h3><p>Everything lives in memory on your computer and is gone when you stop SundhedMCP. No server, no telemetry, and no SundhedMCP company in between.</p>
         </div>
         <div class="fact t-reveal" style="--t-index:5">
           <svg viewBox="0 0 30 30" fill="none" aria-hidden="true"><path d="M11 9l-6 6 6 6M19 9l6 6-6 6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -549,34 +550,16 @@ addEventListener("load", () => { const t = location.hash && document.getElementB
     <div class="wrap">
       <div class="head t-reveal">
         <p class="eyebrow">Get started</p>
-        <h2>Two ways to run it.</h2>
-        <p>Both read the same record with the same tools. Pick where the browser that holds your login should live.</p>
+        <h2>Run it on your computer.</h2>
+        <p>SundhedMCP runs only locally, next to the AI app on your own computer. There is no hosted version.</p>
       </div>
-      <div class="seg-wrap" hidden id="segwrap"><div class="t-tabs" role="tablist" aria-label="Where to run SundhedMCP">
-        <span class="t-tabs-pill" aria-hidden="true"></span>
-        <button class="t-tab" role="tab" id="tab-local" aria-controls="way-local" aria-selected="true">On your computer</button>
-        <button class="t-tab" role="tab" id="tab-hosted" aria-controls="way-hosted" aria-selected="false">On a server</button>
-      </div></div>
-      <div class="ways t-reveal">
-        <div class="way" id="way-local" role="tabpanel" aria-labelledby="tab-local">
+      <div class="ways one t-reveal">
+        <div class="way" id="way-local">
           <p class="da">On your computer</p>
           <h3>Local.</h3>
           <p>For Claude Code, Claude Desktop and Cursor. A browser window opens for MitID and minimizes itself.</p>
-          <ul><li>Your data never leaves your machine, except to your AI</li><li>Needs Node 24 and Chrome or Edge</li></ul>
+          <ul><li>Your data leaves your computer only for your AI provider</li><li>Needs Node 24 and Chrome or Edge</li></ul>
 <div class="cmd"><pre class="mono">claude mcp add sundhedmcp -- npx -y sundhedmcp</pre><button class="copy" type="button" aria-label="Copy command"><span class="t-icon-swap" data-state="a"><svg class="t-icon" data-icon="a" viewBox="0 0 16 16"><rect x="5" y="5" width="8.5" height="8.5" rx="2"/><path d="M10.5 5V3.5a1.5 1.5 0 00-1.5-1.5H3.5A1.5 1.5 0 002 3.5V9a1.5 1.5 0 001.5 1.5H5"/></svg><svg class="t-icon" data-icon="b" viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7"/></svg></span><span class="t-text-swap">Copy</span></button></div>
-        </div>
-        <div class="way" id="way-hosted" role="tabpanel" aria-labelledby="tab-hosted">
-          <p class="da">On your own server</p>
-          <h3>Hosted.</h3>
-          <p>For claude.ai and your phone. Your own server on Railway, set up with one click. You log in with MitID on a password-protected page on it.</p>
-          <ol class="setup">
-            <li><b>Deploy on Railway.</b> One click creates your own server with the right volume and address. It takes a few minutes.
-              <div class="deploy"><a class="btn primary" href="https://railway.com/deploy/sundhedmcp?utm_medium=integration&amp;utm_source=button&amp;utm_campaign=sundhedmcp">Deploy on Railway</a></div></li>
-            <li><b>Choose a password.</b> Open your server's address from Railway. The first page asks you to choose the password that protects it.</li>
-            <li><b>Add it to claude.ai.</b> Settings → Connectors → Add custom connector, with your Railway address plus <code>/mcp</code>. Sign in with the password.</li>
-            <li><b>Log in with MitID.</b> Ask Claude anything about your health. It sends you a link to your server: open it on a computer, not your phone, and scan the QR code with the MitID app on your phone.</li>
-          </ol>
-          <p class="note">Any Docker host works too: run <code>ghcr.io/manas-katyal/sundhedmcp</code> with a volume at <code>/data</code>. After each login your server keeps a copy of your record on that volume, and nobody else gets it.</p>
         </div>
       </div>
       <p class="fine" style="text-align:center;margin-top:22px">In development: the npm package is not published yet, so run it locally <a href="https://github.com/manas-katyal/sundhedmcp">from source</a>.</p>
@@ -590,9 +573,9 @@ addEventListener("load", () => { const t = location.hash && document.getElementB
         <div class="t-acc" data-open="false"><button class="t-acc-head" aria-expanded="false" aria-controls="faq-1">Is this made by sundhed.dk?<span class="t-acc-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 6.5L8 10.5L12 6.5"/></svg></span></button><div class="t-acc-panel" id="faq-1"><div class="t-acc-panel-inner"><p>No. SundhedMCP is an independent open-source project, not affiliated with sundhed.dk, Sundhedsdatastyrelsen or MitID.</p></div></div></div>
         <div class="t-acc" data-open="false"><button class="t-acc-head" aria-expanded="false" aria-controls="faq-2">Why do I have to log in again?<span class="t-acc-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 6.5L8 10.5L12 6.5"/></svg></span></button><div class="t-acc-panel" id="faq-2"><div class="t-acc-panel-inner"><p>sundhed.dk ends sessions after a while, and SundhedMCP does not keep your login. When a tool says the session has ended, say "connect sundhed.dk" and approve in MitID again.</p></div></div></div>
         <div class="t-acc" data-open="false"><button class="t-acc-head" aria-expanded="false" aria-controls="faq-3">Can I run it for my family or patients?<span class="t-acc-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 6.5L8 10.5L12 6.5"/></svg></span></button><div class="t-acc-panel" id="faq-3"><div class="t-acc-panel-inner"><p>No. It is for one person reading their own record. A service holding other people's health data needs approvals and agreements it does not have.</p></div></div></div>
-        <div class="t-acc" data-open="false"><button class="t-acc-head" aria-expanded="false" aria-controls="faq-4">Is my data sent anywhere?<span class="t-acc-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 6.5L8 10.5L12 6.5"/></svg></span></button><div class="t-acc-panel" id="faq-4"><div class="t-acc-panel-inner"><p>Only to the AI you ask. Locally, it goes from sundhed.dk to your computer to your AI. Hosted, it passes through your own server's memory on the way.</p></div></div></div>
-        <div class="t-acc" data-open="false"><button class="t-acc-head" aria-expanded="false" aria-controls="faq-5">Is this medical advice?<span class="t-acc-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 6.5L8 10.5L12 6.5"/></svg></span></button><div class="t-acc-panel" id="faq-5"><div class="t-acc-panel-inner"><p>No. Your AI can read and summarise your record, but it is not your doctor. Talk to your GP or pharmacist before changing how you take any medicine.</p></div></div></div>
-        <div class="t-acc" data-open="false"><button class="t-acc-head" aria-expanded="false" aria-controls="faq-6">Why do I log in on a computer?<span class="t-acc-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 6.5L8 10.5L12 6.5"/></svg></span></button><div class="t-acc-panel" id="faq-6"><div class="t-acc-panel-inner"><p>Hosted, MitID does not recognise the server's browser and asks for a QR code instead of your user ID. That code must be scanned with the MitID app on your phone, so open the login link on a computer and keep your phone free to scan it.</p></div></div></div>
+        <div class="t-acc" data-open="false"><button class="t-acc-head" aria-expanded="false" aria-controls="faq-4">Is my data sent anywhere?<span class="t-acc-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 6.5L8 10.5L12 6.5"/></svg></span></button><div class="t-acc-panel" id="faq-4"><div class="t-acc-panel-inner"><p>Yes: to the AI provider you connect it to. SundhedMCP itself talks only to sundhed.dk, but your AI sends what it reads (medicine, test results, referrals) to its provider, such as Anthropic or OpenAI, under that provider's terms. Read them before you connect your health record.</p></div></div></div>
+        <div class="t-acc" data-open="false"><button class="t-acc-head" aria-expanded="false" aria-controls="faq-5">Is this medical advice?<span class="t-acc-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 6.5L8 10.5L12 6.5"/></svg></span></button><div class="t-acc-panel" id="faq-5"><div class="t-acc-panel-inner"><p>No. SundhedMCP only fetches and shows your record; it does not interpret results. Your AI can read and summarise it, but it is not your doctor. Talk to your GP or pharmacist before changing how you take any medicine.</p></div></div></div>
+        <div class="t-acc" data-open="false"><button class="t-acc-head" aria-expanded="false" aria-controls="faq-6">Does SundhedMCP see my MitID?<span class="t-acc-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 6.5L8 10.5L12 6.5"/></svg></span></button><div class="t-acc-panel" id="faq-6"><div class="t-acc-panel-inner"><p>No. You type your user ID on the real MitID page, in a browser window on your own computer, and approve in your own MitID app, every time. SundhedMCP never sees, stores or passes on MitID credentials.</p></div></div></div>
       </div>
     </div>
   </section>
@@ -624,39 +607,6 @@ addEventListener("load", () => { const t = location.hash && document.getElementB
   const hero = document.getElementById("hero");
   requestAnimationFrame(() => hero.classList.add("is-shown"));
 
-  // Local / Hosted segmented control.
-  const segwrap = document.getElementById("segwrap");
-  const bar = segwrap.querySelector(".t-tabs"), pill = bar.querySelector(".t-tabs-pill");
-  const tabs = [...bar.querySelectorAll(".t-tab")];
-  segwrap.hidden = false;
-  const panelOf = (tab) => document.getElementById(tab.getAttribute("aria-controls"));
-  function moveTo(tab, animate) {
-    const prev = pill.style.transition;
-    if (!animate) pill.style.transition = "none";
-    pill.style.transform = `translateX(${tab.offsetLeft}px)`;
-    pill.style.width = `${tab.offsetWidth}px`;
-    if (!animate) { void pill.offsetWidth; pill.style.transition = prev; }
-  }
-  function select(tab, animate) {
-    tabs.forEach((t) => {
-      const on = t === tab;
-      t.setAttribute("aria-selected", String(on)); t.tabIndex = on ? 0 : -1;
-      const panel = panelOf(t); panel.hidden = !on;
-      if (on && animate) { panel.classList.remove("is-entering"); void panel.offsetWidth; panel.classList.add("is-entering"); }
-    });
-    moveTo(tab, animate);
-  }
-  tabs.forEach((tab, i) => {
-    tab.addEventListener("click", () => select(tab, true));
-    tab.addEventListener("keydown", (e) => {
-      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
-      const next = tabs[(i + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length];
-      next.focus(); select(next, true);
-    });
-  });
-  select(tabs[0], false);
-  requestAnimationFrame(() => moveTo(tabs.find((t) => t.getAttribute("aria-selected") === "true"), false));
-  addEventListener("resize", () => moveTo(tabs.find((t) => t.getAttribute("aria-selected") === "true"), false));
 
   // Screenshots: skeleton until loaded, then reveal.
   document.querySelectorAll(".t-skel").forEach((box) => {

@@ -205,6 +205,7 @@
   /* Two ways to run */
   .ways { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
   @media (max-width: 760px) { .ways { grid-template-columns: 1fr; } }
+  .ways.one { grid-template-columns: 1fr; max-width: 640px; margin: 0 auto; }
   .way { min-width: 0; background: var(--tile); border-radius: 22px; padding: 34px; display: flex; flex-direction: column; gap: 10px; }
   .way .da { font-size: 14px; color: var(--faint); font-weight: 500; }
   .way h3 { font-size: 26px; line-height: 1.1; font-weight: 500; }
@@ -402,7 +403,7 @@ addEventListener("load", () => { const t = location.hash && document.getElementB
 <main id="top">
   <div class="wrap hero t-stagger" id="hero">
     <h1 class="t-stagger-line t-stagger-line--2">Din sundhedsjournal.<br>Nu i din AI.</h1>
-    <p class="lede t-stagger-line t-stagger-line--3">Spørg Claude om din medicin, dine recepter, prøvesvar og vaccinationer fra sundhed.dk. Du logger på med MitID. Dine data bliver på din egen computer eller server.</p>
+    <p class="lede t-stagger-line t-stagger-line--3">Spørg Claude om din medicin, dine recepter, prøvesvar og vaccinationer fra sundhed.dk. Du logger på med MitID. Den kører på din egen computer, og det, din AI læser, sendes til din AI-udbyder.</p>
     <div class="btns t-stagger-line t-stagger-line--4">
       <a class="btn primary" href="#run">Kom i gang</a>
       <a class="more t-learn" href="#how">Se hvordan det virker<span class="t-learn-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path class="t-learn-arm t-learn-arm-top" d="M6 4L10 8"/><path class="t-learn-arm t-learn-arm-bot" d="M10 8L6 12"/></svg></span></a>
@@ -438,7 +439,7 @@ addEventListener("load", () => { const t = location.hash && document.getElementB
             </div>
             <div class="glow"></div>
           </div>
-          <div class="step-text"><h3>Tilføj den til din AI</h3><p>Én kommando i Claude Code, eller en custom connector i claude.ai, når du kører den på Railway. Virker med alle MCP-klienter.</p></div>
+          <div class="step-text"><h3>Tilføj den til din AI</h3><p>Én kommando i Claude Code eller Claude Desktop, på din egen computer. Virker med alle lokale MCP-klienter.</p></div>
         </div>
         <div class="t-reveal" style="--t-index:1">
           <div class="scene s2" aria-hidden="true"><span class="badge">2</span>
@@ -447,7 +448,7 @@ addEventListener("load", () => { const t = location.hash && document.getElementB
             </div></div>
             <div class="glow"></div>
           </div>
-          <div class="step-text"><h3>Log på med MitID</h3><p>Det rigtige MitID-login åbner, klar til dit bruger-ID. Skriv det, og godkend i MitID-appen som ved ethvert andet login. Er den hostet, så gør det på en computer: MitID kan bede om en QR-kode, som du scanner med appen på din telefon.</p></div>
+          <div class="step-text"><h3>Log på med MitID</h3><p>Det rigtige MitID-login åbner i et vindue på din computer, klar til dit bruger-ID. Skriv det, og godkend i MitID-appen som ved ethvert andet login.</p></div>
         </div>
         <div class="t-reveal" style="--t-index:2">
           <div class="scene s3" aria-hidden="true"><span class="badge">3</span>
@@ -523,7 +524,7 @@ addEventListener("load", () => { const t = location.hash && document.getElementB
         </div>
         <div class="fact t-reveal" style="--t-index:1">
           <svg viewBox="0 0 30 30" fill="none" aria-hidden="true"><path d="M5 15h20M15 5v20" stroke-width="1.8" stroke-linecap="round"/><circle cx="15" cy="15" r="10" stroke-width="1.8"/></svg>
-          <h3>Kun på din egen server.</h3><p>Kører du lokalt, ligger alt i hukommelsen og forsvinder, når du stopper SundhedMCP. Hostet gemmer din server én kopi af din journal på sit eget volume, hentet efter hvert login, så du kan spørge fra telefonen. Ingen telemetri.</p>
+          <h3>Din AI-udbyder ser det.</h3><p>SundhedMCP kører på din computer, men den medicin, de prøvesvar og henvisninger, din AI læser, sendes til den AI-udbyder, du bruger, på udbyderens vilkår. Det er dit valg; tag det med åbne øjne.</p>
         </div>
         <div class="fact t-reveal" style="--t-index:2">
           <svg viewBox="0 0 30 30" fill="none" aria-hidden="true"><path d="M4 15s4-8 11-8 11 8 11 8-4 8-11 8S4 15 4 15z" stroke-width="1.8"/><circle cx="15" cy="15" r="3.5" stroke-width="1.8"/></svg>
@@ -535,7 +536,7 @@ addEventListener("load", () => { const t = location.hash && document.getElementB
         </div>
         <div class="fact t-reveal" style="--t-index:4">
           <svg viewBox="0 0 30 30" fill="none" aria-hidden="true"><rect x="5" y="6" width="20" height="14" rx="2.5" stroke-width="1.8"/><path d="M11 25h8M15 20v5" stroke-width="1.8" stroke-linecap="round"/></svg>
-          <h3>Kører, hvor du vælger.</h3><p>På din egen computer eller på en server, du selv styrer. Der er intet SundhedMCP-firma imellem.</p>
+          <h3>Intet gemmes.</h3><p>Alt ligger i hukommelsen på din computer og forsvinder, når du stopper SundhedMCP. Ingen server, ingen telemetri og intet SundhedMCP-firma imellem.</p>
         </div>
         <div class="fact t-reveal" style="--t-index:5">
           <svg viewBox="0 0 30 30" fill="none" aria-hidden="true"><path d="M11 9l-6 6 6 6M19 9l6 6-6 6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -549,34 +550,16 @@ addEventListener("load", () => { const t = location.hash && document.getElementB
     <div class="wrap">
       <div class="head t-reveal">
         <p class="eyebrow">Kom i gang</p>
-        <h2>To måder at køre den på.</h2>
-        <p>Begge læser den samme journal med de samme værktøjer. Vælg, hvor browseren med dit login skal køre.</p>
+        <h2>Kør den på din computer.</h2>
+        <p>SundhedMCP kører kun lokalt, ved siden af AI-appen på din egen computer. Der findes ingen hostet version.</p>
       </div>
-      <div class="seg-wrap" hidden id="segwrap"><div class="t-tabs" role="tablist" aria-label="Hvor SundhedMCP skal køre">
-        <span class="t-tabs-pill" aria-hidden="true"></span>
-        <button class="t-tab" role="tab" id="tab-local" aria-controls="way-local" aria-selected="true">På din computer</button>
-        <button class="t-tab" role="tab" id="tab-hosted" aria-controls="way-hosted" aria-selected="false">På en server</button>
-      </div></div>
-      <div class="ways t-reveal">
-        <div class="way" id="way-local" role="tabpanel" aria-labelledby="tab-local">
+      <div class="ways one t-reveal">
+        <div class="way" id="way-local">
           <p class="da">På din computer</p>
           <h3>Lokalt.</h3>
           <p>Til Claude Code, Claude Desktop og Cursor. Et browservindue åbner til MitID og minimerer sig selv bagefter.</p>
-          <ul><li>Dine data forlader aldrig din computer, undtagen til din AI</li><li>Kræver Node 24 og Chrome eller Edge</li></ul>
+          <ul><li>Dine data forlader kun din computer til din AI-udbyder</li><li>Kræver Node 24 og Chrome eller Edge</li></ul>
 <div class="cmd"><pre class="mono">claude mcp add sundhedmcp -- npx -y sundhedmcp</pre><button class="copy" type="button" aria-label="Kopiér kommando"><span class="t-icon-swap" data-state="a"><svg class="t-icon" data-icon="a" viewBox="0 0 16 16"><rect x="5" y="5" width="8.5" height="8.5" rx="2"/><path d="M10.5 5V3.5a1.5 1.5 0 00-1.5-1.5H3.5A1.5 1.5 0 002 3.5V9a1.5 1.5 0 001.5 1.5H5"/></svg><svg class="t-icon" data-icon="b" viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7"/></svg></span><span class="t-text-swap">Kopiér</span></button></div>
-        </div>
-        <div class="way" id="way-hosted" role="tabpanel" aria-labelledby="tab-hosted">
-          <p class="da">På din egen server</p>
-          <h3>Hostet.</h3>
-          <p>Til claude.ai og din telefon. Din egen server på Railway, sat op med ét klik. Du logger på med MitID på en adgangskodebeskyttet side på den.</p>
-          <ol class="setup">
-            <li><b>Læg den på Railway.</b> Ét klik opretter din egen server med det rigtige volume og en adresse. Det tager et par minutter.
-              <div class="deploy"><a class="btn primary" href="https://railway.com/deploy/sundhedmcp?utm_medium=integration&amp;utm_source=button&amp;utm_campaign=sundhedmcp">Deploy på Railway</a></div></li>
-            <li><b>Vælg en adgangskode.</b> Åbn din servers adresse fra Railway. Den første side beder dig vælge den adgangskode, der beskytter den.</li>
-            <li><b>Tilføj den i claude.ai.</b> Settings → Connectors → Add custom connector, med din Railway-adresse plus <code>/mcp</code>. Log ind med adgangskoden.</li>
-            <li><b>Log på med MitID.</b> Spørg Claude om noget om dit helbred. Du får et link til din server: åbn det på en computer, ikke din telefon, og scan QR-koden med MitID-appen på din telefon.</li>
-          </ol>
-          <p class="note">Alle Docker-hosts virker også: kør <code>ghcr.io/manas-katyal/sundhedmcp</code> med et volume på <code>/data</code>. Efter hvert login gemmer din server en kopi af din journal på det volume, og ingen andre får den.</p>
         </div>
       </div>
       <p class="fine" style="text-align:center;margin-top:22px">Under udvikling: npm-pakken er ikke udgivet endnu, så kør den lokalt <a href="https://github.com/manas-katyal/sundhedmcp">fra kildekoden</a>.</p>
@@ -590,9 +573,9 @@ addEventListener("load", () => { const t = location.hash && document.getElementB
         <div class="t-acc" data-open="false"><button class="t-acc-head" aria-expanded="false" aria-controls="faq-1">Er det lavet af sundhed.dk?<span class="t-acc-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 6.5L8 10.5L12 6.5"/></svg></span></button><div class="t-acc-panel" id="faq-1"><div class="t-acc-panel-inner"><p>Nej. SundhedMCP er et uafhængigt open source-projekt, som ikke er tilknyttet sundhed.dk, Sundhedsdatastyrelsen eller MitID.</p></div></div></div>
         <div class="t-acc" data-open="false"><button class="t-acc-head" aria-expanded="false" aria-controls="faq-2">Hvorfor skal jeg logge på igen?<span class="t-acc-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 6.5L8 10.5L12 6.5"/></svg></span></button><div class="t-acc-panel" id="faq-2"><div class="t-acc-panel-inner"><p>sundhed.dk afslutter sessioner efter et stykke tid, og SundhedMCP gemmer ikke dit login. Når et værktøj siger, at sessionen er slut, så bed om at forbinde til sundhed.dk og godkend i MitID igen.</p></div></div></div>
         <div class="t-acc" data-open="false"><button class="t-acc-head" aria-expanded="false" aria-controls="faq-3">Kan jeg køre den for min familie eller mine patienter?<span class="t-acc-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 6.5L8 10.5L12 6.5"/></svg></span></button><div class="t-acc-panel" id="faq-3"><div class="t-acc-panel-inner"><p>Nej. Den er til én person, der læser sin egen journal. En tjeneste med andres helbredsdata kræver godkendelser og aftaler, som den ikke har.</p></div></div></div>
-        <div class="t-acc" data-open="false"><button class="t-acc-head" aria-expanded="false" aria-controls="faq-4">Bliver mine data sendt nogen steder hen?<span class="t-acc-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 6.5L8 10.5L12 6.5"/></svg></span></button><div class="t-acc-panel" id="faq-4"><div class="t-acc-panel-inner"><p>Kun til den AI, du spørger. Lokalt går de fra sundhed.dk til din computer og videre til din AI. Hostet passerer de gennem din egen servers hukommelse på vejen.</p></div></div></div>
-        <div class="t-acc" data-open="false"><button class="t-acc-head" aria-expanded="false" aria-controls="faq-5">Er det lægelig rådgivning?<span class="t-acc-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 6.5L8 10.5L12 6.5"/></svg></span></button><div class="t-acc-panel" id="faq-5"><div class="t-acc-panel-inner"><p>Nej. Din AI kan læse og opsummere din journal, men den er ikke din læge. Tal med din egen læge eller dit apotek, før du ændrer, hvordan du tager din medicin.</p></div></div></div>
-        <div class="t-acc" data-open="false"><button class="t-acc-head" aria-expanded="false" aria-controls="faq-6">Hvorfor logger jeg på fra en computer?<span class="t-acc-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 6.5L8 10.5L12 6.5"/></svg></span></button><div class="t-acc-panel" id="faq-6"><div class="t-acc-panel-inner"><p>Er den hostet, genkender MitID ikke serverens browser og beder om en QR-kode i stedet for dit bruger-ID. Koden skal scannes med MitID-appen på din telefon, så åbn login-linket på en computer og hold telefonen fri til at scanne den.</p></div></div></div>
+        <div class="t-acc" data-open="false"><button class="t-acc-head" aria-expanded="false" aria-controls="faq-4">Bliver mine data sendt nogen steder hen?<span class="t-acc-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 6.5L8 10.5L12 6.5"/></svg></span></button><div class="t-acc-panel" id="faq-4"><div class="t-acc-panel-inner"><p>Ja: til den AI-udbyder, du forbinder den til. SundhedMCP taler selv kun med sundhed.dk, men din AI sender det, den læser (medicin, prøvesvar, henvisninger), til sin udbyder, fx Anthropic eller OpenAI, på udbyderens vilkår. Læs dem, før du forbinder din sundhedsjournal.</p></div></div></div>
+        <div class="t-acc" data-open="false"><button class="t-acc-head" aria-expanded="false" aria-controls="faq-5">Er det lægelig rådgivning?<span class="t-acc-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 6.5L8 10.5L12 6.5"/></svg></span></button><div class="t-acc-panel" id="faq-5"><div class="t-acc-panel-inner"><p>Nej. SundhedMCP henter og viser kun din journal; den fortolker ikke resultater. Din AI kan læse og opsummere den, men den er ikke din læge. Tal med din egen læge eller dit apotek, før du ændrer, hvordan du tager din medicin.</p></div></div></div>
+        <div class="t-acc" data-open="false"><button class="t-acc-head" aria-expanded="false" aria-controls="faq-6">Ser SundhedMCP mit MitID?<span class="t-acc-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 6.5L8 10.5L12 6.5"/></svg></span></button><div class="t-acc-panel" id="faq-6"><div class="t-acc-panel-inner"><p>Nej. Du skriver dit bruger-ID på den rigtige MitID-side, i et browservindue på din egen computer, og godkender i din egen MitID-app, hver gang. SundhedMCP ser, gemmer eller videregiver aldrig MitID-oplysninger.</p></div></div></div>
       </div>
     </div>
   </section>
@@ -624,39 +607,6 @@ addEventListener("load", () => { const t = location.hash && document.getElementB
   const hero = document.getElementById("hero");
   requestAnimationFrame(() => hero.classList.add("is-shown"));
 
-  // Local / Hosted segmented control.
-  const segwrap = document.getElementById("segwrap");
-  const bar = segwrap.querySelector(".t-tabs"), pill = bar.querySelector(".t-tabs-pill");
-  const tabs = [...bar.querySelectorAll(".t-tab")];
-  segwrap.hidden = false;
-  const panelOf = (tab) => document.getElementById(tab.getAttribute("aria-controls"));
-  function moveTo(tab, animate) {
-    const prev = pill.style.transition;
-    if (!animate) pill.style.transition = "none";
-    pill.style.transform = `translateX(${tab.offsetLeft}px)`;
-    pill.style.width = `${tab.offsetWidth}px`;
-    if (!animate) { void pill.offsetWidth; pill.style.transition = prev; }
-  }
-  function select(tab, animate) {
-    tabs.forEach((t) => {
-      const on = t === tab;
-      t.setAttribute("aria-selected", String(on)); t.tabIndex = on ? 0 : -1;
-      const panel = panelOf(t); panel.hidden = !on;
-      if (on && animate) { panel.classList.remove("is-entering"); void panel.offsetWidth; panel.classList.add("is-entering"); }
-    });
-    moveTo(tab, animate);
-  }
-  tabs.forEach((tab, i) => {
-    tab.addEventListener("click", () => select(tab, true));
-    tab.addEventListener("keydown", (e) => {
-      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
-      const next = tabs[(i + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length];
-      next.focus(); select(next, true);
-    });
-  });
-  select(tabs[0], false);
-  requestAnimationFrame(() => moveTo(tabs.find((t) => t.getAttribute("aria-selected") === "true"), false));
-  addEventListener("resize", () => moveTo(tabs.find((t) => t.getAttribute("aria-selected") === "true"), false));
 
   // Screenshots: skeleton until loaded, then reveal.
   document.querySelectorAll(".t-skel").forEach((box) => {

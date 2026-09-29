@@ -12,7 +12,7 @@ export function createServer(): McpServer {
         "The owner logs in with MitID through connect_sundhed. If a tool says they are not logged in, call connect_sundhed and relay what it says.",
         "Field names and many values are Danish, as sundhed.dk returns them. Translate for the owner when they write in another language.",
         "CPR numbers are masked as [CPR]. Never ask the owner for theirs.",
-        "This is the owner's own data, not medical advice. For questions about changing or stopping medicine, point them to their GP or pharmacist.",
+        "SundhedMCP only retrieves and shows the record; it does not interpret results. This is the owner's own data, not medical advice. For questions about changing or stopping medicine, point them to their GP or pharmacist.",
       ].join(" "),
     },
   );

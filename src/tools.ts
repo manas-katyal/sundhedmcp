@@ -47,7 +47,7 @@ export function registerTools(server: McpServer): void {
     {
       title: "Connect sundhed.dk",
       description:
-        "Starts a sundhed.dk login with MitID. Locally it opens a browser window and waits up to 3 minutes; tell the person to enter their MitID user ID there and approve in the MitID app. On a hosted server it returns a link the person must open IN A BROWSER ON A COMPUTER (not on their phone): MitID will show a QR code there, which they scan with the MitID app on their phone. Relay the link with that instruction and ask them to say when they are done. Right after the login the server fetches the whole record and keeps a copy, so the tools still answer from it after the session ends. Call this when another tool says the person is not logged in.",
+        "Starts a sundhed.dk login with MitID. It opens a browser window on this computer and waits up to 3 minutes; tell the person to enter their MitID user ID there and approve in the MitID app themselves. SundhedMCP never sees or stores MitID credentials. Right after the login it fetches the whole record into memory, so the tools still answer from it after the session ends, until the process stops. Call this when another tool says the person is not logged in.",
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
     guard(async () => {
