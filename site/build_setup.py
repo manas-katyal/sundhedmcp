@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Builds setup.sundhedmcp.dk (setup/index.html and setup/en.html) from the
-main site's own head, stylesheet, nav mark and footer, so the setup page keeps
-sundhedmcp.dk's visual identity. Edit the copy in TEXT below, then run:
+"""Builds the setup guide on sundhedmcp.dk (docs/opsaetning.html in Danish,
+docs/setup.html in English) from the main site's own head, stylesheet, nav mark
+and footer, so it keeps sundhedmcp.dk's visual identity. Run it after
+translate.py and build.py. Edit the copy in TEXT below, then run:
 
     python3 site/build_setup.py
 """
@@ -38,7 +39,7 @@ EXTRA_CSS = """<style>
 
 TEXT = {
     "da": {
-        "file": "index.html", "other": "en.html", "lang_label": "Sprog: dansk. Skift til engelsk",
+        "file": "opsaetning.html", "other": "setup.html", "home": "./", "lang_label": "Sprog: dansk. Skift til engelsk",
         "title": "Opsætning · SundhedMCP",
         "desc": "Brug SundhedMCP fra Claude på telefonen. Din egen computer bliver serveren. Tre trin.",
         "nav": ["Før du starter", "Opsætning", "Privatliv", "Forside"], "cta": "Kom i gang",
@@ -89,7 +90,7 @@ TEXT = {
         "made": "Lavet af",
     },
     "en": {
-        "file": "en.html", "other": "index.html", "lang_label": "Language: English. Switch to Danish",
+        "file": "setup.html", "other": "opsaetning.html", "home": "en.html", "lang_label": "Language: English. Switch to Danish",
         "title": "Setup · SundhedMCP",
         "desc": "Use SundhedMCP from Claude on your phone. Your own computer becomes the server. Three steps.",
         "nav": ["Before you start", "Setup", "Privacy", "Home"], "cta": "Get started",
@@ -180,7 +181,7 @@ def page(lang: str) -> str:
 <body>
 <header class="nav">
   <div class="wrap"><div class="navpill">
-    <a class="brand" href="https://sundhedmcp.dk{'/en.html' if lang == 'en' else '/'}" aria-label="SundhedMCP">
+    <a class="brand" href="{t["home"]}" aria-label="SundhedMCP">
       {mark}
       SundhedMCP
     </a>
@@ -188,7 +189,7 @@ def page(lang: str) -> str:
       <a href="#need">{t["nav"][0]}</a>
       <a href="#run">{t["nav"][1]}</a>
       <a href="#privacy">{t["nav"][2]}</a>
-      <a href="https://sundhedmcp.dk{'/en.html' if lang == 'en' else '/'}">{t["nav"][3]}</a>
+      <a href="{t["home"]}">{t["nav"][3]}</a>
       <a class="t-toggle lang-toggle" role="switch" aria-checked="{on}" data-on="{on}" href="{t["other"]}" hreflang="{other_lang}" aria-label="{t["lang_label"]}"><span class="t-toggle-thumb" aria-hidden="true"></span><span class="lt" lang="da">DK</span><span class="lt" lang="en">EN</span></a>
       <a class="cta" href="#run">{t["cta"]}</a>
     </nav>
@@ -294,7 +295,7 @@ def page(lang: str) -> str:
 <footer>
   <div class="wrap">
     <p>{t["foot"]}</p>
-    <div class="rule"><span>MIT · setup.sundhedmcp.dk</span><span>{t["made"]} <a href="https://github.com/manas-katyal">manas-katyal</a> · <a href="https://github.com/manas-katyal/sundhedmcp">GitHub</a></span></div>
+    <div class="rule"><span>MIT-licens · sundhedmcp.dk</span><span>{t["made"]} <a href="https://github.com/manas-katyal">manas-katyal</a> · <a href="https://github.com/manas-katyal/sundhedmcp">GitHub</a></span></div>
   </div>
 </footer>
 <script>
@@ -334,6 +335,10 @@ def page(lang: str) -> str:
 """
 
 
+import shutil
+
 for lang in ("da", "en"):
-    (ROOT / "setup" / TEXT[lang]["file"]).write_text(page(lang))
-    print("wrote", "setup/" + TEXT[lang]["file"])
+    (ROOT / "docs" / TEXT[lang]["file"]).write_text(page(lang))
+    print("wrote", "docs/" + TEXT[lang]["file"])
+for img in ("guide-password.jpg", "guide-address.jpg", "guide-connector.jpg"):
+    shutil.copy(ROOT / "site" / img, ROOT / "docs" / img)

@@ -68,6 +68,7 @@ leave it running.
 ### Use it from your phone (claude.ai)
 
 Your own computer becomes the server. Nothing runs on a server of ours.
+Step-by-step with pictures: [sundhedmcp.dk/opsaetning](https://sundhedmcp.dk/opsaetning.html) ([English](https://sundhedmcp.dk/setup.html)).
 
 1. Run `npx -y sundhedmcp serve`, or ask your assistant to "set up SundhedMCP
    for my phone" (the `phone_access` tool).

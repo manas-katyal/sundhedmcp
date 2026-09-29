@@ -14,6 +14,7 @@ T = [
  ('<a href="#reads">What it reads</a>', '<a href="#reads">Hvad den læser</a>'),
  ('<a href="#privacy">Privacy</a>', '<a href="#privacy">Privatliv</a>'),
  ('<a href="#faq">Questions</a>', '<a href="#faq">Spørgsmål</a>'),
+ ('<a href="setup.html">Phone</a>', '<a href="opsaetning.html">Telefon</a>'),
  ('<a class="cta" href="#run">Get started</a>', '<a class="cta" href="#run">Kom i gang</a>'),
  ('Your health record.<br>Now in your AI.', 'Din sundhedsjournal.<br>Nu i din AI.'),
  ('<a class="btn primary" href="#run">Get started</a>', '<a class="btn primary" href="#run">Kom i gang</a>'),
