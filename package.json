@@ -44,5 +44,10 @@
     "dist/lib",
     "README.md",
     "LICENSE"
-  ]
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/manas-katyal/sundhedmcp.git"
+  },
+  "homepage": "https://sundhedmcp.dk"
 }

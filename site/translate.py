@@ -115,8 +115,6 @@ T = [
   'Ser SundhedMCP mit MitID?<span'),
  ('No. You type your user ID on the real MitID page, in a browser window on your own computer, and approve in your own MitID app, every time. SundhedMCP never sees, stores or passes on MitID credentials.',
   'Nej. Du skriver dit bruger-ID på den rigtige MitID-side, i et browservindue på din egen computer, og godkender i din egen MitID-app, hver gang. SundhedMCP ser, gemmer eller videregiver aldrig MitID-oplysninger.'),
- ('In development: the npm package is not published yet, so run it locally <a href="https://github.com/manas-katyal/sundhedmcp">from source</a>.',
-  'Under udvikling: npm-pakken er ikke udgivet endnu, så kør den lokalt <a href="https://github.com/manas-katyal/sundhedmcp">fra kildekoden</a>.'),
 ]
 da = open('en.source.html').read()
 missing = []
