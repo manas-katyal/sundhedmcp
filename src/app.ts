@@ -24,7 +24,7 @@ export function createApp(guide?: GuideOptions) {
   const app = express();
   app.set("trust proxy", 1);
   app.disable("x-powered-by");
-  const strictCsp = "default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'";
+  const strictCsp = "default-src 'none'; font-src 'self'; style-src 'unsafe-inline'; img-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'";
   app.use((_req, res, next) => {
     res.set({ "X-Frame-Options": "DENY", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "Content-Security-Policy": strictCsp });
     next();
@@ -57,6 +57,11 @@ export function createApp(guide?: GuideOptions) {
   app.get("/favicon.svg", icon("favicon.svg", "image/svg+xml"));
   app.get("/favicon.ico", icon("favicon.ico", "image/x-icon"));
   app.get("/apple-touch-icon.png", icon("apple-touch-icon.png", "image/png"));
+  // IBM Plex, sundhedmcp.dk's typeface, served from here so no page calls a font host.
+  for (const font of ["IBMPlexSans.woff2", "IBMPlexMono-400.woff2", "IBMPlexMono-500.woff2"]) {
+    const body = readFileSync(new URL(`./assets/fonts/${font}`, import.meta.url));
+    app.get(`/fonts/${font}`, (_req, res) => void res.set("Cache-Control", "public, max-age=31536000, immutable").type("font/woff2").send(body));
+  }
 
   // --- Status and health ---
 
@@ -114,7 +119,7 @@ export function createApp(guide?: GuideOptions) {
     await startLogin().catch((err) => log(`could not start the browser: ${(err as Error).message}`));
     // The viewer page runs one inline script and shows screenshots as blob: images.
     res
-      .set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' blob:; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
+      .set("Content-Security-Policy", "default-src 'none'; font-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' blob:; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
       .type("html")
       .send(connectPage(langOf(req), loginViewport()));
   });

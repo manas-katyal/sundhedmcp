@@ -154,7 +154,7 @@ poll();setInterval(poll,3000);
 .steps{list-style:none;padding:0;margin:22px 0 0;display:grid;gap:4px}
 .step{display:grid;grid-template-columns:32px 1fr;gap:14px;padding:12px 0;border-top:1px solid var(--line)}
 .step:first-child{border-top:0}
-.num{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);font:500 13px/1 ui-monospace,Menlo,monospace;color:var(--muted);position:relative;transition:background .3s cubic-bezier(.2,.8,.2,1),border-color .3s,color .3s}
+.num{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);font:500 13px/1 "IBM Plex Mono",ui-monospace,Menlo,monospace;color:var(--muted);position:relative;transition:background .3s cubic-bezier(.2,.8,.2,1),border-color .3s,color .3s}
 .num svg{position:absolute;width:14px;height:14px;opacity:0;transform:scale(.4);transition:opacity .25s,transform .35s cubic-bezier(.34,1.56,.64,1)}
 .num span{transition:opacity .2s}
 .step[data-state="current"] .num{background:var(--ink);border-color:var(--ink);color:var(--on-ink)}
@@ -167,13 +167,13 @@ poll();setInterval(poll,3000);
 .step[data-state="current"] .panel,.step[data-state="done"] .panel{grid-template-rows:1fr;opacity:1}
 .inner>*:first-child{margin-top:10px}
 .ok{color:var(--ok)}
-.btn{display:inline-block;font-weight:500;padding:10px 14px;border-radius:10px;background:var(--ink);color:var(--on-ink);text-decoration:none;margin-top:4px}
-button{padding:10px 14px}button:disabled{opacity:.6;cursor:progress}
+.btn{display:inline-block;font-weight:500;padding:11px 20px;border-radius:999px;background:var(--ink);color:var(--on-ink);text-decoration:none;margin-top:4px}
+button{padding:11px 20px}button:disabled{opacity:.6;cursor:progress}
 ol.sub{margin:10px 0 12px;padding-left:20px}ol.sub li{margin:0 0 6px}
 .copyrow{display:flex;gap:8px;align-items:center;margin:0 0 12px;flex-wrap:wrap}.copyrow code{flex:1;min-width:0}
 .wait{margin-top:12px;animation:pulse 1.6s ease-in-out infinite}@keyframes pulse{50%{opacity:.45}}
 .links ul{padding-left:18px;word-break:break-all}
-.finish{margin:18px 0 0;padding:14px;border-radius:12px;background:color-mix(in srgb,var(--ok) 12%,transparent);color:var(--ok);font-weight:500}
+.finish{margin:18px 0 0;padding:16px 18px;border-radius:16px;background:color-mix(in srgb,var(--ok) 12%,transparent);color:var(--ok);font-weight:500}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>`;
   return shell(lang, t.title, body, { head, back: "/guide" });
@@ -191,7 +191,7 @@ export function mountGuide(app: express.Express, opts: GuideOptions): void {
 
   app.get("/guide", local, (req, res) => {
     res
-      .set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
+      .set("Content-Security-Policy", "default-src 'none'; font-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
       .type("html")
       .send(page(langOf(req)));
   });

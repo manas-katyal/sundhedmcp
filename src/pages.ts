@@ -91,43 +91,54 @@ type Kind = "neutral" | "ok" | "error";
 export function shell(lang: Lang, title: string, body: string, opts: { kind?: Kind; pill?: string; head?: string; wide?: boolean; back?: string } = {}): string {
   const pill = opts.pill ? `<div class="pill ${opts.kind ?? "neutral"}">${esc(opts.pill)}</div>` : "";
   const to = (l: Lang) => `/lang/${l}?back=${encodeURIComponent(opts.back ?? "/")}`;
+  // sundhedmcp.dk's DK/EN thumb switch; it links to the other language.
+  const other: Lang = lang === "da" ? "en" : "da";
   const toggle = opts.back
-    ? `<nav class="langs" aria-label="${T[lang].langLabel}"><a href="${to("da")}" hreflang="da" lang="da"${lang === "da" ? ' class="on" aria-current="true"' : ""}>DK</a><a href="${to("en")}" hreflang="en" lang="en"${lang === "en" ? ' class="on" aria-current="true"' : ""}>EN</a></nav>`
+    ? `<a class="lang-toggle" role="switch" aria-checked="${lang === "en"}" data-on="${lang === "en"}" href="${to(other)}" hreflang="${other}" aria-label="${T[lang].langLabel}"><span class="thumb" aria-hidden="true"></span><span class="lt" lang="da">DK</span><span class="lt" lang="en">EN</span></a>`
     : "";
   return `<!doctype html><html lang="${lang}"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark"><title>${esc(title)} · SundhedMCP</title><link rel="icon" href="/favicon.svg?v=6" type="image/svg+xml"><link rel="icon" href="/favicon.ico?v=6" sizes="any"><link rel="apple-touch-icon" href="/apple-touch-icon.png?v=6">${opts.head ?? ""}
 <style>
-  :root{--bg:#faf9f7;--card:#ffffff;--ink:#0a0a0a;--on-ink:#f5f5f3;--muted:#5c5c5e;--line:#e8e8ea;--ok:#0f7b4f;--err:#c1352a}
-  @media (prefers-color-scheme:dark){:root{--bg:#0c0c0d;--card:#1b1b1d;--ink:#f2f2f0;--on-ink:#0c0c0d;--muted:#a1a1a6;--line:#2a2a2d;--ok:#3fbf85;--err:#ef6b5f}}
+  @font-face{font-family:"IBM Plex Sans";font-weight:400 600;font-display:swap;src:url(/fonts/IBMPlexSans.woff2) format("woff2")}
+  @font-face{font-family:"IBM Plex Mono";font-weight:400;font-display:swap;src:url(/fonts/IBMPlexMono-400.woff2) format("woff2")}
+  @font-face{font-family:"IBM Plex Mono";font-weight:500;font-display:swap;src:url(/fonts/IBMPlexMono-500.woff2) format("woff2")}
+  /* sundhedmcp.dk's tokens and components */
+  :root{--bg:#faf9f7;--alt:#f4f4f5;--card:#ffffff;--ink:#0a0a0a;--on-ink:#f5f5f3;--muted:#5c5c5e;--faint:#8e8e93;--line:#e8e8ea;--line-strong:#d4d4d8;--nav:rgba(255,255,255,.82);--ok:#0f7b4f;--err:#c1352a;--t-ease:cubic-bezier(.16,1,.3,1);--spring:cubic-bezier(.34,1.35,.64,1)}
+  @media (prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#0c0c0d;--alt:#161618;--card:#1b1b1d;--ink:#f2f2f0;--on-ink:#0c0c0d;--muted:#a1a1a6;--faint:#7c7c82;--line:#2a2a2d;--line-strong:#3a3a3e;--nav:rgba(27,27,29,.82);--ok:#3fbf85;--err:#ef6b5f}}
   *{box-sizing:border-box}
   body{margin:0;font:16px/1.5 "IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased}
   .wrap{max-width:${opts.wide ? "1060px" : "460px"};margin:0 auto;padding:${opts.wide ? "24px" : "12vh"} 16px 48px}
-  .brand{display:flex;align-items:center;gap:10px;margin:0 0 20px;font-weight:500;font-size:17px}
-  .mark{width:24px;height:24px;display:block}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:26px}
+  .brand{display:flex;align-items:center;gap:8px;font-weight:500;font-size:15px;padding:4px 10px 4px 6px}
+  .mark{width:22px;height:22px;display:block;flex:none}
+  .card{background:var(--card);border-radius:22px;padding:clamp(22px,4vw,34px)}
   .pill{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:var(--muted);margin:0 0 10px}
   .pill::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--muted)}
   .pill.ok{color:var(--ok)}.pill.ok::before{background:var(--ok)}
   .pill.error{color:var(--err)}.pill.error::before{background:var(--err)}
-  h1{font-size:24px;line-height:1.2;font-weight:500;margin:0 0 12px}
+  h1{font-size:clamp(24px,3.4vw,30px);line-height:1.15;font-weight:500;margin:0 0 12px;text-wrap:balance}
   p{margin:0 0 12px}.muted{color:var(--muted)}.error{color:var(--err)}.small{font-size:13px}
   label{display:block;font-weight:500;font-size:14px;margin:18px 0 6px}
-  input{width:100%;font:inherit;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
+  input{width:100%;font:inherit;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink)}
   input:focus{outline:2px solid var(--ink);outline-offset:1px;border-color:transparent}
-  button{font:inherit;font-weight:500;padding:12px 16px;border:0;border-radius:10px;background:var(--ink);color:var(--on-ink);cursor:pointer}
+  button{font:inherit;font-weight:500;padding:12px 22px;border:0;border-radius:999px;background:var(--ink);color:var(--on-ink);cursor:pointer;transition:opacity 400ms var(--t-ease),transform 400ms var(--t-ease)}
+  button:hover{opacity:.86}button:active{transform:scale(.97)}
   button.full{width:100%;margin-top:14px}
-  button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+  button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line-strong)}
   button:focus-visible{outline:2px solid var(--ok);outline-offset:2px}
-  code{font:13px ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--bg);border:1px solid var(--line);padding:6px 10px;border-radius:8px;display:inline-block;word-break:break-all}
+  code{font:13px "IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--bg);border:1px solid var(--line);padding:6px 10px;border-radius:8px;display:inline-block;word-break:break-all}
   ul.rows{list-style:none;padding:0;margin:16px 0 6px}
   ul.rows li{display:flex;justify-content:space-between;gap:16px;padding:10px 0;border-top:1px solid var(--line)}
   ul.rows li:last-child{border-bottom:1px solid var(--line)}
   ul.rows .r{color:var(--muted)}
   footer{margin-top:20px;font-size:12px;color:var(--muted)}
-  .top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 0 20px}.top .brand{margin:0}
-  .langs{display:inline-flex;gap:2px;padding:2px;border-radius:999px;background:var(--line)}
-  .langs a{padding:3px 9px;border-radius:999px;font:500 11px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted);text-decoration:none}
-  .langs a.on{background:var(--card);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.1)}
+  .top{display:flex;justify-content:space-between;align-items:center;gap:6px;margin:0 0 20px;padding:5px 6px;border-radius:999px;background:var(--nav);border:1px solid var(--line);box-shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.05)}
+  .lang-toggle{position:relative;display:inline-grid;grid-template-columns:30px 30px;align-items:center;height:28px;margin-right:2px;border-radius:999px;background:var(--alt);border:1px solid var(--line);text-decoration:none}
+  .lang-toggle .lt{position:relative;z-index:1;text-align:center;font:500 11px "IBM Plex Mono",ui-monospace,Menlo,monospace;color:var(--faint);transition:color 200ms var(--t-ease)}
+  .lang-toggle[data-on="false"] .lt:nth-of-type(1),.lang-toggle[data-on="true"] .lt:nth-of-type(2){color:var(--ink)}
+  .lang-toggle .thumb{position:absolute;top:2px;left:2px;width:26px;height:22px;border-radius:999px;background:var(--card);box-shadow:0 1px 3px rgba(0,0,0,.14);transition:translate 350ms var(--spring)}
+  .lang-toggle[data-on="true"] .thumb{translate:30px 0}
+  .lang-toggle:hover[data-on="false"] .thumb{translate:4px 0}.lang-toggle:hover[data-on="true"] .thumb{translate:26px 0}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 <body><div class="wrap">
   <div class="top"><div class="brand"><svg class="mark" viewBox="0 0 512 512" aria-hidden="true"> <defs> <linearGradient id="m-chip" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#6b2a6e"/><stop offset="0.45" stop-color="#b8456f"/><stop offset="0.75" stop-color="#e0566f"/><stop offset="1" stop-color="#ff9a5a"/></linearGradient> <linearGradient id="m-gloss" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.5"/><stop offset="0.5" stop-color="#fff" stop-opacity="0"/></linearGradient> <linearGradient id="m-heart" x1="0.2" y1="0" x2="0.8" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#fdf1f4"/></linearGradient> <linearGradient id="m-shine" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.45"/><stop offset="0.55" stop-color="#fff" stop-opacity="0"/></linearGradient> <filter id="m-soft" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#2a1537" flood-opacity="0.3"/></filter> </defs> <rect width="512" height="512" rx="114" fill="url(#m-chip)"/> <rect width="512" height="512" rx="114" fill="url(#m-gloss)"/> <rect x="3" y="3" width="506" height="506" rx="111" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="6"/> <g transform="translate(256 262) scale(0.9) translate(-256 -262)"> <path d="M256 372C168 314 132 268 132 222c0-40 30-70 68-70 24 0 44 12 56 32 12-20 32-32 56-32 38 0 68 30 68 70 0 46-36 92-124 150z" fill="url(#m-heart)" filter="url(#m-soft)"/> <path d="M256 372C168 314 132 268 132 222c0-40 30-70 68-70 24 0 44 12 56 32 12-20 32-32 56-32 38 0 68 30 68 70 0 46-36 92-124 150z" fill="url(#m-shine)"/> </g> </svg><span>SundhedMCP</span></div>${toggle}</div>
