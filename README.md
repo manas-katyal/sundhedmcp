@@ -65,12 +65,26 @@ Then ask your assistant to "connect sundhed.dk", click **Log på** in the
 window that opens and approve in the MitID app. The window minimizes itself;
 leave it running.
 
-### Hosted mode is off
+### Use it from your phone (claude.ai)
 
-Earlier versions could run on Railway or Docker for claude.ai. That is switched
-off: `src/server.ts` now serves only a page that points here, with no MCP
-endpoint, no OAuth, no browser and no MitID login. The hosted code is still in
-`src/` (app.ts, auth.ts, pages.ts, store.ts) but is not started.
+Your own computer becomes the server. Nothing runs on a server of ours.
+
+1. Run `npx -y sundhedmcp serve`, or ask your assistant to "set up SundhedMCP
+   for my phone" (the `phone_access` tool).
+2. Follow the guide that opens at `http://localhost:8787/guide`:
+   choose a password, install [Tailscale](https://tailscale.com/download) and
+   click **Open to claude.ai**, click **Start at login**, add the connector
+   in claude.ai with the address the guide shows, and log in with MitID.
+3. Open Claude on your phone and ask about your medicine card.
+
+It works while the computer is on and awake. Tailscale Funnel gives the
+computer a fixed public HTTPS address; the connector behind it needs your
+password (OAuth), and the guide itself only answers on this computer. After
+the MitID login, a copy of your record is kept in `~/.sundhedmcp` so your phone
+can read it after the sundhed.dk session ends.
+
+The Docker image (`src/server.ts`) still serves only a page that points here.
+Set `SUNDHEDMCP_HOSTED=1` to run hosted mode there at your own risk.
 
 ## Tools
 
@@ -88,12 +102,14 @@ endpoint, no OAuth, no browser and no MitID login. The hosted code is still in
 | `get_vaccinations` | Every registered vaccination |
 | `get_vaccination` | One vaccination: diseases covered, programme, coverage |
 | `get_referrals` | Active and earlier referrals |
+| `phone_access` | Starts `sundhedmcp serve` and opens its setup guide for claude.ai and your phone |
 
 ## Settings
 
 | Variable | Default | |
 |---|---|---|
 | `SUNDHEDMCP_BROWSER` | tries chrome, msedge, chrome-beta, chrome-canary, chromium | Playwright channel to use |
+| `SUNDHEDMCP_TAILSCALE` | found in the usual places | Path to the tailscale CLI, for `serve` |
 | `SUNDHEDMCP_KEEPALIVE_MS` | `240000` | How often to touch the session; `0` turns it off |
 
 ## Development

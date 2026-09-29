@@ -11,12 +11,14 @@ import { store } from "./store.ts";
 import { SingleUserProvider, verifyPassword } from "./auth.ts";
 import { connectPage, connectSignInPage, firstRunPage, LANG_COOKIE, langOf, loginPage, returningPage, signedInPage, signInFailedPage, statusPage } from "./pages.ts";
 import { createServer, VERSION } from "./mcp.ts";
+import { isLocal, mountGuide, type GuideOptions } from "./guide.ts";
 import { loginInput, loginScreenshot, loginViewport, loginWantsQr, restartLogin, startLogin, status, type LoginInput } from "./session.ts";
 
 const VIEWER_COOKIE = "sundhed_viewer";
 const VIEWER_TTL_MS = 30 * 60_000;
 
-export function createApp() {
+/** `guide` is set by `sundhedmcp serve`, where your own computer is the server. */
+export function createApp(guide?: GuideOptions) {
   const log = (msg: string) => console.log(`[sundhed ${new Date().toISOString()}] ${msg}`);
 
   const app = express();
@@ -58,7 +60,13 @@ export function createApp() {
 
   // --- Status and health ---
 
+  // Cookies are Secure behind HTTPS, but not on http://localhost, where Safari would drop them.
+  const secureFor = (req: express.Request) => (baseUrl.protocol === "https:" && !/^(localhost|127\.0\.0\.1)(:|$)/.test(String(req.headers.host ?? "")) ? "; Secure" : "");
+
+  if (guide) mountGuide(app, guide);
+
   app.get("/", async (req, res) => {
+    if (guide && isLocal(req, guide.port)) return void res.redirect(303, "/guide");
     if (!passwordConfigured()) return void res.type("html").send(firstRunPage(langOf(req), { minLength: MIN_PASSWORD_LENGTH }));
     const s = await status().catch(() => ({ loggedIn: false }));
     res.type("html").send(statusPage(langOf(req), { problems: setupProblems(), mcpUrl: mcpUrl.href, loggedIn: s.loggedIn }));
@@ -68,7 +76,7 @@ export function createApp() {
     const lang = req.params.lang === "en" ? "en" : "da";
     const back = String(req.query.back ?? "/");
     const safe = back.startsWith("/") && !back.startsWith("//") ? back : "/";
-    res.set("Set-Cookie", `${LANG_COOKIE}=${lang}; Path=/; Max-Age=31536000; SameSite=Lax${baseUrl.protocol === "https:" ? "; Secure" : ""}`).redirect(303, safe);
+    res.set("Set-Cookie", `${LANG_COOKIE}=${lang}; Path=/; Max-Age=31536000; SameSite=Lax${secureFor(req)}`).redirect(303, safe);
   });
 
   // First run: whoever deploys the server chooses its password here, once.
@@ -127,7 +135,7 @@ export function createApp() {
     const id = randomBytes(32).toString("base64url");
     viewers.set(createHash("sha256").update(id).digest("hex"), Date.now() + VIEWER_TTL_MS);
     log(`/connect sign-in from ${ip}`);
-    const secure = baseUrl.protocol === "https:" ? "; Secure" : "";
+    const secure = secureFor(req);
     res.set("Set-Cookie", `${VIEWER_COOKIE}=${id}; Path=/connect; HttpOnly; SameSite=Strict; Max-Age=${VIEWER_TTL_MS / 1000}${secure}`).redirect(303, "/connect");
   });
 

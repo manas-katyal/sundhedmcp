@@ -1,6 +1,6 @@
 {
   "name": "sundhedmcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "SundhedMCP: local, read-only MCP server that lets your AI read your own sundhed.dk record (medicine card, prescriptions, test results, vaccinations, referrals) after you log in with MitID",
   "keywords": [
     "mcp",
@@ -19,10 +19,10 @@
   },
   "scripts": {
     "start": "node src/stdio.ts",
-    "serve": "node src/server.ts",
+    "serve": "node src/serve.ts",
     "test": "node --test test/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "build": "rm -rf dist/lib && tsc -p tsconfig.build.json",
+    "build": "rm -rf dist/lib && tsc -p tsconfig.build.json && cp -R src/assets dist/lib/assets",
     "prepublishOnly": "npm run build && npm test"
   },
   "dependencies": {

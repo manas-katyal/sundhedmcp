@@ -1,3 +1,5 @@
+import { spawn, execFile } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { connect, disconnect, hostedLoginUrl, SessionGone, startLogin, status } from "./session.ts";
@@ -217,5 +219,34 @@ export function registerTools(server: McpServer): void {
       annotations: readOnly,
     },
     guard(async () => json(await sundhed.referrals()), (snap) => snap.referrals),
+  );
+
+  // --- Phone: only where SundhedMCP runs locally; a hosted server is already reachable ---
+
+  if (hostedLoginUrl()) return;
+  server.registerTool(
+    "phone_access",
+    {
+      title: "Use from phone",
+      description:
+        "Sets SundhedMCP up for the claude.ai connector, so the person can use it from the Claude app on their phone while this computer is on. Starts `sundhedmcp serve` on this computer (if it is not running) and opens its setup guide in the browser, which walks them through a password, Tailscale, starting at login, adding the connector in claude.ai and logging in with MitID. Call it when the person asks to use SundhedMCP on their phone or in claude.ai.",
+      annotations: { readOnlyHint: false, openWorldHint: false },
+    },
+    async () => {
+      const port = Number(process.env.SUNDHEDMCP_SERVE_PORT ?? 8787);
+      const guide = `http://localhost:${port}/guide`;
+      const up = () => fetch(`http://127.0.0.1:${port}/healthz`).then((r) => r.ok, () => false);
+      if (!(await up())) {
+        const serve = fileURLToPath(new URL(import.meta.url.endsWith(".ts") ? "./serve.ts" : "./serve.js", import.meta.url));
+        spawn(process.execPath, [serve, "serve", "--no-open"], { detached: true, stdio: "ignore", env: { ...process.env, PORT: String(port) } }).unref();
+        for (let i = 0; i < 30 && !(await up()); i++) await new Promise((r) => setTimeout(r, 500));
+        if (!(await up())) return fail(`Could not start the server. Ask the person to run \`npx -y sundhedmcp serve\` in a terminal and follow the guide it opens.`);
+      }
+      const [cmd, args] = process.platform === "darwin" ? ["open", [guide]] : process.platform === "win32" ? ["cmd", ["/c", "start", "", guide]] : ["xdg-open", [guide]];
+      execFile(cmd as string, args as string[], () => {});
+      return text(
+        `Opened the setup guide at ${guide} on this computer. Tell the person to follow its five steps there: choose a password, install Tailscale and click "Open to claude.ai", click "Start at login", add the connector in claude.ai with the address the guide shows, and log in with MitID. The page updates itself as each step is done. When it says Done, the connector works in the Claude app on their phone while this computer is on.`,
+      );
+    },
   );
 }
