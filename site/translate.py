@@ -116,6 +116,14 @@ T = [
   'Ser SundhedMCP mit MitID?<span'),
  ('No. You type your user ID on the real MitID page, in a browser window on your own computer, and approve in your own MitID app, every time. SundhedMCP never sees, stores or passes on MitID credentials.',
   'Nej. Du skriver dit bruger-ID på den rigtige MitID-side, i et browservindue på din egen computer, og godkender i din egen MitID-app, hver gang. SundhedMCP ser, gemmer eller videregiver aldrig MitID-oplysninger.'),
+ ('<a href="#ventetid">Waiting times</a>', '<a href="#ventetid">Ventetider</a>'),
+ ('<p class="eyebrow">Waiting times</p>', '<p class="eyebrow">Ventetider</p>'),
+ ('<h2>Find the shortest wait.</h2>', '<h2>Find den korteste ventetid.</h2>'),
+ ('Type what you need treatment for, in your own words. Hospitalventetid finds the waiting times at every hospital and private clinic from Mit sygehusvalg. No login and no MitID.',
+  'Skriv med dine egne ord, hvad du skal behandles for. Hospitalventetid finder ventetiderne på alle hospitaler og privatklinikker fra Mit sygehusvalg. Uden login og uden MitID.'),
+ ('>Search waiting times</a>', '>Søg i ventetider</a>'),
+ ('A separate service on our server: an AI model reads your search to find the treatment. Do not write your name or CPR number.',
+  'En selvstændig tjeneste på vores server: en AI-model læser din søgning for at finde behandlingen. Skriv ikke dit navn eller CPR-nummer.'),
 ]
 da = open('en.source.html').read()
 missing = []
