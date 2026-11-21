@@ -1,5 +1,6 @@
 // OAuth state for hosted mode: registered clients, pending codes and hashed
-// tokens, in one JSON file. Nothing from sundhed.dk is ever stored.
+// tokens, in one JSON file. Nothing from sundhed.dk is stored here; the
+// saved copy of the record has its own file (snapshot.ts).
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { config } from "./config.ts";
