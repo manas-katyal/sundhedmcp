@@ -85,7 +85,16 @@ export function createApp(guide?: GuideOptions) {
   });
 
   // First run: whoever deploys the server chooses its password here, once.
+  // Under `serve` only this computer may choose it: Funnel can already be on
+  // (it survives restarts), and the first password set wins the record.
+  // A form posted from another site carries its Origin, so refuse that too.
+  const setupAllowed = (req: express.Request) => {
+    if (guide && !isLocal(req, guide.port)) return false;
+    const origin = req.headers.origin;
+    return !origin || origin === baseUrl.origin || origin === `${req.protocol}://${req.headers.host}`;
+  };
   app.post("/setup", express.urlencoded({ extended: false, limit: "4kb" }), (req, res) => {
+    if (!setupAllowed(req)) return void res.status(403).type("html").send(signInFailedPage(langOf(req), "Choose the password on the computer that runs SundhedMCP."));
     if (passwordConfigured()) return void res.status(404).type("html").send(signInFailedPage(langOf(req), "This server already has a password."));
     const { password = "", confirm = "" } = req.body as Record<string, string | undefined>;
     const error =
