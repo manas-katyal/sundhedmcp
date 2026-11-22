@@ -2,9 +2,8 @@ import { spawn, execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { connect, disconnect, hostedLoginUrl, SessionGone, startLogin, status } from "./session.ts";
-import * as sundhed from "./sundhed.ts";
-import { isoDate, monthsAgo } from "./data.ts";
+import { connect, disconnect, hostedLoginUrl, SessionGone, startLogin, status } from "@sundhedmcp/session";
+import { isoDate, monthsAgo, sundhed } from "@sundhedmcp/client";
 import { forget, isRunning, saved, type Snapshot } from "./snapshot.ts";
 
 const json = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value ?? [], null, 2) }] });

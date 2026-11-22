@@ -57,9 +57,9 @@ Needs Node 24+ (26 recommended) and Google Chrome, Microsoft Edge or Chrome Cana
 `pnpm exec playwright-core install chromium`).
 
 ```bash
-corepack enable   # pnpm, at the version in package.json
+npm install -g pnpm   # or corepack enable on Node 24
 pnpm install
-claude mcp add sundhedmcp -- node /path/to/sundhedmcp/src/stdio.ts
+claude mcp add sundhedmcp -- node /path/to/sundhedmcp/packages/mcp-server/src/stdio.ts
 ```
 
 Then ask your assistant to "connect sundhed.dk", click **Log på** in the
@@ -85,7 +85,7 @@ password (OAuth), and the guide itself only answers on this computer. After
 the MitID login, a copy of your record is kept in `~/.sundhedmcp` so your phone
 can read it after the sundhed.dk session ends.
 
-The Docker image (`src/server.ts`) still serves only a page that points here.
+The Docker image (`packages/mcp-server/src/server.ts`) still serves only a page that points here.
 Set `SUNDHEDMCP_HOSTED=1` to run hosted mode there at your own risk.
 
 ## Tools
@@ -120,9 +120,11 @@ Set `SUNDHEDMCP_HOSTED=1` to run hosted mode there at your own risk.
 pnpm test         # unit tests (synthetic data only)
 pnpm typecheck
 pnpm lint         # biome
+pnpm build        # bundles packages/mcp-server for npm
 ```
 
-CI runs all three, plus a build of the image, on every pull request. Commit
+The code is a pnpm workspace of three packages; see [ARCHITECTURE.md](ARCHITECTURE.md).
+CI runs all four, plus a build of the image, on every pull request. Commit
 messages follow [Conventional Commits](https://www.conventionalcommits.org/):
 release-please reads them to write the changelog and bump the version.
 

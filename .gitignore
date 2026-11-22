@@ -4,3 +4,7 @@ dist/
 # Captured responses contain real health data. Never commit them.
 fixtures/private/
 data/
+
+# Copied in by `pnpm pack` / `pnpm publish` (prepack).
+packages/mcp-server/README.md
+packages/mcp-server/LICENSE

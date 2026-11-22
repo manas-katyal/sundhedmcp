@@ -4,7 +4,7 @@
 import { createServer as createHttpServer } from "node:http";
 import { join } from "node:path";
 import { config, passwordConfigured, rememberEnvPassword, setupProblems } from "./config.ts";
-import { configureHosted, disconnect, onLogin } from "./session.ts";
+import { configureHosted, disconnect, onLogin } from "@sundhedmcp/session";
 import { persistTo, refresh } from "./snapshot.ts";
 import { createApp } from "./app.ts";
 import type { GuideOptions } from "./guide.ts";

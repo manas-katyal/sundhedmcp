@@ -1,0 +1,14 @@
+{
+  "name": "@sundhedmcp/session",
+  "version": "0.2.0",
+  "private": true,
+  "description": "The sundhed.dk session: one real browser, the MitID login in its window, and API calls run inside it.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "playwright-core": "^1.56.0"
+  }
+}

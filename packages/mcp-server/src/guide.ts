@@ -5,7 +5,7 @@ import type express from "express";
 import { MIN_PASSWORD_LENGTH, passwordConfigured } from "./config.ts";
 import { autostartInstalled, autostartSupported, installAutostart } from "./autostart.ts";
 import { esc, langOf, shell, type Lang } from "./pages.ts";
-import { status } from "./session.ts";
+import { status } from "@sundhedmcp/session";
 import { saved } from "./snapshot.ts";
 import { store } from "./store.ts";
 import { enableFunnel, tailscaleState } from "./tailscale.ts";

@@ -37,8 +37,8 @@ pre{background:var(--code);border-radius:10px;padding:12px;overflow-x:auto;font-
 <p>${esc(t.body)}</p>
 <p>${esc(t.how)}</p>
 <pre>git clone https://github.com/manas-katyal/sundhedmcp
-cd sundhedmcp &amp;&amp; npm install
-claude mcp add sundhedmcp -- node "$PWD/src/stdio.ts"</pre>
+cd sundhedmcp &amp;&amp; pnpm install
+claude mcp add sundhedmcp -- node "$PWD/packages/mcp-server/src/stdio.ts"</pre>
 <p class="muted">${esc(t.more)} <a href="https://sundhedmcp.dk${lang === "en" ? "/en.html" : "/"}">sundhedmcp.dk</a> · <a href="/?lang=${other}">${esc(t.other)}</a></p>
 </main></body></html>`;
 }
