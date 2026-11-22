@@ -1,0 +1,63 @@
+{
+  "name": "sundhedmcp",
+  "version": "0.2.0",
+  "description": "SundhedMCP: local, read-only MCP server that lets your AI read your own sundhed.dk record (medicine card, prescriptions, test results, vaccinations, referrals) after you log in with MitID",
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "sundhed.dk",
+    "medicinkort",
+    "mitid",
+    "health",
+    "claude"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "node build.ts",
+    "prepack": "cp ../../README.md ../../LICENSE .",
+    "prepublishOnly": "pnpm build && pnpm --dir ../.. test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@opentelemetry/api": "^1.10.0",
+    "@opentelemetry/context-async-hooks": "^3.1.1",
+    "@opentelemetry/core": "^3.1.1",
+    "@opentelemetry/exporter-logs-otlp-http": "^0.301.2",
+    "@opentelemetry/exporter-metrics-otlp-http": "^0.301.2",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.301.2",
+    "@opentelemetry/resources": "^3.1.1",
+    "@opentelemetry/sdk-logs": "^3.1.1",
+    "@opentelemetry/sdk-metrics": "^3.1.1",
+    "@opentelemetry/sdk-trace": "^3.1.1",
+    "express": "^5.3.0",
+    "jose": "^6.2.18",
+    "pg": "^8.23.1",
+    "playwright-core": "^1.65.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@sundhedmcp/client": "workspace:*",
+    "@sundhedmcp/session": "workspace:*",
+    "esbuild": "^0.28.2"
+  },
+  "bin": {
+    "sundhedmcp": "bin/sundhedmcp.js"
+  },
+  "files": [
+    "bin",
+    "dist/lib",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/manas-katyal/sundhedmcp.git",
+    "directory": "packages/mcp-server"
+  },
+  "homepage": "https://sundhedmcp.dk"
+}

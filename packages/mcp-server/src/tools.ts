@@ -1,0 +1,326 @@
+import { spawn, execFile } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
+import { connect, disconnect, hostedLoginUrl, SessionGone, startLogin, status } from "@sundhedmcp/session";
+import { isoDate, monthsAgo, sundhed } from "@sundhedmcp/client";
+import { forget, isRunning, type PartName, saved, type Snapshot } from "./snapshot.ts";
+import { syncStatus } from "./sync.ts";
+import { config } from "./config.ts";
+import { MAX_QUANTITY, RenewalError, renewalChoices, renewalOverview, sendRenewal } from "./renewal.ts";
+
+const json = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value ?? [], null, 2) }] });
+const text = (message: string) => ({ content: [{ type: "text" as const, text: message }] });
+const fail = (message: string) => ({ content: [{ type: "text" as const, text: message }], isError: true });
+
+type Result = ReturnType<typeof json> | ReturnType<typeof fail>;
+
+/**
+ * Runs a live call. When the person is not logged in, answers from the copy
+ * saved while they were last logged in instead, if `cached` finds the data in
+ * the copy's `part`.
+ */
+function guard<A extends unknown[]>(fn: (...args: A) => Promise<Result>, part?: PartName, cached?: (snap: Snapshot, ...args: A) => unknown) {
+  return async (...args: A): Promise<Result> => {
+    try {
+      return await fn(...args);
+    } catch (err) {
+      if (err instanceof SessionGone) {
+        const snap = saved();
+        const data = snap && cached ? cached(snap, ...args) : undefined;
+        if (snap && data !== undefined) {
+          return json({
+            source: `Saved copy fetched ${(part && snap.fetchedAt[part]) || snap.savedAt}, while the person was last logged in. The live session has ended, so this may be out of date; to refresh it, the person logs in again on a computer (connect_sundhed).`,
+            data,
+          });
+        }
+        return fail(err.message);
+      }
+      return fail(`Error: ${(err as Error).message}`);
+    }
+  };
+}
+
+const readOnly = { readOnlyHint: true, openWorldHint: true } as const;
+const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
+// Ids go into sundhed.dk paths: no slashes or dots, so a call cannot reach another endpoint.
+const recordId = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/, "Use the id exactly as an earlier tool returned it");
+
+export interface ToolOptions {
+  /** The caller may change things (renew prescriptions). */
+  canWrite?: boolean;
+}
+
+/** A renewal call: a refusal by the checks is a plain message, the rest as any live call. */
+const renewing = <A extends unknown[]>(fn: (...args: A) => Promise<Result>) =>
+  guard(async (...args: A) => {
+    try {
+      return await fn(...args);
+    } catch (err) {
+      if (err instanceof RenewalError) return fail(err.message);
+      throw err;
+    }
+  });
+
+export function registerTools(server: McpServer, options: ToolOptions = {}): void {
+  // --- Session ---
+
+  server.registerTool(
+    "connect_sundhed",
+    {
+      title: "Connect sundhed.dk",
+      description:
+        "Starts a sundhed.dk login with MitID. It opens a browser window on this computer and waits up to 3 minutes; tell the person to enter their MitID user ID there and approve in the MitID app themselves. SundhedMCP never sees or stores MitID credentials. Right after the login it fetches the whole record into memory and keeps it current while the session lasts, so the tools still answer from it after the session ends, until the process stops. Call this when another tool says the person is not logged in.",
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    guard(async () => {
+      const loginUrl = hostedLoginUrl();
+      if (loginUrl) {
+        if (await startLogin()) return text("Logged in to sundhed.dk.");
+        return text(
+          `Not logged in yet. Ask the person to open ${loginUrl} in a browser ON A COMPUTER, not on their phone: MitID will show a QR code there, which cannot be scanned from the same device. Tell them to ${config.multiUser ? "sign in with their own account there (the same one they use here)" : "enter the server password"}, then scan the QR code with the MitID app on their phone (or type their MitID user ID in the page and approve in the app). When they say they are done, call the tool they asked for.`,
+        );
+      }
+      const result = await connect();
+      if (result.connected) return text("Logged in to sundhed.dk. The browser window is minimized; leave it running.");
+      return fail(result.reason);
+    }),
+  );
+
+  server.registerTool(
+    "session_status",
+    {
+      title: "Session status",
+      description: "Whether the sundhed.dk session is live, for how long, how long the previous one lasted before sundhed.dk ended it, when each part of the saved copy of the record was fetched, and when sync fetches it next.",
+      annotations: readOnly,
+    },
+    guard(async () => {
+      const snap = saved();
+      return json({
+        ...(await status()),
+        savedCopy: snap ? { savedAt: snap.savedAt, fetchedAt: snap.fetchedAt, failedParts: Object.keys(snap.errors) } : null,
+        fetchingCopy: isRunning(),
+        sync: syncStatus(),
+      });
+    }),
+  );
+
+  server.registerTool(
+    "disconnect_sundhed",
+    {
+      title: "Log out of sundhed.dk",
+      description:
+        "Closes the browser and ends the session. The saved copy of the record stays unless forget_saved_copy is true; then it is deleted too.",
+      inputSchema: { forget_saved_copy: z.boolean().optional().describe("Also delete the copy saved after the last login. Default false.") },
+      annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+    },
+    guard(async ({ forget_saved_copy }) => {
+      await disconnect();
+      if (forget_saved_copy) await forget();
+      return text(`Logged out. The browser is closed and the session is gone.${forget_saved_copy ? " The saved copy is deleted." : ""}`);
+    }),
+  );
+
+  // --- Health record ---
+
+  server.registerTool(
+    "get_summary",
+    {
+      title: "Health record summary",
+      description:
+        "Counts across the record: active, paused and stopped medicine; open, closed and future prescriptions; given, planned and overdue vaccinations. A cheap first call.",
+      annotations: readOnly,
+    },
+    guard(async () => json(await sundhed.summary()), "summary", (snap) => snap.summary),
+  );
+
+  server.registerTool(
+    "get_medication_card",
+    {
+      title: "Medicine card",
+      description:
+        "Current medicine on Fælles Medicinkort, newest first: drug, form, strength, dosage text, reason (Cause), active substance, start date and status. Use OrdinationId with get_medication_details.",
+      annotations: readOnly,
+    },
+    guard(async () => json(await sundhed.medicationCard()), "medicationCard", (snap) => snap.medicationCard ?? []),
+  );
+
+  server.registerTool(
+    "get_medication_details",
+    {
+      title: "Medicine details",
+      description:
+        "One medicine on the card in full: ATC code, administration, substitution and reimbursement, dosage period, and who created, changed or stopped it.",
+      inputSchema: { ordination_id: recordId.describe("OrdinationId from get_medication_card") },
+      annotations: readOnly,
+    },
+    guard(
+      async ({ ordination_id }) => json(await sundhed.medicationDetails(ordination_id)),
+      "medicationCard",
+      (snap, { ordination_id }) => snap.medicationDetails[ordination_id],
+    ),
+  );
+
+  server.registerTool(
+    "get_prescriptions",
+    {
+      title: "Open prescriptions",
+      description:
+        "Open prescriptions (recepter): drug, strength, dosage, valid from and to, remaining units and status. Use PrescriptionId with get_prescription for dispensings left and the pharmacy.",
+      annotations: readOnly,
+    },
+    guard(async () => json(await sundhed.openPrescriptions()), "prescriptions", (snap) => snap.prescriptions ?? []),
+  );
+
+  server.registerTool(
+    "get_prescription",
+    {
+      title: "Prescription details",
+      description:
+        "One prescription in full: dispensings given and remaining, remaining units, validity, issuing doctor and clinic, receiving pharmacy, package size, reimbursement and substitution.",
+      inputSchema: { prescription_id: recordId.describe("PrescriptionId from get_prescriptions") },
+      annotations: readOnly,
+    },
+    guard(
+      async ({ prescription_id }) => json(await sundhed.prescription(prescription_id)),
+      "prescriptions",
+      (snap, { prescription_id }) => snap.prescriptionDetails[prescription_id],
+    ),
+  );
+
+  server.registerTool(
+    "get_lab_results",
+    {
+      title: "Test results",
+      description:
+        "Regional lab results (prøvesvar) for a date range, default the last 12 months: requisitions, analyses, values and reference intervals. An empty result means no regional results in that range, not that none exist anywhere; try a wider range.",
+      inputSchema: {
+        from: dateString.optional().describe("First day, YYYY-MM-DD. Default 12 months ago."),
+        to: dateString.optional().describe("Last day, YYYY-MM-DD. Default today."),
+      },
+      annotations: readOnly,
+    },
+    guard(async ({ from, to }) => {
+      const end = to ? new Date(`${to}T12:00:00`) : new Date();
+      const start = from ? new Date(`${from}T12:00:00`) : monthsAgo(12, end);
+      if (start > end) return fail("`from` is after `to`.");
+      return json(await sundhed.labResults(start, end));
+    }, "labResults", (snap, { from, to }) => {
+      const lab = snap.labResults;
+      if (!lab) return undefined;
+      const wanted = `${from ?? isoDate(monthsAgo(12))} to ${to ?? isoDate(new Date())}`;
+      return { note: `All results from ${lab.from} to ${lab.to}; pick out ${wanted} yourself.`, results: lab.results };
+    }),
+  );
+
+  server.registerTool(
+    "get_vaccinations",
+    {
+      title: "Vaccinations",
+      description:
+        "Every registered vaccination, newest first: vaccine, date, who gave it and how long it covers. Use VaccinationIdentifier with get_vaccination for the diseases it protects against.",
+      annotations: readOnly,
+    },
+    guard(async () => json(await sundhed.vaccinations()), "vaccinations", (snap) => snap.vaccinations ?? []),
+  );
+
+  server.registerTool(
+    "get_vaccination",
+    {
+      title: "Vaccination details",
+      description:
+        "One vaccination in full: diseases covered, vaccination programme, coverage, organisation, and whether a pharmacy or health record confirmed it.",
+      inputSchema: { vaccination_id: recordId.describe("VaccinationIdentifier from get_vaccinations") },
+      annotations: readOnly,
+    },
+    guard(
+      async ({ vaccination_id }) => json(await sundhed.vaccination(vaccination_id)),
+      "vaccinations",
+      (snap, { vaccination_id }) => snap.vaccinationDetails[vaccination_id],
+    ),
+  );
+
+  server.registerTool(
+    "get_referrals",
+    {
+      title: "Referrals",
+      description: "Active and earlier referrals (henvisninger) to specialists and hospitals.",
+      annotations: readOnly,
+    },
+    guard(async () => json(await sundhed.referrals()), "referrals", (snap) => snap.referrals),
+  );
+
+  // --- Prescription renewal: the one write to sundhed.dk, only when the server allows it ---
+
+  if (config.allowRenewal) {
+    server.registerTool(
+      "get_renewable_prescriptions",
+      {
+        title: "Renewable prescriptions",
+        description:
+          "The medicine on the person's medicine card that their GP can be asked to renew (receptfornyelse), each with an id, whether it can be renewed now and why not, and the renewal requests sent earlier with their status. Read live from sundhed.dk; needs a login.",
+        annotations: readOnly,
+      },
+      renewing(async () => json(await renewalOverview())),
+    );
+
+    server.registerTool(
+      "renew_prescription",
+      {
+        title: "Renew prescription",
+        description:
+          `Asks the person's GP, through sundhed.dk, to renew one prescription, as the medicine card's "Forny recept" button does. Two steps. First call it with only id (from get_renewable_prescriptions): it sends nothing and returns the package sizes that can be asked for. Then tell the person the medicine, the package and the number of packages (1 to ${MAX_QUANTITY}), and only when they say yes, call it again with packageNumber, quantity and confirm: true; that sends the request. Never send a renewal the person has not confirmed in this conversation. The GP decides; sundhed.dk lists the answer in get_renewable_prescriptions.`,
+        inputSchema: {
+          id: recordId.describe("The medicine's id from get_renewable_prescriptions"),
+          packageNumber: recordId.optional().describe("The package number (varenummer) from the first call"),
+          quantity: z.number().int().min(1).max(MAX_QUANTITY).optional().describe("How many packages"),
+          confirm: z.boolean().optional().describe("true only after the person has confirmed medicine, package and quantity"),
+        },
+        annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+      },
+      renewing(async ({ id, packageNumber, quantity, confirm }: { id: string; packageNumber?: string; quantity?: number; confirm?: boolean }) => {
+        if (options.canWrite === false) {
+          return fail("This sign-in may only read. Renewing a prescription needs a token with the write scope; the person can renew on the SundhedMCP dashboard or on sundhed.dk instead.");
+        }
+        if (confirm !== true || packageNumber === undefined || quantity === undefined) {
+          const choices = await renewalChoices(id);
+          return json({
+            sent: false,
+            next: "Nothing was sent. Tell the person the medicine, the package and the number of packages, and ask them to confirm. Then call renew_prescription again with packageNumber, quantity and confirm: true.",
+            ...choices,
+          });
+        }
+        return json({ ...(await sendRenewal({ id, packageNumber, quantity })), next: "The request went to the person's GP. Its answer shows in get_renewable_prescriptions." });
+      }),
+    );
+  }
+
+  // --- Phone: only where SundhedMCP runs locally; a hosted server is already reachable ---
+
+  if (hostedLoginUrl()) return;
+  server.registerTool(
+    "phone_access",
+    {
+      title: "Use from phone",
+      description:
+        "Sets SundhedMCP up for the claude.ai connector, so the person can use it from the Claude app on their phone while this computer is on. Starts `sundhedmcp serve` on this computer (if it is not running) and opens its setup guide in the browser, which walks them through a password, Tailscale, starting at login, adding the connector in claude.ai and logging in with MitID. Call it when the person asks to use SundhedMCP on their phone or in claude.ai.",
+      annotations: { readOnlyHint: false, openWorldHint: false },
+    },
+    async () => {
+      const port = Number(process.env.SUNDHEDMCP_SERVE_PORT ?? 8787);
+      const guide = `http://localhost:${port}/guide`;
+      const up = () => fetch(`http://127.0.0.1:${port}/healthz`).then((r) => r.ok, () => false);
+      if (!(await up())) {
+        const serve = fileURLToPath(new URL(import.meta.url.endsWith(".ts") ? "./serve.ts" : "./serve.js", import.meta.url));
+        spawn(process.execPath, [serve, "serve", "--no-open"], { detached: true, stdio: "ignore", env: { ...process.env, PORT: String(port) } }).unref();
+        for (let i = 0; i < 30 && !(await up()); i++) await new Promise((r) => setTimeout(r, 500));
+        if (!(await up())) return fail(`Could not start the server. Ask the person to run \`npx -y sundhedmcp serve\` in a terminal and follow the guide it opens.`);
+      }
+      const [cmd, args] = process.platform === "darwin" ? ["open", [guide]] : process.platform === "win32" ? ["cmd", ["/c", "start", "", guide]] : ["xdg-open", [guide]];
+      execFile(cmd as string, args as string[], () => {});
+      return text(
+        `Opened the setup guide at ${guide} on this computer. Tell the person to follow its five steps there: choose a password, install Tailscale and click "Open to claude.ai", click "Start at login", add the connector in claude.ai with the address the guide shows, and log in with MitID. The page updates itself as each step is done. When it says Done, the connector works in the Claude app on their phone while this computer is on.`,
+      );
+    },
+  );
+}

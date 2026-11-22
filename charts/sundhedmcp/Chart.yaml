@@ -1,0 +1,13 @@
+apiVersion: v2
+name: sundhedmcp
+description: Read-only MCP server for your own sundhed.dk record, optionally wired into kagent.
+type: application
+version: 0.1.0
+appVersion: "0.2.0"
+home: https://github.com/manas-katyal/sundhedmcp
+sources:
+  - https://github.com/manas-katyal/sundhedmcp
+keywords:
+  - mcp
+  - sundhed
+  - kagent

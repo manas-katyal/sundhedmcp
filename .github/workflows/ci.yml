@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    # 26 is what the image runs; 24 is the oldest engines allows.
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [24, 26]
+    # For the storage tests against PostgreSQL.
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_PASSWORD: test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      SUNDHEDMCP_TEST_DATABASE_URL: postgres://postgres:test@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v7
+
+      # pnpm version is read from package.json's "packageManager" field.
+      - uses: pnpm/action-setup@v6.1.0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      # The published package must hold the bundle, with no workspace imports left.
+      - name: Pack
+        run: |
+          pnpm --filter sundhedmcp pack --pack-destination "$RUNNER_TEMP"
+          ! grep -rl '@sundhedmcp/' packages/mcp-server/dist/lib
+
+  chart-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: azure/setup-helm@v5.1.0
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
+
+      - uses: helm/chart-testing-action@v2.9.0
+
+      - name: helm lint
+        run: helm lint charts/sundhedmcp
+
+      - name: Render every ci values file
+        run: |
+          for values in charts/sundhedmcp/ci/*-values.yaml; do
+            echo "--- $values"
+            helm template sundhedmcp charts/sundhedmcp -f "$values" > /dev/null
+          done
+
+      - name: ct lint
+        run: ct lint --config ct.yaml --all

@@ -1,0 +1,30 @@
+{
+  "clientId": "sundhedmcp-api",
+  "name": "SundhedMCP API",
+  "description": "Access tokens for sundhedmcp's /api/v1, from scripts/sundhed-token.sh (device login)",
+  "protocol": "openid-connect",
+  "publicClient": true,
+  "standardFlowEnabled": false,
+  "directAccessGrantsEnabled": false,
+  "implicitFlowEnabled": false,
+  "serviceAccountsEnabled": false,
+  "attributes": {
+    "oauth2.device.authorization.grant.enabled": "true",
+    "pkce.code.challenge.method": "S256"
+  },
+  "protocolMappers": [
+    {
+      "name": "audience-sundhedmcp",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-audience-mapper",
+      "config": {
+        "included.custom.audience": "sundhedmcp",
+        "id.token.claim": "false",
+        "access.token.claim": "true",
+        "introspection.token.claim": "true"
+      }
+    }
+  ],
+  "defaultClientScopes": ["basic", "profile"],
+  "optionalClientScopes": ["sundhed:write", "offline_access"]
+}
