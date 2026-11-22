@@ -12,6 +12,15 @@ import { esc, type Lang, shell, view, when } from "./pages.ts";
 import { PART_NAMES, type PartName, type Snapshot } from "./snapshot.ts";
 import type { SyncStatus } from "./sync.ts";
 import type { RenewalOverview, RenewalPackage, RenewableMedicine } from "./renewal.ts";
+import { type AutoRenewState, nextDue } from "./auto-renew.ts";
+
+/** Auto-renew as the renewals page shows it, when renewal is on. */
+export interface AutoRenewView {
+  state: AutoRenewState;
+  cooldownMs: number;
+}
+
+const days = (ms: number) => Math.round(ms / 86_400_000);
 
 /** URL path of each part, the same as in /api/v1. */
 export const PART_SLUGS: Record<PartName, string> = {
@@ -56,6 +65,13 @@ const T = {
     confirm: "Jeg vil bede min læge om at forny denne recept.", send: "Send anmodning", cancel: "Fortryd",
     sent: "Anmodningen er sendt", sentBody: (drug: string, pkg: string, n: number) => `Din læge er bedt om at forny ${drug}: ${n} × ${pkg}. Svaret vises under Tidligere anmodninger.`,
     notSent: "Anmodningen blev ikke sendt", mustConfirm: "Sæt kryds for at bekræfte, før anmodningen sendes.",
+    autoLabel: (days: number) => `Forny automatisk: send den samme anmodning igen hver ${days}. dag, når sundhed.dk tilbyder fornyelse.`,
+    autoTitle: "Automatisk fornyelse",
+    autoNote: (days: number) => `Serveren tjekker én gang om dagen og lige efter hvert login, og sender anmodningen igen, når der er gået ${days} dage, og sundhed.dk tilbyder at forny medicinen. Er du ikke logget ind, sendes intet; det står i loggen herunder.`,
+    autoOn: (days: number) => `Automatisk fornyelse er slået til. Næste anmodning sendes om ${days} dage, hvis sundhed.dk tilbyder fornyelse.`,
+    autoBadge: "fornyes automatisk", nextDue: "Næste gang", lastSent: "Sidst sendt", stop: "Stop", lastCheck: "Sidst tjekket",
+    autoLog: "Hvad automatisk fornyelse har gjort", stopped: "Automatisk fornyelse er stoppet.",
+    outcomes: { sent: "Sendt", skipped: "Sprunget over", failed: "Fejlede", missed: "Ikke logget ind" },
   },
   en: {
     title: "Your record", pill: "Saved copy",
@@ -81,6 +97,13 @@ const T = {
     confirm: "I want to ask my GP to renew this prescription.", send: "Send request", cancel: "Cancel",
     sent: "The request was sent", sentBody: (drug: string, pkg: string, n: number) => `Your GP was asked to renew ${drug}: ${n} × ${pkg}. The answer shows under Earlier requests.`,
     notSent: "The request was not sent", mustConfirm: "Tick the box to confirm before the request is sent.",
+    autoLabel: (days: number) => `Renew automatically: send the same request again every ${days} days, when sundhed.dk offers to renew it.`,
+    autoTitle: "Auto-renew",
+    autoNote: (days: number) => `The server checks once a day and right after each login, and sends the request again once ${days} days have passed and sundhed.dk offers to renew the medicine. When you are not logged in nothing is sent; the log below says so.`,
+    autoOn: (days: number) => `Auto-renew is on. The next request is sent in ${days} days, if sundhed.dk offers to renew it.`,
+    autoBadge: "renewed automatically", nextDue: "Next due", lastSent: "Last sent", stop: "Stop", lastCheck: "Last checked",
+    autoLog: "What auto-renew did", stopped: "Auto-renew is stopped.",
+    outcomes: { sent: "Sent", skipped: "Skipped", failed: "Failed", missed: "Not logged in" },
   },
 } as const;
 
@@ -355,28 +378,53 @@ export function partPage(lang: Lang, part: PartName, input: DashboardInput): str
 const renewalPage = (lang: Lang, title: string, body: string, back?: string) => shell(lang, title, body, { pill: T[lang].renewals, kind: "neutral", head: CSS, wide: true, back });
 
 /** The medicine that can be renewed, live from sundhed.dk, or why it cannot be shown. */
-export function renewalsPage(lang: Lang, state: { loggedIn: boolean; overview?: RenewalOverview; error?: string }): string {
+export function renewalsPage(lang: Lang, state: { loggedIn: boolean; overview?: RenewalOverview; error?: string; auto?: AutoRenewView; notice?: string }): string {
   const t = T[lang];
-  const head = `${nav(lang, "renewals", true)}<p class="muted small">${t.renewalNote}</p>`;
+  const head = `${nav(lang, "renewals", true)}<p class="muted small">${t.renewalNote}</p>${state.notice ? `<p class="small">${esc(state.notice)}</p>` : ""}`;
+  const auto = state.auto ? autoSection(lang, state.auto) : "";
   if (!state.loggedIn || !state.overview) {
     const why = state.error ? `<p class="error small">${esc(state.error)}</p>` : `<p>${t.renewalLogin}</p><p><a href="/connect">${t.login}</a></p>`;
-    return renewalPage(lang, t.renewals, `${head}${why}`, RENEWALS);
+    return renewalPage(lang, t.renewals, `${head}${why}${auto}`, RENEWALS);
   }
   const o = state.overview;
+  const automatic = new Set(state.auto?.state.rules.map((r) => r.id));
   const name = (m: RenewableMedicine) => `${esc(m.drug)}${m.strength ? ` <span class="muted">${esc(m.strength)}</span>` : ""}${m.form ? ` <span class="muted small">${esc(m.form)}</span>` : ""}`;
   const rows = o.medicines.map(
     (m) =>
-      `<tr><td>${name(m)}</td><td>${m.renewable ? `<a href="${RENEWALS}/${encodeURIComponent(m.id)}">${t.renew}</a>` : `<span class="muted small">${t.cannot}: ${esc(m.reason ?? "")}</span>`}</td></tr>`,
+      `<tr><td>${name(m)}${automatic.has(m.id) ? ` <span class="muted small">· ${t.autoBadge}</span>` : ""}</td><td>${m.renewable ? `<a href="${RENEWALS}/${encodeURIComponent(m.id)}">${t.renew}</a>` : `<span class="muted small">${t.cannot}: ${esc(m.reason ?? "")}</span>`}</td></tr>`,
   );
   const list = o.medicines.length
     ? `<div class="scroll"><table><thead><tr><th>${t.medicine}</th><th>${t.status}</th></tr></thead><tbody>${rows.join("")}</tbody></table></div>`
     : `<p class="muted">${t.noRenewable}</p>`;
   const requests = Array.isArray(o.requests) && o.requests.length === 0 ? "" : `<section><h2>${t.requests}</h2>${view(lang, o.requests)}</section>`;
-  return renewalPage(lang, t.renewals, `${head}${o.hasDoctor ? "" : `<p class="error small">${t.noDoctor}</p>`}${list}${requests}`, RENEWALS);
+  return renewalPage(lang, t.renewals, `${head}${o.hasDoctor ? "" : `<p class="error small">${t.noDoctor}</p>`}${list}${auto}${requests}`, RENEWALS);
+}
+
+export const AUTO_STOP = `${RENEWALS}/auto/stop`;
+
+/** The rules, each with a Stop button, and the log of what was done. Empty when there is nothing to show. */
+function autoSection(lang: Lang, { state, cooldownMs }: AutoRenewView): string {
+  const t = T[lang];
+  if (!state.rules.length && !state.events.length) return "";
+  const rules = state.rules.map(
+    (r) =>
+      `<tr><td>${esc(r.drug)}${r.strength ? ` <span class="muted">${esc(r.strength)}</span>` : ""}</td><td>${r.quantity} × ${esc(r.packageText)}</td><td>${when(lang, r.lastSentAt)}</td><td>${when(lang, nextDue(r, cooldownMs).toISOString())}</td>` +
+      `<td><form method="post" action="${AUTO_STOP}"><input type="hidden" name="id" value="${esc(r.id)}"><button type="submit">${t.stop}</button></form></td></tr>`,
+  );
+  const table = rules.length
+    ? `<div class="scroll"><table><thead><tr><th>${t.medicine}</th><th>${t.pkg}</th><th>${t.lastSent}</th><th>${t.nextDue}</th><th></th></tr></thead><tbody>${rules.join("")}</tbody></table></div>`
+    : "";
+  const log = state.events.length
+    ? `<h3>${t.autoLog}</h3><div class="scroll"><table><tbody>${state.events
+        .map((e) => `<tr><td class="small">${when(lang, e.at)}</td><td>${esc(e.drug)}</td><td>${t.outcomes[e.outcome] ?? esc(e.outcome)}</td><td class="muted small">${esc(e.detail)}</td></tr>`)
+        .join("")}</tbody></table></div>`
+    : "";
+  const checked = state.lastCheckAt ? `<p class="muted small">${t.lastCheck}: ${when(lang, state.lastCheckAt)}</p>` : "";
+  return `<section><h2>${t.autoTitle}</h2><p class="muted small">${t.autoNote(days(cooldownMs))}</p>${table}${checked}${log}</section>`;
 }
 
 /** The form for one medicine: package, number of packages and a tick to confirm. Sending it renews. */
-export function renewalFormPage(lang: Lang, c: { medicine: RenewableMedicine; packages: RenewalPackage[]; defaultPackage?: string; maxQuantity: number }, error?: string): string {
+export function renewalFormPage(lang: Lang, c: { medicine: RenewableMedicine; packages: RenewalPackage[]; defaultPackage?: string; maxQuantity: number }, error?: string, autoCooldownMs?: number): string {
   const t = T[lang];
   const picked = c.defaultPackage ?? c.packages[0]?.number;
   const radios = c.packages
@@ -387,6 +435,7 @@ export function renewalFormPage(lang: Lang, c: { medicine: RenewableMedicine; pa
     <fieldset><legend>${t.pkg}</legend>${radios}</fieldset>
     <label>${t.quantity} <input type="number" name="quantity" min="1" max="${c.maxQuantity}" value="1" required></label>
     <label class="choice"><input type="checkbox" name="confirm" value="1" required> ${t.confirm}</label>
+    ${autoCooldownMs ? `<label class="choice"><input type="checkbox" name="auto" value="1"> ${esc(t.autoLabel(days(autoCooldownMs)))}</label>` : ""}
     <div class="row"><button type="submit">${t.send}</button><a href="${RENEWALS}">${t.cancel}</a></div>
   </form>`;
   const style = `<style>.renew{display:grid;gap:14px;max-width:520px;margin:16px 0}.renew fieldset{border:1px solid var(--line);border-radius:12px;padding:10px 14px}.choice{display:block;margin:4px 0}.renew input[type=number]{width:5em;margin-left:8px}</style>`;
@@ -395,13 +444,13 @@ export function renewalFormPage(lang: Lang, c: { medicine: RenewableMedicine; pa
 }
 
 /** After sending: what was asked for, or why nothing was sent. */
-export function renewalResultPage(lang: Lang, result: { drug: string; pkg: string; quantity: number } | { error: string }): string {
+export function renewalResultPage(lang: Lang, result: { drug: string; pkg: string; quantity: number; autoCooldownMs?: number } | { error: string }): string {
   const t = T[lang];
   const body =
     "error" in result
       ? `<h2>${t.notSent}</h2><p class="error">${esc(result.error)}</p>`
-      : `<h2>${t.sent}</h2><p>${esc(t.sentBody(result.drug, result.pkg, result.quantity))}</p>`;
+      : `<h2>${t.sent}</h2><p>${esc(t.sentBody(result.drug, result.pkg, result.quantity))}</p>${result.autoCooldownMs ? `<p>${esc(t.autoOn(days(result.autoCooldownMs)))}</p>` : ""}`;
   return renewalPage(lang, t.renewals, `${nav(lang, "renewals", true)}${body}<p><a href="${RENEWALS}">${t.renewals}</a></p>`);
 }
 
-export const renewalTexts = (lang: Lang) => ({ mustConfirm: T[lang].mustConfirm });
+export const renewalTexts = (lang: Lang) => ({ mustConfirm: T[lang].mustConfirm, stopped: T[lang].stopped });

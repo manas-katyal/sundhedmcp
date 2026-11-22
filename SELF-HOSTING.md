@@ -149,6 +149,21 @@ With several people the MCP tool and `POST /renewals` need the
 (kagent, as set up above) can list but not renew. The dashboard needs only
 the person's own sign-in.
 
+**Auto-renew.** On the dashboard form, "Renew automatically" sends the request
+now and remembers the medicine, package and number. The server then checks
+once a day, and a minute after each MitID login, and sends the same request
+again once `SUNDHEDMCP_AUTO_RENEW_COOLDOWN_DAYS` (default 14) have passed
+since the last one, if sundhed.dk still offers to renew the medicine then.
+A medicine that is not offered (a renewal being handled, a prescription that
+ended) is skipped and tried again the next day. Nothing is sent while the
+person is not logged in; the check is logged as missed and runs again after
+the next login. The renewals page lists each rule with a Stop button and a
+log of what was done. Rules are kept encrypted with the person's copy and go
+with "Forget". With several people, a person's rules are checked while their
+copy is loaded: after a restart that is once they log in again, or right away
+when their login was kept (see Restarts below). Set the cooldown with
+`extraEnv` in the chart.
+
 ### A token for your own scripts
 
 With one person, use one of `SUNDHEDMCP_API_TOKENS`:
