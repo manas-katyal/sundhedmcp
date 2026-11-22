@@ -79,6 +79,7 @@ const DA_ERRORS: Record<string, string> = {
   "Too many attempts. Try again in a few minutes.": "For mange forsøg. Prøv igen om nogle minutter.",
   "Too many attempts. Try again in 15 minutes.": "For mange forsøg. Prøv igen om 15 minutter.",
   "This server already has a password.": "Serveren har allerede en adgangskode.",
+  "Choose the password on the computer that runs SundhedMCP.": "Vælg adgangskoden på den computer, der kører SundhedMCP.",
   "The two passwords are not the same.": "De to adgangskoder er ikke ens.",
   "This sign-in page has expired or the server restarted. Go back to your assistant, click Connect again, and enter the password within 30 minutes.":
     "Denne login-side er udløbet, eller serveren er genstartet. Gå tilbage til din assistent, klik Connect igen, og skriv adgangskoden inden for 30 minutter.",
