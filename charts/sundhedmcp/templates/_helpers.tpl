@@ -31,8 +31,12 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- printf "http://%s.%s.svc.cluster.local:%v/mcp" (include "sundhedmcp.fullname" .) .Release.Namespace .Values.service.port }}
 {{- end }}
 
+{{- define "sundhedmcp.multiUser" -}}
+{{- if eq .Values.mode "multi-user" }}true{{ end }}
+{{- end }}
+
 {{- define "sundhedmcp.apiTokenEnabled" -}}
-{{- if or .Values.apiToken.enabled .Values.kagent.enabled }}true{{ end }}
+{{- if and (not (include "sundhedmcp.multiUser" .)) (or .Values.apiToken.enabled .Values.kagent.enabled) }}true{{ end }}
 {{- end }}
 
 {{- define "sundhedmcp.passwordSecret" -}}
@@ -74,6 +78,20 @@ existingSecret, else the one kept in the chart's Secret, else new. Cached on
 {{- end }}
 
 {{- define "sundhedmcp.validate" -}}
+{{- if not (has .Values.mode (list "single-user" "multi-user")) }}
+{{- fail "mode must be single-user or multi-user" }}
+{{- end }}
+{{- if include "sundhedmcp.multiUser" . }}
+{{- if not (regexMatch "^https://" .Values.oidc.issuer) }}
+{{- fail "mode multi-user needs oidc.issuer, an https URL" }}
+{{- end }}
+{{- if or (not .Values.oidc.audience) (not .Values.oidc.clientId) }}
+{{- fail "mode multi-user needs oidc.audience and oidc.clientId" }}
+{{- end }}
+{{- if .Values.apiToken.enabled }}
+{{- fail "apiToken cannot be used in multi-user mode: every call must come from a signed-in person" }}
+{{- end }}
+{{- end }}
 {{- if not (has .Values.storage.type (list "sqlite" "postgres" "none")) }}
 {{- fail "storage.type must be sqlite, postgres or none" }}
 {{- end }}

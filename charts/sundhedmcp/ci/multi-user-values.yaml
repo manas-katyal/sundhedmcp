@@ -1,0 +1,14 @@
+# Multi-user mode needs a reachable identity provider only for sign-ins and
+# token checks; the pod starts and /healthz answers without one.
+image:
+  repository: localhost/sundhedmcp
+  tag: dev
+  pullPolicy: Never
+mode: multi-user
+oidc:
+  issuer: https://keycloak.example.test/realms/test
+  acceptIdToken: true
+networkPolicy:
+  enabled: true
+kagent:
+  enabled: true

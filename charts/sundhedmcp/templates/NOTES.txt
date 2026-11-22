@@ -11,6 +11,17 @@ Open it on your computer:
 Open {{ .Values.baseUrl }} on a computer.
 {{- end }}
 
+{{- if include "sundhedmcp.multiUser" . }}
+
+Several people, signed in with {{ .Values.oidc.issuer }}. Each person logs in
+to sundhed.dk with MitID at {{ .Values.baseUrl }}/connect, after signing in
+there with their own account (on a computer: MitID shows a QR code for the app
+on their phone). Their /mcp calls need an access token from the same issuer,
+with "{{ .Values.oidc.audience }}" in its audience:
+
+  {{ .Values.baseUrl }}/mcp
+{{- else }}
+
 Log in to sundhed.dk with MitID at {{ .Values.baseUrl }}/connect (on a computer: MitID
 shows a QR code there for the app on your phone). The server password:
 
@@ -19,6 +30,7 @@ shows a QR code there for the app on your phone). The server password:
 MCP endpoint for clients that sign in with OAuth (claude.ai, Claude Desktop):
 
   {{ .Values.baseUrl }}/mcp
+{{- end }}
 {{- if include "sundhedmcp.apiTokenEnabled" . }}
 
 Inside the cluster, with the API token as a bearer token:

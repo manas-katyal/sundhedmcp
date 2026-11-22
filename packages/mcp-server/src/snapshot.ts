@@ -4,9 +4,14 @@
 // a while; the copy lets the tools keep answering from a phone until the next
 // login. Hosted, it is kept in encrypted storage (storage.ts) so it survives
 // restarts; locally it lives in memory only.
+//
+// Hosted for several people, each has their own SavedCopy next to their own
+// session. The functions at the end act on the copy of whoever the current
+// call runs for (asOwner), or on the default copy otherwise.
+import { AsyncLocalStorage } from "node:async_hooks";
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { monthsAgo, sundhed } from "@sundhedmcp/client";
-import { SessionGone } from "@sundhedmcp/session";
+import { defaultSession, SessionGone, type SundhedSession, withSession } from "@sundhedmcp/session";
 import type { ItemInput, ItemKind, OwnerStorage, StoredItem } from "./storage.ts";
 
 /** How far back the copy's lab results go. */
@@ -42,33 +47,7 @@ export interface RefreshResult {
   sessionEnded: boolean;
 }
 
-let current: Snapshot | null = null;
-let store: OwnerStorage | null = null;
-
 const log = (msg: string) => console.error(`[snapshot] ${msg}`);
-
-/**
- * Keep the copy in this storage (hosted mode), and load the copy saved before
- * a restart. A plain-JSON `legacyFile` from an earlier version is moved into
- * the storage and then deleted, so the record is no longer on disk unencrypted.
- */
-export async function useStorage(owner: OwnerStorage, legacyFile?: string): Promise<void> {
-  store = owner;
-  if (legacyFile && existsSync(legacyFile)) {
-    try {
-      const old = normalize(JSON.parse(readFileSync(legacyFile, "utf8")));
-      if (!(await owner.get("snapshot", "current"))) await save(old);
-      rmSync(legacyFile, { force: true });
-      log(`moved the copy saved ${old.savedAt} into encrypted storage`);
-    } catch (err) {
-      log(`could not import ${legacyFile}: ${(err as Error).message}`);
-    }
-  }
-  current = fromItems(await owner.list());
-  if (current) log(`loaded the copy saved ${current.savedAt}`);
-}
-
-export const saved = () => current;
 
 const ids = (list: unknown, key: string): string[] =>
   Array.isArray(list) ? list.map((item) => (item as Record<string, unknown>)?.[key]).filter((v) => v !== undefined).map(String) : [];
@@ -109,76 +88,122 @@ const FETCH: Record<PartName, (snap: Snapshot, take: Take) => Promise<void>> = {
   },
 };
 
-// Fetches run one after another: a sync of one part waits for a full refresh.
-let queue: Promise<unknown> = Promise.resolve();
-let pending = 0;
-let fullRun: Promise<RefreshResult> | null = null;
+/** One person's saved copy, fetched through their own session. */
+export class SavedCopy {
+  readonly session: SundhedSession;
+  private current: Snapshot | null = null;
+  private store: OwnerStorage | null = null;
+  // Fetches run one after another: a sync of one part waits for a full refresh.
+  private queue: Promise<unknown> = Promise.resolve();
+  private pending = 0;
+  private fullRun: Promise<RefreshResult> | null = null;
 
-export const isRunning = () => pending > 0;
-
-/**
- * Fetches the given parts (default: all), one call at a time, into the copy.
- * A part that fails keeps its previous copy; the others are replaced.
- */
-export function refresh(parts: readonly PartName[] = PART_NAMES): Promise<RefreshResult> {
-  const full = PART_NAMES.every((p) => parts.includes(p));
-  if (full && fullRun) return fullRun;
-  pending++;
-  const run = queue
-    .then(() => fetchParts(parts))
-    .finally(() => {
-      pending--;
-      if (full) fullRun = null;
-    });
-  queue = run.catch(() => {});
-  if (full) fullRun = run;
-  return run;
-}
-
-async function fetchParts(parts: readonly PartName[]): Promise<RefreshResult> {
-  const started = Date.now();
-  const previous = current;
-  const snap = startFrom(previous, parts);
-  const take: Take = async (name, fn) => {
-    try {
-      return await fn();
-    } catch (err) {
-      if (err instanceof SessionGone) throw err;
-      snap.errors[name] = (err as Error).message;
-      return undefined;
-    }
-  };
-
-  const failed: PartName[] = [];
-  let sessionEnded = false;
-  for (const part of parts) {
-    if (!sessionEnded) {
-      try {
-        await FETCH[part](snap, take);
-      } catch (err) {
-        if (!(err instanceof SessionGone)) throw err;
-        sessionEnded = true;
-        // Half a part is worse than the previous copy of all of it.
-        clearPart(snap, part);
-      }
-    }
-    if (sessionEnded) snap.errors[part] = "The sundhed.dk session ended before this part was fetched.";
-    if (snap[part] === undefined) failed.push(part);
-    else snap.fetchedAt[part] = snap.savedAt;
+  constructor(session: SundhedSession) {
+    this.session = session;
   }
 
-  keepFailedParts(snap, previous);
-  current = snap;
-  if (store) await save(snap);
-  const what = parts.length === PART_NAMES.length ? "a copy" : parts.join(", ");
-  log(`saved ${what} in ${Math.round((Date.now() - started) / 1000)} s${failed.length ? `, ${failed.length} part(s) failed` : ""}`);
-  return { snapshot: snap, failed, sessionEnded };
-}
+  /**
+   * Keep the copy in this storage (hosted mode), and load the copy saved before
+   * a restart. A plain-JSON `legacyFile` from an earlier version is moved into
+   * the storage and then deleted, so the record is no longer on disk unencrypted.
+   */
+  async useStorage(owner: OwnerStorage, legacyFile?: string): Promise<void> {
+    this.store = owner;
+    if (legacyFile && existsSync(legacyFile)) {
+      try {
+        const old = normalize(JSON.parse(readFileSync(legacyFile, "utf8")));
+        if (!(await owner.get("snapshot", "current"))) await this.save(old);
+        rmSync(legacyFile, { force: true });
+        log(`moved the copy saved ${old.savedAt} into encrypted storage`);
+      } catch (err) {
+        log(`could not import ${legacyFile}: ${(err as Error).message}`);
+      }
+    }
+    this.current = fromItems(await owner.list());
+    if (this.current) log(`loaded the copy saved ${this.current.savedAt}`);
+  }
 
-/** Deletes the copy, in memory and in storage. */
-export async function forget(): Promise<void> {
-  current = null;
-  await store?.delete();
+  saved(): Snapshot | null {
+    return this.current;
+  }
+
+  isRunning(): boolean {
+    return this.pending > 0;
+  }
+
+  /**
+   * Fetches the given parts (default: all), one call at a time, into the copy.
+   * A part that fails keeps its previous copy; the others are replaced.
+   */
+  refresh(parts: readonly PartName[] = PART_NAMES): Promise<RefreshResult> {
+    const full = PART_NAMES.every((p) => parts.includes(p));
+    if (full && this.fullRun) return this.fullRun;
+    this.pending++;
+    const run = this.queue
+      .then(() => withSession(this.session, () => this.fetchParts(parts)))
+      .finally(() => {
+        this.pending--;
+        if (full) this.fullRun = null;
+      });
+    this.queue = run.catch(() => {});
+    if (full) this.fullRun = run;
+    return run;
+  }
+
+  private async fetchParts(parts: readonly PartName[]): Promise<RefreshResult> {
+    const started = Date.now();
+    const previous = this.current;
+    const snap = startFrom(previous, parts);
+    const take: Take = async (name, fn) => {
+      try {
+        return await fn();
+      } catch (err) {
+        if (err instanceof SessionGone) throw err;
+        snap.errors[name] = (err as Error).message;
+        return undefined;
+      }
+    };
+
+    const failed: PartName[] = [];
+    let sessionEnded = false;
+    for (const part of parts) {
+      if (!sessionEnded) {
+        try {
+          await FETCH[part](snap, take);
+        } catch (err) {
+          if (!(err instanceof SessionGone)) throw err;
+          sessionEnded = true;
+          // Half a part is worse than the previous copy of all of it.
+          clearPart(snap, part);
+        }
+      }
+      if (sessionEnded) snap.errors[part] = "The sundhed.dk session ended before this part was fetched.";
+      if (snap[part] === undefined) failed.push(part);
+      else snap.fetchedAt[part] = snap.savedAt;
+    }
+
+    keepFailedParts(snap, previous);
+    this.current = snap;
+    if (this.store) await this.save(snap);
+    const what = parts.length === PART_NAMES.length ? "a copy" : parts.join(", ");
+    log(`saved ${what} in ${Math.round((Date.now() - started) / 1000)} s${failed.length ? `, ${failed.length} part(s) failed` : ""}`);
+    return { snapshot: snap, failed, sessionEnded };
+  }
+
+  /** Deletes the copy, in memory and in storage. */
+  async forget(): Promise<void> {
+    this.current = null;
+    await this.store?.delete();
+  }
+
+  /** Writes the copy: changed rows, and drops details no longer in it. */
+  private async save(snap: Snapshot): Promise<void> {
+    const store = this.store;
+    if (!store) return;
+    await store.put(toItems(snap));
+    for (const [key, kind] of PARTS) if (snap[key] === undefined) await store.delete(kind);
+    for (const [key, kind] of DETAILS) await store.prune(kind, Object.keys(snap[key]).filter((id) => snap[key][id] !== undefined));
+  }
 }
 
 // A whole part when one fetch returns it; one row per detail otherwise.
@@ -270,10 +295,18 @@ function fromItems(items: StoredItem[]): Snapshot | null {
   return normalize(snap);
 }
 
-/** Writes the copy: changed rows, and drops details no longer in it. */
-async function save(snap: Snapshot): Promise<void> {
-  if (!store) return;
-  await store.put(toItems(snap));
-  for (const [key, kind] of PARTS) if (snap[key] === undefined) await store.delete(kind);
-  for (const [key, kind] of DETAILS) await store.prune(kind, Object.keys(snap[key]).filter((id) => snap[key][id] !== undefined));
-}
+// --- The current copy: the caller's own when hosted for several people ---
+
+/** The copy used outside asOwner: local mode, and hosted for one person. */
+export const defaultCopy = new SavedCopy(defaultSession);
+const owner = new AsyncLocalStorage<SavedCopy>();
+
+/** Runs `fn` (and everything it starts) against `copy` and its session. */
+export const asOwner = <T>(copy: SavedCopy, fn: () => T): T => owner.run(copy, () => withSession(copy.session, fn));
+export const currentCopy = (): SavedCopy => owner.getStore() ?? defaultCopy;
+
+export const useStorage = (store: OwnerStorage, legacyFile?: string) => defaultCopy.useStorage(store, legacyFile);
+export const saved = () => currentCopy().saved();
+export const isRunning = () => currentCopy().isRunning();
+export const refresh = (parts?: readonly PartName[]) => currentCopy().refresh(parts);
+export const forget = () => currentCopy().forget();

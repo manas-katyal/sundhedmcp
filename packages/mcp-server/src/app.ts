@@ -1,5 +1,8 @@
 // Hosted mode over HTTP: the MCP endpoint behind OAuth, the OAuth server
 // itself, and the owner-only /connect page for logging in with MitID.
+// With several people (oidc.ts) there is no OAuth server or password here:
+// /mcp checks the identity provider's tokens, /connect signs in with it, and
+// each person reaches only their own session and saved copy (users.ts).
 import { createHash, randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import express from "express";
@@ -12,13 +15,23 @@ import { passwordLocked, SingleUserProvider, verifyPassword } from "./auth.ts";
 import { connectPage, connectSignInPage, firstRunPage, LANG_COOKIE, langOf, loginPage, returningPage, signedInPage, signInFailedPage, statusPage } from "./pages.ts";
 import { createServer, VERSION } from "./mcp.ts";
 import { isLocal, mountGuide, type GuideOptions } from "./guide.ts";
-import { loginInput, loginScreenshot, loginViewport, loginWantsQr, restartLogin, startLogin, status, type LoginInput } from "@sundhedmcp/session";
+import { currentSession, loginViewport, type LoginInput, type SundhedSession } from "@sundhedmcp/session";
+import { createConnectSignIn, createTokenVerifier, type OidcConfig, type OidcDeps, onlyListsTools, protectedResourceMetadata, requireCaller } from "./oidc.ts";
+import { asOwner, type SavedCopy } from "./snapshot.ts";
+import type { Users } from "./users.ts";
 
 const VIEWER_COOKIE = "sundhed_viewer";
 const VIEWER_TTL_MS = 30 * 60_000;
 
+/** Several people, each signed in with the identity provider. */
+export interface MultiUser {
+  oidc: OidcConfig;
+  users: Users;
+  deps?: OidcDeps;
+}
+
 /** `guide` is set by `sundhedmcp serve`, where your own computer is the server. */
-export function createApp(guide?: GuideOptions) {
+export function createApp(guide?: GuideOptions, multi?: MultiUser) {
   const log = (msg: string) => console.log(`[sundhed ${new Date().toISOString()}] ${msg}`);
 
   const app = express();
@@ -47,7 +60,7 @@ export function createApp(guide?: GuideOptions) {
     }
     if (store().data.password_fingerprint !== fingerprint) store().update((d) => void (d.password_fingerprint = fingerprint));
   }
-  syncPasswordFingerprint();
+  if (!multi) syncPasswordFingerprint();
 
   // --- Icons ---
 
@@ -73,8 +86,10 @@ export function createApp(guide?: GuideOptions) {
 
   app.get("/", async (req, res) => {
     if (guide && isLocal(req, guide.port)) return void res.redirect(303, "/guide");
+    // Whose session it is depends on who signs in at /connect.
+    if (multi) return void res.type("html").send(statusPage(langOf(req), { problems: setupProblems(), mcpUrl: mcpUrl.href }));
     if (!passwordConfigured()) return void res.type("html").send(firstRunPage(langOf(req), { minLength: MIN_PASSWORD_LENGTH }));
-    const s = await status().catch(() => ({ loggedIn: false }));
+    const s = await currentSession().status().catch(() => ({ loggedIn: false }));
     res.type("html").send(statusPage(langOf(req), { problems: setupProblems(), mcpUrl: mcpUrl.href, loggedIn: s.loggedIn }));
   });
   // DK | EN toggle on the server pages. Only same-site paths are accepted as the way back.
@@ -95,6 +110,7 @@ export function createApp(guide?: GuideOptions) {
     return !origin || origin === baseUrl.origin || origin === `${req.protocol}://${req.headers.host}`;
   };
   app.post("/setup", express.urlencoded({ extended: false, limit: "4kb" }), (req, res) => {
+    if (multi) return void res.status(404).type("html").send(signInFailedPage(langOf(req), "This server signs people in with its identity provider; it has no password."));
     if (!setupAllowed(req)) return void res.status(403).type("html").send(signInFailedPage(langOf(req), "Choose the password on the computer that runs SundhedMCP."));
     if (passwordConfigured()) return void res.status(404).type("html").send(signInFailedPage(langOf(req), "This server already has a password."));
     const { password = "", confirm = "" } = req.body as Record<string, string | undefined>;
@@ -112,7 +128,8 @@ export function createApp(guide?: GuideOptions) {
   // --- /connect: the owner logs in with MitID through the server's browser ---
 
   // Viewer sessions live in memory. Anyone holding one can drive a logged-in
-  // health record, so they need the admin password and expire quickly.
+  // health record, so they need the admin password (or, with several people,
+  // a sign-in with the identity provider) and expire quickly.
   const viewers = new Map<string, number>();
   const failures = new Map<string, { count: number; until: number }>();
   const viewerOk = (req: express.Request) => {
@@ -121,12 +138,40 @@ export function createApp(guide?: GuideOptions) {
     const expires = id ? viewers.get(createHash("sha256").update(id).digest("hex")) : undefined;
     return expires !== undefined && expires > Date.now();
   };
-  const requireViewer: express.RequestHandler = (req, res, next) => (viewerOk(req) ? next() : void res.status(401).json({ error: "Sign in at /connect" }));
+  const signIn = multi ? createConnectSignIn(multi.oidc, baseUrl, log, multi.deps) : null;
+  signIn?.mount(app);
+
+  /** The session this browser may drive: the owner's, or the signed-in person's own. Null when not signed in. */
+  async function viewerSession(req: express.Request): Promise<SundhedSession | null> {
+    if (!multi || !signIn) return viewerOk(req) ? currentSession() : null;
+    const person = signIn.signedIn(req);
+    return person ? (await multi.users.get(person.caller)).session : null;
+  }
+  const requireViewer: express.RequestHandler = (req, res, next) => {
+    // The viewer page's own scripts send its Origin; another site's do too.
+    if (multi && req.method === "POST" && req.headers.origin !== baseUrl.origin) return void res.status(403).json({ error: "Forbidden" });
+    viewerSession(req).then(
+      (session) => {
+        if (!session) return void res.status(401).json({ error: "Sign in at /connect" });
+        res.locals.session = session;
+        next();
+      },
+      (err: unknown) => {
+        log(`could not open a session: ${(err as Error).message}`);
+        res.status(500).json({ error: "Could not open your session" });
+      },
+    );
+  };
+  const sessionOf = (res: express.Response) => res.locals.session as SundhedSession;
 
   app.get("/connect", async (req, res) => {
-    if (setupProblems().length || !passwordConfigured()) return void res.redirect(303, "/");
-    if (!viewerOk(req)) return void res.type("html").send(connectSignInPage(langOf(req)));
-    await startLogin().catch((err) => log(`could not start the browser: ${(err as Error).message}`));
+    if (setupProblems().length || (!multi && !passwordConfigured())) return void res.redirect(303, "/");
+    const session = await viewerSession(req).catch(() => null);
+    if (!session) {
+      if (multi) return void res.redirect(303, "/connect/login");
+      return void res.type("html").send(connectSignInPage(langOf(req)));
+    }
+    await session.startLogin().catch((err) => log(`could not start the browser: ${(err as Error).message}`));
     // The viewer page runs one inline script and shows screenshots as blob: images.
     res
       .set("Content-Security-Policy", "default-src 'none'; font-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' blob:; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
@@ -135,6 +180,7 @@ export function createApp(guide?: GuideOptions) {
   });
 
   app.post("/connect/signin", express.urlencoded({ extended: false, limit: "4kb" }), (req, res) => {
+    if (multi) return void res.redirect(303, "/connect/login");
     const ip = req.ip ?? "unknown";
     const f = failures.get(ip);
     if ((f && f.until > Date.now()) || passwordLocked()) return void res.status(429).type("html").send(connectSignInPage(langOf(req), "Too many attempts. Try again in 15 minutes."));
@@ -155,7 +201,7 @@ export function createApp(guide?: GuideOptions) {
   });
 
   app.get("/connect/frame", requireViewer, async (_req, res) => {
-    const jpeg = await loginScreenshot().catch(() => null);
+    const jpeg = await sessionOf(res).loginScreenshot().catch(() => null);
     if (!jpeg) return void res.status(204).end();
     res.set("Cache-Control", "no-store").type("image/jpeg").send(jpeg);
   });
@@ -163,48 +209,82 @@ export function createApp(guide?: GuideOptions) {
   app.post("/connect/input", requireViewer, express.json({ limit: "4kb" }), async (req, res) => {
     const input = req.body as LoginInput;
     if (!input || !["click", "text", "key", "wheel"].includes(input.type)) return void res.status(400).json({ error: "Unknown input" });
-    await loginInput(input).catch((err) => log(`input failed: ${(err as Error).message}`));
+    await sessionOf(res).loginInput(input).catch((err) => log(`input failed: ${(err as Error).message}`));
     res.status(204).end();
   });
 
   app.post("/connect/restart", requireViewer, async (_req, res) => {
-    await restartLogin().catch((err) => log(`restart failed: ${(err as Error).message}`));
+    await sessionOf(res).restartLogin().catch((err) => log(`restart failed: ${(err as Error).message}`));
     res.status(204).end();
   });
 
   app.get("/connect/status", requireViewer, async (_req, res) => {
-    const s = await status().catch(() => ({ loggedIn: false }));
-    const qr = s.loggedIn ? false : await loginWantsQr().catch(() => false);
+    const session = sessionOf(res);
+    const s = await session.status().catch(() => ({ loggedIn: false }));
+    const qr = s.loggedIn ? false : await session.loginWantsQr().catch(() => false);
     res.set("Cache-Control", "no-store").json({ loggedIn: s.loggedIn, qr });
   });
 
   // --- OAuth server for the MCP connector (single user) ---
 
-  app.use(
-    mcpAuthRouter({
-      provider,
-      issuerUrl: baseUrl,
-      resourceServerUrl: mcpUrl,
-      resourceName: "SundhedMCP",
-      scopesSupported: ["sundhed:read"],
-      clientRegistrationOptions: { clientSecretExpirySeconds: 0 },
-    }),
-  );
+  if (!multi) {
+    app.use(
+      mcpAuthRouter({
+        provider,
+        issuerUrl: baseUrl,
+        resourceServerUrl: mcpUrl,
+        resourceName: "SundhedMCP",
+        scopesSupported: ["sundhed:read"],
+        clientRegistrationOptions: { clientSecretExpirySeconds: 0 },
+      }),
+    );
 
-  app.post("/login", express.urlencoded({ extended: false }), (req, res) => {
-    const { request, password } = req.body as Record<string, string | undefined>;
-    const result = provider.completeLogin(String(request ?? ""), String(password ?? ""), req.ip ?? "unknown");
-    if ("redirect" in result) return void res.status(200).type("html").send(returningPage(langOf(req), result.redirect));
-    if ("done" in result) return void res.status(200).type("html").send(signedInPage(langOf(req)));
-    if (result.requestId) return void res.status(401).type("html").send(loginPage(langOf(req), { requestId: result.requestId, error: result.error }));
-    res.status(400).type("html").send(signInFailedPage(langOf(req), result.error));
-  });
+    app.post("/login", express.urlencoded({ extended: false }), (req, res) => {
+      const { request, password } = req.body as Record<string, string | undefined>;
+      const result = provider.completeLogin(String(request ?? ""), String(password ?? ""), req.ip ?? "unknown");
+      if ("redirect" in result) return void res.status(200).type("html").send(returningPage(langOf(req), result.redirect));
+      if ("done" in result) return void res.status(200).type("html").send(signedInPage(langOf(req)));
+      if (result.requestId) return void res.status(401).type("html").send(loginPage(langOf(req), { requestId: result.requestId, error: result.error }));
+      res.status(400).type("html").send(signInFailedPage(langOf(req), result.error));
+    });
+  }
 
   // --- MCP endpoint (stateless: one transport per request; the sundhed.dk session is process-wide) ---
 
-  const bearer = requireBearerAuth({ verifier: provider, resourceMetadataUrl: getOAuthProtectedResourceMetadataUrl(mcpUrl) });
+  let bearer: express.RequestHandler;
+  if (multi) {
+    // The identity provider is the authorization server; this only says where it is.
+    const metadataUrl = getOAuthProtectedResourceMetadataUrl(mcpUrl);
+    const metadata = protectedResourceMetadata(multi.oidc, mcpUrl.href);
+    app.get(["/.well-known/oauth-protected-resource", new URL(metadataUrl).pathname], (_req, res) => void res.json(metadata));
+    const caller = requireCaller(createTokenVerifier(multi.oidc, multi.deps), metadataUrl, log);
+    bearer = (req, res, next) => {
+      // Runs outside anyone's session; onlyListsTools lets no tool call through.
+      if (multi.oidc.anonymousToolList && !req.headers.authorization && onlyListsTools(req.body)) return next();
+      caller(req, res, () => {
+        multi.users.get(res.locals.caller).then(
+          (copy) => {
+            res.locals.copy = copy;
+            next();
+          },
+          (err: unknown) => {
+            log(`could not open a saved copy: ${(err as Error).message}`);
+            res.status(500).json({ jsonrpc: "2.0", error: { code: -32603, message: "Internal error" }, id: null });
+          },
+        );
+      });
+    };
+  } else {
+    bearer = requireBearerAuth({ verifier: provider, resourceMetadataUrl: getOAuthProtectedResourceMetadataUrl(mcpUrl) });
+  }
 
-  app.post(["/mcp", "/"], bearer, express.json({ limit: "1mb" }), async (req, res) => {
+  // With several people the body is read first, to see if it only lists tools.
+  const json = express.json({ limit: "1mb" });
+  app.post(["/mcp", "/"], ...(multi ? [json, bearer] : [bearer, json]), (req: express.Request, res: express.Response) => {
+    const copy = res.locals.copy as SavedCopy | undefined;
+    return copy ? asOwner(copy, () => handleMcp(req, res)) : handleMcp(req, res);
+  });
+  async function handleMcp(req: express.Request, res: express.Response): Promise<void> {
     const server = createServer();
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
     res.on("close", () => {
@@ -218,7 +298,7 @@ export function createApp(guide?: GuideOptions) {
       log(`mcp request failed: ${(err as Error).message}`);
       if (!res.headersSent) res.status(500).json({ jsonrpc: "2.0", error: { code: -32603, message: "Internal error" }, id: null });
     }
-  });
+  }
   app.get("/mcp", bearer, (_req, res) => void res.status(405).set("Allow", "POST").json({ error: "This server is stateless; use POST." }));
   app.delete("/mcp", bearer, (_req, res) => void res.status(405).set("Allow", "POST").json({ error: "This server is stateless; use POST." }));
 

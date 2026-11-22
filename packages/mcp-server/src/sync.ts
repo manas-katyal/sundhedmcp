@@ -11,8 +11,8 @@
 //
 // Env:
 //   SUNDHEDMCP_SYNC=0  turn it off; the copy is then fetched after each login only
-import { onLogin } from "@sundhedmcp/session";
-import { PART_NAMES, type PartName, type RefreshResult, refresh } from "./snapshot.ts";
+import { onLogin, type SundhedSession } from "@sundhedmcp/session";
+import { currentCopy, defaultCopy, PART_NAMES, type PartName, type RefreshResult, type SavedCopy } from "./snapshot.ts";
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -111,17 +111,35 @@ export function createSync(deps: SyncDeps, enabled = true): Sync {
   };
 }
 
-let sync: Sync | null = null;
+// One Sync per saved copy, so each person's record is kept current on its own.
+const syncs = new Map<SavedCopy, Sync>();
+let started: { enabled: boolean } | null = null;
 
-/** Fetches the record after each login, and keeps it current while the session lasts. */
-export function startSync(env: NodeJS.ProcessEnv = process.env): void {
-  if (sync) return;
+const syncFor = (copy: SavedCopy): Sync => {
+  let sync = syncs.get(copy);
+  if (!sync) {
+    sync = createSync({ refresh: (parts) => copy.refresh(parts) }, started?.enabled ?? true);
+    syncs.set(copy, sync);
+  }
+  return sync;
+};
+
+/**
+ * Fetches the record after each login, and keeps it current while the session
+ * lasts. `copyOf` finds the copy that belongs to a session that just logged
+ * in; by default only the default session has one.
+ */
+export function startSync(env: NodeJS.ProcessEnv = process.env, copyOf: (session: SundhedSession) => SavedCopy | undefined = (s) => (s === defaultCopy.session ? defaultCopy : undefined)): void {
+  if (started) return;
   const enabled = env.SUNDHEDMCP_SYNC?.trim() !== "0";
-  const instance = createSync({ refresh }, enabled);
-  sync = instance;
+  started = { enabled };
   const fail = (err: unknown) => console.error(`[sync] failed: ${(err as Error).message}`);
-  onLogin(() => void instance.loggedIn().catch(fail));
-  if (enabled) setInterval(() => void instance.tick().catch(fail), TICK_MS).unref();
+  onLogin((session) => {
+    const copy = copyOf(session);
+    if (copy) void syncFor(copy).loggedIn().catch(fail);
+  });
+  if (enabled) setInterval(() => void Promise.all([...syncs.values()].map((sync) => sync.tick().catch(fail))), TICK_MS).unref();
 }
 
-export const syncStatus = (): SyncStatus | null => sync?.status() ?? null;
+/** The sync of the current caller's copy; null where sync is not running (stdio). */
+export const syncStatus = (): SyncStatus | null => (started ? syncFor(currentCopy()).status() : null);

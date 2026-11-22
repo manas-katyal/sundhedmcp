@@ -19,6 +19,9 @@ import { postgresDriver, type SqlDriver, sqliteDriver } from "./storage-sql.ts";
 /** The owner rows are stored under while there is only one person. */
 export const SINGLE_OWNER_ID = "default";
 
+/** The owner of the server's own rows. Never a person's id: those are hex (oidc.ts). */
+export const SERVER_OWNER_ID = "server";
+
 /** What a stored row is: one part of the record, or one detail within a part. */
 export const ITEM_KINDS = [
   "snapshot",
@@ -31,6 +34,8 @@ export const ITEM_KINDS = [
   "vaccination",
   "lab_results",
   "referrals",
+  // The server's own state, under SERVER_OWNER_ID: OAuth clients and tokens (store.ts).
+  "oauth_state",
 ] as const;
 export type ItemKind = (typeof ITEM_KINDS)[number];
 

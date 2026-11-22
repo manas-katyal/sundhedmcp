@@ -6,6 +6,7 @@ import { connect, disconnect, hostedLoginUrl, SessionGone, startLogin, status } 
 import { isoDate, monthsAgo, sundhed } from "@sundhedmcp/client";
 import { forget, isRunning, type PartName, saved, type Snapshot } from "./snapshot.ts";
 import { syncStatus } from "./sync.ts";
+import { config } from "./config.ts";
 
 const json = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value ?? [], null, 2) }] });
 const text = (message: string) => ({ content: [{ type: "text" as const, text: message }] });
@@ -60,7 +61,7 @@ export function registerTools(server: McpServer): void {
       if (loginUrl) {
         if (await startLogin()) return text("Logged in to sundhed.dk.");
         return text(
-          `Not logged in yet. Ask the person to open ${loginUrl} in a browser ON A COMPUTER, not on their phone: MitID will show a QR code there, which cannot be scanned from the same device. Tell them to enter the server password, then scan the QR code with the MitID app on their phone (or type their MitID user ID in the page and approve in the app). When they say they are done, call the tool they asked for.`,
+          `Not logged in yet. Ask the person to open ${loginUrl} in a browser ON A COMPUTER, not on their phone: MitID will show a QR code there, which cannot be scanned from the same device. Tell them to ${config.multiUser ? "sign in with their own account there (the same one they use here)" : "enter the server password"}, then scan the QR code with the MitID app on their phone (or type their MitID user ID in the page and approve in the app). When they say they are done, call the tool they asked for.`,
         );
       }
       const result = await connect();

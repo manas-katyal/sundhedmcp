@@ -14,7 +14,30 @@ imagePullSecrets: []
 # when httpRoute is on.
 baseUrl: http://localhost:8080
 
+# single-user: one person, signed in with the admin password (OAuth for
+#   claude.ai, an API token for kagent).
+# multi-user: everyone signs in with oidc.issuer, and each person gets their
+#   own sundhed.dk session and saved copy (see README, "Several people").
+#   No admin password or API token then.
+mode: single-user
+
+oidc:
+  # e.g. https://keycloak.example.com/realms/kagent
+  issuer: ""
+  # Access tokens for /mcp must list this in `aud`.
+  audience: sundhedmcp
+  # Accept Keycloak ID tokens as well as access tokens. kagent's oauth2-proxy
+  # forwards ID tokens, so turn this on with kagent.
+  acceptIdToken: false
+  # The client the /connect page signs people in with (redirect URI
+  # <baseUrl>/connect/callback). Leave the secret empty for a public client.
+  clientId: sundhedmcp-connect
+  clientSecret:
+    existingSecret: ""
+    secretKey: client-secret
+
 # The password for signing in to the server (OAuth, and the /connect page).
+# Single-user mode only.
 # Without existingSecret the chart creates a Secret with a random password,
 # kept across upgrades; NOTES.txt shows how to read it.
 adminPassword:
@@ -23,7 +46,7 @@ adminPassword:
 
 # Bearer tokens /mcp accepts besides OAuth (SUNDHEDMCP_API_TOKENS), for
 # clients that cannot sign in with the password, such as kagent. On when
-# kagent.enabled. Without existingSecret the chart creates a Secret with a
+# kagent.enabled in single-user mode; never in multi-user mode. Without existingSecret the chart creates a Secret with a
 # random token, kept across upgrades. With kagent, the chart copies it as an
 # Authorization header Secret into kagent's namespace.
 apiToken:
@@ -91,6 +114,11 @@ kagent:
     name: sundhedmcp
     description: The signed-in person's own sundhed.dk record (read only)
     timeout: 60s
+    # Multi-user mode: kagent lists the tools without a signed-in user, so
+    # initialize and tools/list answer without a token
+    # (SUNDHEDMCP_ANONYMOUS_TOOL_LIST). Tool calls still need the person's.
+    # With false, kagent discovery is off and kagent shows no tools.
+    discovery: true
   agent:
     enabled: false
     name: sundhed-assistant
