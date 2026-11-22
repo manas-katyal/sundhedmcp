@@ -20,7 +20,8 @@ function detectBaseUrl(): string {
 export const config = {
   port,
   baseUrl: detectBaseUrl(),
-  // Only OAuth clients and hashed tokens are stored here. Never health data.
+  // OAuth state, the admin password hash, and the encrypted saved copy
+  // (storage.ts) with its key, unless SUNDHEDMCP_STORAGE says otherwise.
   // An empty DATA_DIR (as a platform template may set) counts as unset.
   dataDir: env.DATA_DIR?.trim() || "./data",
   get statePath(): string {

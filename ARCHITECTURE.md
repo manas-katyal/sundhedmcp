@@ -38,6 +38,21 @@ SundhedMCP only reads.
 | `src/serve.ts` | `sundhedmcp serve`: this computer as the server for claude.ai and the phone |
 | `src/server.ts` | The Docker image: an info page, or hosted mode with `SUNDHEDMCP_HOSTED=1` |
 
+## Storage
+
+`storage.ts` keeps the saved copy of the record in SQLite (`node:sqlite`) or
+PostgreSQL (`pg`), one row per part (`summary`, `medication_card`, ...) and
+one per detail (`medication_detail/<id>`, ...), under an owner id (`default`
+until there are accounts). `storage-crypto.ts` seals every row with
+AES-256-GCM under a key derived per owner (HKDF), with owner, kind and id as
+associated data, so a row moved to another owner or id does not open.
+Rotation: the current key seals, previous keys still open, and `reencrypt()`
+seals the old rows again.
+
+`snapshot.ts` holds the copy in memory for the tools and writes it through to
+storage. A part that fails to fetch keeps the previous copy of it, and its
+error says from when.
+
 ## Running and building
 
 In the workspace everything runs from source with Node's type stripping, and

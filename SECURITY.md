@@ -10,4 +10,5 @@ MitID details: describe the shape of the data instead.
 
 In scope: anything that lets someone other than the logged-in person read
 their record, the saved copy, the OAuth tokens or the admin password; anything
-that writes to sundhed.dk; and CPR numbers that escape the `[CPR]` mask.
+that writes to sundhed.dk; CPR numbers that escape the `[CPR]` mask; and any
+part of the saved copy that reaches the database or a log unencrypted.
