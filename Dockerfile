@@ -1,4 +1,4 @@
-FROM node:24-bookworm-slim
+FROM node:26-bookworm-slim
 LABEL org.opencontainers.image.title="SundhedMCP" \
       org.opencontainers.image.description="SundhedMCP runs locally only; this image serves a page that says so." \
       org.opencontainers.image.source="https://github.com/manas-katyal/sundhedmcp" \
@@ -7,8 +7,9 @@ WORKDIR /app
 ENV NODE_ENV=production DATA_DIR=/data PORT=8080 \
     PLAYWRIGHT_BROWSERS_PATH=/ms-playwright SUNDHEDMCP_BROWSER=chromium
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-# Corepack only ships with Node < 25; it reads pnpm's version from packageManager.
-RUN COREPACK_ENABLE_DOWNLOAD_PROMPT=0 corepack enable \
+# Corepack only ships with Node < 25, so pnpm comes from npm, at the version
+# in package.json's packageManager field.
+RUN npm install -g "$(node -p 'require("./package.json").packageManager')" \
  && pnpm install --frozen-lockfile --prod \
  && pnpm exec playwright-core install --with-deps chromium \
  && pnpm store prune && rm -rf /var/lib/apt/lists/*

@@ -53,7 +53,7 @@ endpoints the site's own pages use, from inside that logged-in browser.
 
 ## Setup
 
-Needs Node 24+ and Google Chrome, Microsoft Edge or Chrome Canary (or run
+Needs Node 24+ (26 recommended) and Google Chrome, Microsoft Edge or Chrome Canary (or run
 `pnpm exec playwright-core install chromium`).
 
 ```bash
