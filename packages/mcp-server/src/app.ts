@@ -8,7 +8,7 @@ import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middlew
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { config, MIN_API_TOKEN_LENGTH, MIN_PASSWORD_LENGTH, passwordConfigured, passwordFingerprint, setPassword, setupProblems } from "./config.ts";
 import { store } from "./store.ts";
-import { SingleUserProvider, verifyPassword } from "./auth.ts";
+import { passwordLocked, SingleUserProvider, verifyPassword } from "./auth.ts";
 import { connectPage, connectSignInPage, firstRunPage, LANG_COOKIE, langOf, loginPage, returningPage, signedInPage, signInFailedPage, statusPage } from "./pages.ts";
 import { createServer, VERSION } from "./mcp.ts";
 import { isLocal, mountGuide, type GuideOptions } from "./guide.ts";
@@ -86,7 +86,16 @@ export function createApp(guide?: GuideOptions) {
   });
 
   // First run: whoever deploys the server chooses its password here, once.
+  // Under `serve` only this computer may choose it: Funnel can already be on
+  // (it survives restarts), and the first password set wins the record.
+  // A form posted from another site carries its Origin, so refuse that too.
+  const setupAllowed = (req: express.Request) => {
+    if (guide && !isLocal(req, guide.port)) return false;
+    const origin = req.headers.origin;
+    return !origin || origin === baseUrl.origin || origin === `${req.protocol}://${req.headers.host}`;
+  };
   app.post("/setup", express.urlencoded({ extended: false, limit: "4kb" }), (req, res) => {
+    if (!setupAllowed(req)) return void res.status(403).type("html").send(signInFailedPage(langOf(req), "Choose the password on the computer that runs SundhedMCP."));
     if (passwordConfigured()) return void res.status(404).type("html").send(signInFailedPage(langOf(req), "This server already has a password."));
     const { password = "", confirm = "" } = req.body as Record<string, string | undefined>;
     const error =
@@ -128,7 +137,7 @@ export function createApp(guide?: GuideOptions) {
   app.post("/connect/signin", express.urlencoded({ extended: false, limit: "4kb" }), (req, res) => {
     const ip = req.ip ?? "unknown";
     const f = failures.get(ip);
-    if (f && f.until > Date.now()) return void res.status(429).type("html").send(connectSignInPage(langOf(req), "Too many attempts. Try again in 15 minutes."));
+    if ((f && f.until > Date.now()) || passwordLocked()) return void res.status(429).type("html").send(connectSignInPage(langOf(req), "Too many attempts. Try again in 15 minutes."));
     if (!verifyPassword(String((req.body as Record<string, string>).password ?? ""))) {
       const next = { count: (f?.count ?? 0) + 1, until: 0 };
       if (next.count >= 5) next.until = Date.now() + 15 * 60_000;
