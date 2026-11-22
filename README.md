@@ -53,11 +53,12 @@ endpoints the site's own pages use, from inside that logged-in browser.
 
 ## Setup
 
-Needs Node 24+ and Google Chrome, Microsoft Edge or Chrome Canary (or run
-`npx playwright-core install chromium`).
+Needs Node 24+ (26 recommended) and Google Chrome, Microsoft Edge or Chrome Canary (or run
+`pnpm exec playwright-core install chromium`).
 
 ```bash
-npm install
+corepack enable   # pnpm, at the version in package.json
+pnpm install
 claude mcp add sundhedmcp -- node /path/to/sundhedmcp/src/stdio.ts
 ```
 
@@ -116,9 +117,14 @@ Set `SUNDHEDMCP_HOSTED=1` to run hosted mode there at your own risk.
 ## Development
 
 ```bash
-npm test          # unit tests (synthetic data only)
-npm run typecheck
+pnpm test         # unit tests (synthetic data only)
+pnpm typecheck
+pnpm lint         # biome
 ```
+
+CI runs all three, plus a build of the image, on every pull request. Commit
+messages follow [Conventional Commits](https://www.conventionalcommits.org/):
+release-please reads them to write the changelog and bump the version.
 
 The landing page is built from `site/`: edit `site/en.source.html` (English),
 then `python3 site/translate.py` writes the Danish page (it lists any

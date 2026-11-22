@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerTools } from "./tools.ts";
 
-export const VERSION = "0.2.0";
+export const VERSION = "0.2.0"; // x-release-please-version
 
 export function createServer(): McpServer {
   const server = new McpServer(

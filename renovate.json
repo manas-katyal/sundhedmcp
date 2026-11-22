@@ -1,0 +1,38 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "timezone": "Europe/Copenhagen",
+  "schedule": ["before 6am on monday"],
+  "prConcurrentLimit": 5,
+  "semanticCommits": "enabled",
+  "semanticCommitType": "chore",
+  "semanticCommitScope": "deps",
+  "labels": ["dependencies"],
+  "rangeStrategy": "bump",
+  "packageRules": [
+    {
+      "groupName": "biome",
+      "matchPackageNames": ["@biomejs/**"]
+    },
+    {
+      "groupName": "mcp-sdk",
+      "matchPackageNames": ["@modelcontextprotocol/**"]
+    },
+    {
+      "description": "Playwright pins the Chromium build the image installs; review by hand.",
+      "groupName": "playwright",
+      "matchPackageNames": ["playwright-core"]
+    },
+    {
+      "groupName": "github-actions",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch", "digest"]
+    },
+    {
+      "description": "Node major follows the LTS line on purpose; review by hand.",
+      "matchDepNames": ["node"],
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
+    }
+  ]
+}

@@ -23,7 +23,9 @@
     "test": "node --test test/*.test.ts",
     "typecheck": "tsc --noEmit",
     "build": "rm -rf dist/lib && tsc -p tsconfig.build.json && cp -R src/assets dist/lib/assets",
-    "prepublishOnly": "npm run build && npm test"
+    "prepublishOnly": "pnpm build && pnpm test",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write ."
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
@@ -32,8 +34,9 @@
     "zod": "^4.5.4"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.6.8",
     "@types/express": "^5.0.6",
-    "@types/node": "^24.0.0",
+    "@types/node": "^26.0.0",
     "typescript": "^5.8.0"
   },
   "bin": {
@@ -49,5 +52,6 @@
     "type": "git",
     "url": "git+https://github.com/manas-katyal/sundhedmcp.git"
   },
-  "homepage": "https://sundhedmcp.dk"
+  "homepage": "https://sundhedmcp.dk",
+  "packageManager": "pnpm@12.21.0"
 }
