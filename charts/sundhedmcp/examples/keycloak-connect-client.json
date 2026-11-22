@@ -1,0 +1,18 @@
+{
+  "clientId": "sundhedmcp-connect",
+  "name": "SundhedMCP",
+  "description": "Sign-in at sundhedmcp's /connect page before the MitID login",
+  "protocol": "openid-connect",
+  "publicClient": false,
+  "clientAuthenticatorType": "client-secret",
+  "standardFlowEnabled": true,
+  "directAccessGrantsEnabled": false,
+  "implicitFlowEnabled": false,
+  "serviceAccountsEnabled": false,
+  "redirectUris": ["https://sundhed.example.com/connect/callback"],
+  "webOrigins": ["https://sundhed.example.com"],
+  "attributes": {
+    "pkce.code.challenge.method": "S256",
+    "post.logout.redirect.uris": "https://sundhed.example.com/*"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "audience-sundhedmcp",
+  "protocol": "openid-connect",
+  "protocolMapper": "oidc-audience-mapper",
+  "config": {
+    "included.custom.audience": "sundhedmcp",
+    "id.token.claim": "true",
+    "access.token.claim": "true",
+    "introspection.token.claim": "true"
+  }
+}
