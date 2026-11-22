@@ -14,5 +14,6 @@ helm upgrade --install sundhedmcp charts/sundhedmcp -n sundhedmcp --create-names
 Every setting is described in [`values.yaml`](values.yaml); a setting left
 half done fails the render with what is missing. [`ci/`](ci) has a values
 file for each mode, and [`examples/`](examples) the Keycloak clients for
-multi-user mode. How the modes work, and what you take on by hosting health
+multi-user mode (`keycloak-api-client.json` gives your own scripts a token
+for `/api/v1`). How the modes work, and what you take on by hosting health
 data: [SELF-HOSTING.md](../../SELF-HOSTING.md).

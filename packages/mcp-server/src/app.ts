@@ -12,13 +12,15 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { config, MIN_API_TOKEN_LENGTH, MIN_PASSWORD_LENGTH, passwordConfigured, passwordFingerprint, setPassword, setupProblems } from "./config.ts";
 import { store } from "./store.ts";
 import { passwordLocked, SingleUserProvider, verifyPassword } from "./auth.ts";
-import { connectPage, connectSignInPage, firstRunPage, recordPage, LANG_COOKIE, langOf, loginPage, returningPage, signedInPage, signInFailedPage, statusPage } from "./pages.ts";
+import { connectPage, connectSignInPage, firstRunPage, LANG_COOKIE, langOf, loginPage, returningPage, signedInPage, signInFailedPage, statusPage } from "./pages.ts";
 import { createServer, VERSION } from "./mcp.ts";
 import { isLocal, mountGuide, type GuideOptions } from "./guide.ts";
 import { currentSession, loginViewport, type LoginInput, type SundhedSession } from "@sundhedmcp/session";
 import { createConnectSignIn, createTokenVerifier, type OidcConfig, type OidcDeps, onlyListsTools, protectedResourceMetadata, requireCaller } from "./oidc.ts";
 import { asOwner, defaultCopy, PART_NAMES, type SavedCopy } from "./snapshot.ts";
 import { type ApiCaller, mountApi } from "./api.ts";
+import { dashboardPage, type DashboardInput, PART_SLUGS, partOfSlug, partPage } from "./dashboard.ts";
+import { syncStatus } from "./sync.ts";
 import { httpTelemetry } from "./telemetry.ts";
 import type { Users } from "./users.ts";
 
@@ -232,26 +234,35 @@ export function createApp(guide?: GuideOptions, multi?: MultiUser) {
     res.set("Cache-Control", "no-store").json({ loggedIn: s.loggedIn, qr });
   });
 
-  // The saved copy, to read in the browser, and a button to fetch it again.
-  app.get("/connect/record", async (req, res) => {
+  // The dashboard (dashboard.ts): the saved copy, part by part, and a button to fetch it again.
+  app.get("/dashboard", (_req, res) => void res.redirect(303, "/connect/record"));
+  async function dashboardInput(copy: SavedCopy): Promise<DashboardInput> {
+    const s = await copy.session.status().catch(() => ({ loggedIn: false }));
+    return { snapshot: copy.saved(), loggedIn: s.loggedIn, refreshing: copy.isRunning(), sync: asOwner(copy, syncStatus), apiUrl: new URL("/api/v1", baseUrl).href };
+  }
+  app.get(["/connect/record", "/connect/record/:part"], async (req, res) => {
     if (setupProblems().length || (!multi && !passwordConfigured())) return void res.redirect(303, "/");
+    const part = req.params.part === undefined ? null : partOfSlug(String(req.params.part));
+    if (part === undefined) return void res.status(404).type("text").send("Not found");
     const copy = await viewerCopy(req).catch(() => null);
     if (!copy) {
       if (multi) return void res.redirect(303, "/connect/login");
       return void res.type("html").send(connectSignInPage(langOf(req)));
     }
-    const s = await copy.session.status().catch(() => ({ loggedIn: false }));
+    const input = await dashboardInput(copy);
     res
       .set("Cache-Control", "no-store")
       .type("html")
-      .send(recordPage(langOf(req), { snapshot: copy.saved(), loggedIn: s.loggedIn, refreshing: copy.isRunning(), partNames: PART_NAMES }));
+      .send(part ? partPage(langOf(req), part, input) : dashboardPage(langOf(req), input));
   });
 
-  app.post("/connect/record/refresh", requireViewer, async (req, res) => {
+  app.post("/connect/record/refresh", requireViewer, express.urlencoded({ extended: false, limit: "4kb" }), async (req, res) => {
+    const asked = String((req.body as Record<string, unknown> | undefined)?.part ?? "");
+    const part = PART_NAMES.find((p) => p === asked);
     const copy = await viewerCopy(req);
     const s = await copy?.session.status().catch(() => ({ loggedIn: false }));
-    if (copy && s?.loggedIn) copy.refresh().catch((err: unknown) => log(`refresh failed: ${(err as Error).message}`));
-    res.redirect(303, "/connect/record");
+    if (copy && s?.loggedIn) copy.refresh(part ? [part] : undefined).catch((err: unknown) => log(`refresh failed: ${(err as Error).message}`));
+    res.redirect(303, part ? `/connect/record/${PART_SLUGS[part]}` : "/connect/record");
   });
 
   // --- OAuth server for the MCP connector (single user) ---
