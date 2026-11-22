@@ -1,7 +1,8 @@
 # Architecture
 
 SundhedMCP is a pnpm workspace with three packages. Each layer only imports
-the one below it.
+the one below it. How to run hosted mode is in [SELF-HOSTING.md](SELF-HOSTING.md);
+this file is how it fits together.
 
 ```
 packages/mcp-server      sundhedmcp (published to npm)
