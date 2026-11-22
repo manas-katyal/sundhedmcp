@@ -162,8 +162,9 @@ and the encrypted SQLite copy. It creates the server password (and with
 upgrades; `NOTES.txt` shows how to read them.
 
 ```bash
+scripts/push-image.sh   # builds linux/amd64 here; REGISTRY=<registry>/<project>
 helm upgrade --install sundhedmcp charts/sundhedmcp -n sundhedmcp --create-namespace \
-  --set image.repository=ghcr.io/<owner>/sundhedmcp --set image.tag=<sha>
+  --set image.repository=<registry>/<project>/sundhedmcp --set image.tag=dev-<sha>
 kubectl -n sundhedmcp port-forward svc/sundhedmcp 8080
 ```
 
@@ -197,7 +198,9 @@ pnpm build        # bundles packages/mcp-server for npm
 ```
 
 The code is a pnpm workspace of three packages; see [ARCHITECTURE.md](ARCHITECTURE.md).
-CI runs all four, plus a build of the image, on every pull request. Commit
+CI runs all four, plus a lint of the chart, on every pull request. Images
+are built on your own machine for now (`scripts/push-image.sh`, and
+`scripts/kind-test.sh` for the chart tests), not in GitHub Actions. Commit
 messages follow [Conventional Commits](https://www.conventionalcommits.org/):
 release-please reads them to write the changelog and bump the version.
 
