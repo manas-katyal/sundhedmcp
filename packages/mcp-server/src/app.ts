@@ -12,12 +12,13 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { config, MIN_API_TOKEN_LENGTH, MIN_PASSWORD_LENGTH, passwordConfigured, passwordFingerprint, setPassword, setupProblems } from "./config.ts";
 import { store } from "./store.ts";
 import { passwordLocked, SingleUserProvider, verifyPassword } from "./auth.ts";
-import { connectPage, connectSignInPage, firstRunPage, LANG_COOKIE, langOf, loginPage, returningPage, signedInPage, signInFailedPage, statusPage } from "./pages.ts";
+import { connectPage, connectSignInPage, firstRunPage, recordPage, LANG_COOKIE, langOf, loginPage, returningPage, signedInPage, signInFailedPage, statusPage } from "./pages.ts";
 import { createServer, VERSION } from "./mcp.ts";
 import { isLocal, mountGuide, type GuideOptions } from "./guide.ts";
 import { currentSession, loginViewport, type LoginInput, type SundhedSession } from "@sundhedmcp/session";
 import { createConnectSignIn, createTokenVerifier, type OidcConfig, type OidcDeps, onlyListsTools, protectedResourceMetadata, requireCaller } from "./oidc.ts";
-import { asOwner, type SavedCopy } from "./snapshot.ts";
+import { asOwner, defaultCopy, PART_NAMES, type SavedCopy } from "./snapshot.ts";
+import { type ApiCaller, mountApi } from "./api.ts";
 import type { Users } from "./users.ts";
 
 const VIEWER_COOKIE = "sundhed_viewer";
@@ -141,11 +142,15 @@ export function createApp(guide?: GuideOptions, multi?: MultiUser) {
   const signIn = multi ? createConnectSignIn(multi.oidc, baseUrl, log, multi.deps) : null;
   signIn?.mount(app);
 
-  /** The session this browser may drive: the owner's, or the signed-in person's own. Null when not signed in. */
-  async function viewerSession(req: express.Request): Promise<SundhedSession | null> {
-    if (!multi || !signIn) return viewerOk(req) ? currentSession() : null;
+  /** The copy (and session) this browser may see and drive: the owner's, or the signed-in person's own. Null when not signed in. */
+  async function viewerCopy(req: express.Request): Promise<SavedCopy | null> {
+    if (!multi || !signIn) return viewerOk(req) ? defaultCopy : null;
     const person = signIn.signedIn(req);
-    return person ? (await multi.users.get(person.caller)).session : null;
+    return person ? multi.users.get(person.caller) : null;
+  }
+  async function viewerSession(req: express.Request): Promise<SundhedSession | null> {
+    if (!multi && viewerOk(req)) return currentSession();
+    return (await viewerCopy(req))?.session ?? null;
   }
   const requireViewer: express.RequestHandler = (req, res, next) => {
     // The viewer page's own scripts send its Origin; another site's do too.
@@ -225,6 +230,28 @@ export function createApp(guide?: GuideOptions, multi?: MultiUser) {
     res.set("Cache-Control", "no-store").json({ loggedIn: s.loggedIn, qr });
   });
 
+  // The saved copy, to read in the browser, and a button to fetch it again.
+  app.get("/connect/record", async (req, res) => {
+    if (setupProblems().length || (!multi && !passwordConfigured())) return void res.redirect(303, "/");
+    const copy = await viewerCopy(req).catch(() => null);
+    if (!copy) {
+      if (multi) return void res.redirect(303, "/connect/login");
+      return void res.type("html").send(connectSignInPage(langOf(req)));
+    }
+    const s = await copy.session.status().catch(() => ({ loggedIn: false }));
+    res
+      .set("Cache-Control", "no-store")
+      .type("html")
+      .send(recordPage(langOf(req), { snapshot: copy.saved(), loggedIn: s.loggedIn, refreshing: copy.isRunning(), partNames: PART_NAMES }));
+  });
+
+  app.post("/connect/record/refresh", requireViewer, async (req, res) => {
+    const copy = await viewerCopy(req);
+    const s = await copy?.session.status().catch(() => ({ loggedIn: false }));
+    if (copy && s?.loggedIn) copy.refresh().catch((err: unknown) => log(`refresh failed: ${(err as Error).message}`));
+    res.redirect(303, "/connect/record");
+  });
+
   // --- OAuth server for the MCP connector (single user) ---
 
   if (!multi) {
@@ -252,31 +279,52 @@ export function createApp(guide?: GuideOptions, multi?: MultiUser) {
   // --- MCP endpoint (stateless: one transport per request; the sundhed.dk session is process-wide) ---
 
   let bearer: express.RequestHandler;
+  let apiAuth: express.RequestHandler;
   if (multi) {
     // The identity provider is the authorization server; this only says where it is.
     const metadataUrl = getOAuthProtectedResourceMetadataUrl(mcpUrl);
     const metadata = protectedResourceMetadata(multi.oidc, mcpUrl.href);
     app.get(["/.well-known/oauth-protected-resource", new URL(metadataUrl).pathname], (_req, res) => void res.json(metadata));
     const caller = requireCaller(createTokenVerifier(multi.oidc, multi.deps), metadataUrl, log);
+    // The caller's own copy into res.locals.copy; `failed` answers when it cannot be opened.
+    const withCopy =
+      (failed: (res: express.Response) => void): express.RequestHandler =>
+      (req, res, next) =>
+        caller(req, res, () => {
+          multi.users.get(res.locals.caller).then(
+            (copy) => {
+              res.locals.copy = copy;
+              next();
+            },
+            (err: unknown) => {
+              log(`could not open a saved copy: ${(err as Error).message}`);
+              failed(res);
+            },
+          );
+        });
+    const mcpCopy = withCopy((res) => void res.status(500).json({ jsonrpc: "2.0", error: { code: -32603, message: "Internal error" }, id: null }));
     bearer = (req, res, next) => {
       // Runs outside anyone's session; onlyListsTools lets no tool call through.
       if (multi.oidc.anonymousToolList && !req.headers.authorization && onlyListsTools(req.body)) return next();
-      caller(req, res, () => {
-        multi.users.get(res.locals.caller).then(
-          (copy) => {
-            res.locals.copy = copy;
-            next();
-          },
-          (err: unknown) => {
-            log(`could not open a saved copy: ${(err as Error).message}`);
-            res.status(500).json({ jsonrpc: "2.0", error: { code: -32603, message: "Internal error" }, id: null });
-          },
-        );
-      });
+      mcpCopy(req, res, next);
     };
+    const apiCopy = withCopy((res) => void res.status(500).json({ error: "internal_error" }));
+    apiAuth = (req, res, next) =>
+      apiCopy(req, res, () => {
+        const scopes = (res.locals.caller as { scopes: string[] }).scopes;
+        res.locals.api = { copy: res.locals.copy, canWrite: !config.apiWriteScope || scopes.includes(config.apiWriteScope) } satisfies ApiCaller;
+        next();
+      });
   } else {
     bearer = requireBearerAuth({ verifier: provider, resourceMetadataUrl: getOAuthProtectedResourceMetadataUrl(mcpUrl) });
+    // One person: every valid token is the owner's, and may change things too.
+    apiAuth = (req, res, next) =>
+      bearer(req, res, () => {
+        res.locals.api = { copy: defaultCopy, canWrite: true } satisfies ApiCaller;
+        next();
+      });
   }
+  mountApi(app, { auth: apiAuth, writeScope: multi ? config.apiWriteScope : "", log });
 
   // With several people the body is read first, to see if it only lists tools.
   const json = express.json({ limit: "1mb" });

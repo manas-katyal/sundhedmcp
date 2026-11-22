@@ -83,6 +83,8 @@ spec:
                   name: {{ . }}
                   key: {{ $.Values.oidc.clientSecret.secretKey }}
             {{- end }}
+            - name: SUNDHEDMCP_API_WRITE_SCOPE
+              value: {{ .Values.oidc.apiWriteScope | quote }}
             {{- if and .Values.kagent.enabled .Values.kagent.remoteMCPServer.discovery }}
             - name: SUNDHEDMCP_ANONYMOUS_TOOL_LIST
               value: "1"

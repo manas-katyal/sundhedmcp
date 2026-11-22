@@ -33,6 +33,10 @@ export const config = {
   // Bearer tokens for clients that cannot do the OAuth sign-in, such as a
   // kagent RemoteMCPServer. Kept as digests; compared by digest.
   apiTokens: (env.SUNDHEDMCP_API_TOKENS ?? "").split(/[\s,]+/).filter(Boolean),
+  // With several people, the /api/v1 calls that change something (refresh,
+  // log out, delete the copy) need this scope in the token. Empty: any valid
+  // token may. With one person every valid token may: it is the owner's.
+  apiWriteScope: env.SUNDHEDMCP_API_WRITE_SCOPE === undefined ? "sundhed:write" : env.SUNDHEDMCP_API_WRITE_SCOPE.trim(),
   // Hosts an OAuth client may send the sign-in back to. Stops a phishing link
   // from registering a client that redirects your authorization code elsewhere.
   allowedRedirectHosts: (env.ALLOWED_REDIRECT_HOSTS ?? "claude.ai,claude.com,chatgpt.com,cursor.com,vscode.dev,localhost,127.0.0.1")

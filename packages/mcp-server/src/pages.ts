@@ -42,6 +42,11 @@ const T = {
     done: "Logget ind. Serveren henter nu hele din journal og gemmer en kopi. Gå tilbage til din assistent, også på telefonen; du kan lukke denne side.",
     qr: "MitID vil have dig til at scanne en QR-kode. Den kan ikke scannes fra den samme telefon: åbn denne side på en computer, og scan koden med MitID-appen på din telefon.",
     langLabel: "Sprog",
+    recordTitle: "Din gemte journal", recordLink: "Se den gemte kopi", recordPill: "Gemt kopi",
+    recordNone: "Der er ingen gemt kopi endnu. Log på med MitID, så henter serveren din journal.",
+    recordNote: "Det her er serverens gemte kopi, ikke sundhed.dk direkte. Den hentes igen af sig selv, mens du er logget ind.",
+    savedAt: "Gemt", fetching: "Henter nu …", refreshAll: "Hent igen", notFetched: "Ikke hentet", raw: "Rå data", more: (n: number) => `og ${n} mere`,
+    parts: { summary: "Overblik", medicationCard: "Medicinkort", prescriptions: "Recepter", vaccinations: "Vaccinationer", labResults: "Prøvesvar", referrals: "Henvisninger" },
   },
   en: {
     footer: "SundhedMCP · read-only · self-hosted · not affiliated with sundhed.dk",
@@ -70,6 +75,11 @@ const T = {
     done: "Logged in. The server is now fetching your whole record and keeping a copy. Go back to your assistant, on your phone too; you can close this page.",
     qr: "MitID wants you to scan a QR code. It cannot be scanned from the same phone: open this page on a computer and scan the code with the MitID app on your phone.",
     langLabel: "Language",
+    recordTitle: "Your saved record", recordLink: "See the saved copy", recordPill: "Saved copy",
+    recordNone: "There is no saved copy yet. Log in with MitID and the server fetches your record.",
+    recordNote: "This is the server's saved copy, not sundhed.dk itself. It is fetched again on its own while you are logged in.",
+    savedAt: "Saved", fetching: "Fetching now …", refreshAll: "Fetch again", notFetched: "Not fetched", raw: "Raw data", more: (n: number) => `and ${n} more`,
+    parts: { summary: "Overview", medicationCard: "Medication card", prescriptions: "Prescriptions", vaccinations: "Vaccinations", labResults: "Lab results", referrals: "Referrals" },
   },
 } as const;
 
@@ -197,7 +207,7 @@ export function statusPage(lang: Lang, input: { problems: string[]; mcpUrl: stri
     t.running,
     `<p>${t.addConnector}</p><p><code>${esc(input.mcpUrl)}</code></p>
      ${input.loggedIn === undefined ? "" : `<ul class="rows"><li>${t.session}<span class="r">${input.loggedIn ? t.loggedIn : t.notLoggedIn}</span></li></ul>`}
-     <p><a href="/connect">${t.loginMitid}</a></p>
+     <p><a href="/connect">${t.loginMitid}</a> · <a href="/connect/record">${t.recordLink}</a></p>
      <p class="muted small">${t.computerNote}</p>`,
     { kind: "ok", pill: t.runningPill, back: "/" },
   );
@@ -325,4 +335,79 @@ export function connectPage(lang: Lang, viewport: { width: number; height: numbe
     .typing .row{display:flex;gap:8px}.typing .row input{flex:1;min-width:0}.typing .row button{padding:10px 14px}
   </style>`;
   return shell(lang, t.mitidTitle, body, { head, wide: true, back: "/connect" });
+}
+
+// --- /connect/record: the saved copy, read in the browser ---
+
+const MAX_ROWS = 200;
+const MAX_COLUMNS = 8;
+const isScalar = (v: unknown) => v === null || ["string", "number", "boolean"].includes(typeof v);
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
+const scalar = (v: unknown) => (v === null || v === undefined || v === "" ? '<span class="muted">—</span>' : esc(String(v)));
+
+/**
+ * Shows data of a shape not known in advance: a list of objects as a table
+ * of their plain fields, an object as label and value, anything nested
+ * deeper as raw JSON under a summary.
+ */
+function view(lang: Lang, value: unknown, depth = 0): string {
+  if (isScalar(value) || value === undefined) return scalar(value);
+  const raw = `<details><summary>${T[lang].raw}</summary><pre>${esc(JSON.stringify(value, null, 2))}</pre></details>`;
+  if (depth > 2) return raw;
+  if (Array.isArray(value)) {
+    if (value.length === 0) return scalar(null);
+    if (value.every(isScalar)) return `<ul class="plain">${value.map((v) => `<li>${scalar(v)}</li>`).join("")}</ul>`;
+    if (value.every(isRecord)) {
+      const columns = [...new Set(value.flatMap((row) => Object.keys(row).filter((k) => isScalar(row[k]) && row[k] !== null && row[k] !== "")))].slice(0, MAX_COLUMNS);
+      if (columns.length === 0) return raw;
+      const rows = value.slice(0, MAX_ROWS).map((row) => `<tr>${columns.map((c) => `<td>${scalar(row[c])}</td>`).join("")}</tr>`);
+      const more = value.length > MAX_ROWS ? `<p class="muted small">${T[lang].more(value.length - MAX_ROWS)}</p>` : "";
+      return `<div class="scroll"><table><thead><tr>${columns.map((c) => `<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table></div>${more}${raw}`;
+    }
+    return raw;
+  }
+  const entries = Object.entries(value as Record<string, unknown>);
+  if (entries.length === 0) return scalar(null);
+  return `<dl>${entries.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${view(lang, v, depth + 1)}</dd>`).join("")}</dl>`;
+}
+
+const when = (lang: Lang, iso: string | undefined) => (iso ? esc(new Date(iso).toLocaleString(lang === "da" ? "da-DK" : "en-GB", { timeZone: "Europe/Copenhagen" })) : "—");
+
+export function recordPage(
+  lang: Lang,
+  input: { snapshot: import("./snapshot.ts").Snapshot | null; loggedIn: boolean; refreshing: boolean; partNames: readonly import("./snapshot.ts").PartName[] },
+): string {
+  const t = T[lang];
+  const snap = input.snapshot;
+  const action = input.refreshing
+    ? `<p class="muted">${t.fetching}</p>`
+    : input.loggedIn
+      ? `<form method="post" action="/connect/record/refresh"><button class="ghost" type="submit">${t.refreshAll}</button></form>`
+      : `<p><a href="/connect">${t.loginMitid}</a></p>`;
+  if (!snap) return shell(lang, t.recordTitle, `<p>${t.recordNone}</p>${action}`, { pill: t.recordPill, back: "/connect/record" });
+  const sections = input.partNames.map((part) => {
+    const data = part === "labResults" ? snap.labResults?.results : snap[part];
+    const error = snap.errors[part] ? `<p class="error small">${esc(snap.errors[part])}</p>` : "";
+    const range = part === "labResults" && snap.labResults ? ` · ${esc(snap.labResults.from)} – ${esc(snap.labResults.to)}` : "";
+    return `<section><h2>${t.parts[part]}</h2><p class="muted small">${data === undefined ? t.notFetched : `${t.savedAt} ${when(lang, snap.fetchedAt[part])}${range}`}</p>${error}${data === undefined ? "" : view(lang, data)}</section>`;
+  });
+  const head = `<style>
+    section{margin:28px 0 0;padding:24px 0 0;border-top:1px solid var(--line)}
+    h2{font-size:18px;margin:0 0 4px}
+    .scroll{overflow-x:auto;margin:8px 0}
+    table{border-collapse:collapse;font-size:14px;width:100%}
+    th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+    th{font-weight:500;color:var(--muted);white-space:nowrap}
+    dl{display:grid;grid-template-columns:minmax(120px,max-content) 1fr;gap:4px 16px;margin:8px 0;font-size:14px}
+    dt{color:var(--muted)}dd{margin:0;min-width:0;overflow-wrap:anywhere}
+    ul.plain{margin:0;padding-left:18px}
+    details{margin:6px 0;font-size:13px}summary{cursor:pointer;color:var(--muted)}
+    pre{overflow-x:auto;max-height:360px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;font:12px "IBM Plex Mono",ui-monospace,monospace}
+  </style>`;
+  return shell(
+    lang,
+    t.recordTitle,
+    `<p class="muted small">${t.recordNote} ${t.savedAt} ${when(lang, snap.savedAt)}.</p>${action}${sections.join("")}`,
+    { pill: t.recordPill, kind: input.loggedIn ? "ok" : "neutral", head, wide: true, back: "/connect/record" },
+  );
 }
