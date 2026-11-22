@@ -141,6 +141,7 @@ for people who asked for it; their health data is then on your server.
 | `SUNDHEDMCP_OIDC_CLIENT_ID` | The client `/connect` signs in with; redirect URI `<BASE_URL>/connect/callback` |
 | `SUNDHEDMCP_OIDC_CLIENT_SECRET` | Its secret, unless it is a public client |
 | `SUNDHEDMCP_ANONYMOUS_TOOL_LIST` | `1` answers `initialize` and `tools/list` without a token, for kagent's tool discovery; tool calls still need one |
+| `SUNDHEDMCP_API_WRITE_SCOPE` | The scope (default `sundhed:write`) a token needs for the `/api/v1` calls that change something; empty lets any valid token |
 
 A setting left half done stops the server at start. MCP clients find the
 provider through `/.well-known/oauth-protected-resource`. With the chart, set
@@ -161,6 +162,32 @@ to the client kagent signs in with, so the tokens it forwards carry
 kcadm.sh create clients -r <realm> -f keycloak-connect-client.json
 kcadm.sh create clients/<kagent client uuid>/protocol-mappers/models -r <realm> -f keycloak-kagent-audience-mapper.json
 ```
+
+### API and the saved copy in the browser
+
+Hosted mode also answers JSON at `/api/v1`, from the saved copy, with the same
+bearer tokens as `/mcp` (with one person: the OAuth tokens and
+`SUNDHEDMCP_API_TOKENS`; with several: the provider's access tokens, each
+reaching only its own person's copy). `/api/v1/openapi.json` describes it.
+
+| Call | |
+|---|---|
+| `GET /status` | Logged in, refreshing, sync, when each part was fetched, errors |
+| `GET /summary`, `/lab-results`, `/referrals` | One part: `{ fetchedAt, error, data }` |
+| `GET /medication-card`, `/prescriptions`, `/vaccinations` | The list, plus `details`: the ids with details |
+| `GET /medication-card/{id}`, `/prescriptions/{id}`, `/vaccinations/{id}` | One detail |
+| `POST /refresh` | Fetch everything (or `{"parts": [...]}`) again in the background; `202` |
+| `POST /logout` | End the sundhed.dk session; `{"forgetSavedCopy": true}` deletes the copy too |
+| `DELETE /saved-copy` | Delete the saved copy |
+
+The last three change things on this server only: nothing writes to
+sundhed.dk. With several people their tokens need the
+`SUNDHEDMCP_API_WRITE_SCOPE` scope (in Keycloak, an optional client scope
+`sundhed:write` the client asks for); a token without it reads only, which
+suits an assistant such as kagent.
+
+`/connect/record` shows the same copy in the browser after the `/connect`
+sign-in, with a button to fetch it again.
 
 ### Sync
 

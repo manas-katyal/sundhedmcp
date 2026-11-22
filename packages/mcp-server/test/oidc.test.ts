@@ -82,7 +82,8 @@ test("resolveOidc refuses half-configured multi-user mode", async () => {
 test("the token verifier checks issuer, audience, expiry and token type", async () => {
   const { createTokenVerifier, CallerAuthError } = await import("../src/oidc.ts");
   const verify = createTokenVerifier(oidc, { keys });
-  assert.deepEqual(await verify(`Bearer ${await sign({ sub: "alice" })}`), { issuer: ISSUER, sub: "alice" });
+  assert.deepEqual(await verify(`Bearer ${await sign({ sub: "alice" })}`), { issuer: ISSUER, sub: "alice", scopes: [] });
+  assert.deepEqual((await verify(`Bearer ${await sign({ sub: "alice", scope: "openid sundhed:write" })}`)).scopes, ["openid", "sundhed:write"]);
   const rejects = async (authorization: string | undefined, code: string) => {
     await assert.rejects(verify(authorization), (err: unknown) => err instanceof CallerAuthError && err.code === code);
   };

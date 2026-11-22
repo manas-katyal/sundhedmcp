@@ -18,7 +18,7 @@ export class Users {
   }
 
   /** The person's own copy (and through it their session), loaded from storage on first use. */
-  get(caller: Caller): Promise<SavedCopy> {
+  get(caller: Pick<Caller, "issuer" | "sub">): Promise<SavedCopy> {
     const id = callerId(caller);
     let copy = this.copies.get(id);
     if (!copy) {

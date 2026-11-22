@@ -35,6 +35,9 @@ oidc:
   clientSecret:
     existingSecret: ""
     secretKey: client-secret
+  # The scope a token needs for the /api/v1 calls that change something
+  # (fetch again, log out, delete the copy). "" lets any valid token.
+  apiWriteScope: sundhed:write
 
 # The password for signing in to the server (OAuth, and the /connect page).
 # Single-user mode only.

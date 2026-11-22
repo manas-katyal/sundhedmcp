@@ -56,6 +56,13 @@ PKCE). `users.ts` gives each person, by `callerId` (sha256 of issuer and
 sub), their own `SundhedSession` and `SavedCopy`, and the request runs inside
 `asOwner`, so a tool only ever reaches its caller's session and copy.
 
+`api.ts` serves `/api/v1` from the saved copy, behind the same bearer check
+as `/mcp`, inside `asOwner` too. Its changing calls (refresh, logout, delete
+the copy) act on the server only; with several people they need the write
+scope. `/connect/record` (`recordPage` in `pages.ts`) renders the copy
+for the browser without knowing its shapes: lists of objects as tables,
+objects as label and value, deeper data as escaped JSON.
+
 ## Storage
 
 `storage.ts` keeps the saved copy of the record in SQLite (`node:sqlite`) or

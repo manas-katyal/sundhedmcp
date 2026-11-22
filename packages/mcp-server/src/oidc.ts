@@ -92,13 +92,15 @@ export function resolveOidc(env: NodeJS.ProcessEnv, apiTokens: string[]): OidcCo
 export interface Caller {
   issuer: string;
   sub: string;
+  /** The token's space-separated `scope` claim; an ID token has none. */
+  scopes: string[];
 }
 
 /**
  * Stable id for a person: their storage owner id. Includes the issuer, so a
  * new identity provider never maps a new person onto an old person's record.
  */
-export function callerId(caller: Caller): string {
+export function callerId(caller: Pick<Caller, "issuer" | "sub">): string {
   return createHash("sha256").update(`${caller.issuer}\n${caller.sub}`).digest("hex").slice(0, 32);
 }
 
@@ -179,7 +181,8 @@ export function createTokenVerifier(oidc: OidcConfig, deps: OidcDeps = {}): (aut
     // passes the audience check, but it is not an access token.
     if (payload.typ === "ID" && !oidc.acceptIdTokens) throw new CallerAuthError("invalid_token", "An ID token is not an access token.");
     if (typeof payload.sub !== "string" || payload.sub === "") throw new CallerAuthError("invalid_token", "The token has no subject.");
-    return { issuer: oidc.issuer, sub: payload.sub };
+    const scopes = typeof payload.scope === "string" ? payload.scope.split(" ").filter(Boolean) : [];
+    return { issuer: oidc.issuer, sub: payload.sub, scopes };
   };
 }
 
@@ -367,7 +370,7 @@ export function createConnectSignIn(oidc: OidcConfig, baseUrl: URL, log: (msg: s
       }
       const id = randomToken();
       const name = [claims.name, claims.preferred_username].find((v): v is string => typeof v === "string" && v !== "") ?? sub;
-      sessions.set(key(id), { caller: { issuer: oidc.issuer, sub }, name, expiresAt: Date.now() + SESSION_TTL_MS });
+      sessions.set(key(id), { caller: { issuer: oidc.issuer, sub, scopes: [] }, name, expiresAt: Date.now() + SESSION_TTL_MS });
       res.append("Set-Cookie", set(SESSION, id, SESSION_TTL_MS)).redirect(303, "/connect");
     });
 
