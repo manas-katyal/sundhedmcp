@@ -8,7 +8,7 @@
       "Dockerfile",
       "docker-entrypoint.sh",
       "package.json",
-      "package-lock.json",
+      "pnpm-lock.yaml",
       "railway.json"
     ]
   },

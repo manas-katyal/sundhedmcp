@@ -6,10 +6,12 @@ LABEL org.opencontainers.image.title="SundhedMCP" \
 WORKDIR /app
 ENV NODE_ENV=production DATA_DIR=/data PORT=8080 \
     PLAYWRIGHT_BROWSERS_PATH=/ms-playwright SUNDHEDMCP_BROWSER=chromium
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev && npm cache clean --force \
- && npx playwright-core install --with-deps chromium \
- && rm -rf /var/lib/apt/lists/*
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+# Corepack only ships with Node < 25; it reads pnpm's version from packageManager.
+RUN COREPACK_ENABLE_DOWNLOAD_PROMPT=0 corepack enable \
+ && pnpm install --frozen-lockfile --prod \
+ && pnpm exec playwright-core install --with-deps chromium \
+ && pnpm store prune && rm -rf /var/lib/apt/lists/*
 COPY src ./src
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 EXPOSE 8080
