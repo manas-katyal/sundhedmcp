@@ -37,6 +37,10 @@ export const config = {
   // log out, delete the copy) need this scope in the token. Empty: any valid
   // token may. With one person every valid token may: it is the owner's.
   apiWriteScope: env.SUNDHEDMCP_API_WRITE_SCOPE === undefined ? "sundhed:write" : env.SUNDHEDMCP_API_WRITE_SCOPE.trim(),
+  // Prescription renewal (renewal.ts): the one thing that writes to
+  // sundhed.dk, so it is off unless turned on. With several people, the
+  // caller also needs apiWriteScope.
+  allowRenewal: env.SUNDHEDMCP_ALLOW_RENEWAL?.trim() === "1",
   // Hosts an OAuth client may send the sign-in back to. Stops a phishing link
   // from registering a client that redirects your authorization code elsewhere.
   allowedRedirectHosts: (env.ALLOWED_REDIRECT_HOSTS ?? "claude.ai,claude.com,chatgpt.com,cursor.com,vscode.dev,localhost,127.0.0.1")

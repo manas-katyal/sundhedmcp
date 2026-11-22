@@ -7,6 +7,7 @@ import { isoDate, monthsAgo, sundhed } from "@sundhedmcp/client";
 import { forget, isRunning, type PartName, saved, type Snapshot } from "./snapshot.ts";
 import { syncStatus } from "./sync.ts";
 import { config } from "./config.ts";
+import { MAX_QUANTITY, RenewalError, renewalChoices, renewalOverview, sendRenewal } from "./renewal.ts";
 
 const json = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value ?? [], null, 2) }] });
 const text = (message: string) => ({ content: [{ type: "text" as const, text: message }] });
@@ -45,7 +46,23 @@ const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
 // Ids go into sundhed.dk paths: no slashes or dots, so a call cannot reach another endpoint.
 const recordId = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/, "Use the id exactly as an earlier tool returned it");
 
-export function registerTools(server: McpServer): void {
+export interface ToolOptions {
+  /** The caller may change things (renew prescriptions). */
+  canWrite?: boolean;
+}
+
+/** A renewal call: a refusal by the checks is a plain message, the rest as any live call. */
+const renewing = <A extends unknown[]>(fn: (...args: A) => Promise<Result>) =>
+  guard(async (...args: A) => {
+    try {
+      return await fn(...args);
+    } catch (err) {
+      if (err instanceof RenewalError) return fail(err.message);
+      throw err;
+    }
+  });
+
+export function registerTools(server: McpServer, options: ToolOptions = {}): void {
   // --- Session ---
 
   server.registerTool(
@@ -232,6 +249,51 @@ export function registerTools(server: McpServer): void {
     },
     guard(async () => json(await sundhed.referrals()), "referrals", (snap) => snap.referrals),
   );
+
+  // --- Prescription renewal: the one write to sundhed.dk, only when the server allows it ---
+
+  if (config.allowRenewal) {
+    server.registerTool(
+      "get_renewable_prescriptions",
+      {
+        title: "Renewable prescriptions",
+        description:
+          "The medicine on the person's medicine card that their GP can be asked to renew (receptfornyelse), each with an id, whether it can be renewed now and why not, and the renewal requests sent earlier with their status. Read live from sundhed.dk; needs a login.",
+        annotations: readOnly,
+      },
+      renewing(async () => json(await renewalOverview())),
+    );
+
+    server.registerTool(
+      "renew_prescription",
+      {
+        title: "Renew prescription",
+        description:
+          `Asks the person's GP, through sundhed.dk, to renew one prescription, as the medicine card's "Forny recept" button does. Two steps. First call it with only id (from get_renewable_prescriptions): it sends nothing and returns the package sizes that can be asked for. Then tell the person the medicine, the package and the number of packages (1 to ${MAX_QUANTITY}), and only when they say yes, call it again with packageNumber, quantity and confirm: true; that sends the request. Never send a renewal the person has not confirmed in this conversation. The GP decides; sundhed.dk lists the answer in get_renewable_prescriptions.`,
+        inputSchema: {
+          id: recordId.describe("The medicine's id from get_renewable_prescriptions"),
+          packageNumber: recordId.optional().describe("The package number (varenummer) from the first call"),
+          quantity: z.number().int().min(1).max(MAX_QUANTITY).optional().describe("How many packages"),
+          confirm: z.boolean().optional().describe("true only after the person has confirmed medicine, package and quantity"),
+        },
+        annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+      },
+      renewing(async ({ id, packageNumber, quantity, confirm }: { id: string; packageNumber?: string; quantity?: number; confirm?: boolean }) => {
+        if (options.canWrite === false) {
+          return fail("This sign-in may only read. Renewing a prescription needs a token with the write scope; the person can renew on the SundhedMCP dashboard or on sundhed.dk instead.");
+        }
+        if (confirm !== true || packageNumber === undefined || quantity === undefined) {
+          const choices = await renewalChoices(id);
+          return json({
+            sent: false,
+            next: "Nothing was sent. Tell the person the medicine, the package and the number of packages, and ask them to confirm. Then call renew_prescription again with packageNumber, quantity and confirm: true.",
+            ...choices,
+          });
+        }
+        return json({ ...(await sendRenewal({ id, packageNumber, quantity })), next: "The request went to the person's GP. Its answer shows in get_renewable_prescriptions." });
+      }),
+    );
+  }
 
   // --- Phone: only where SundhedMCP runs locally; a hosted server is already reachable ---
 

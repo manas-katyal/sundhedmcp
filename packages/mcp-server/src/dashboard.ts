@@ -1,14 +1,16 @@
 // The dashboard at /connect/record: an overview of the saved copy, one page
 // per part, and the lab results drawn over time. Everything comes from the
-// saved copy; the only action is fetching it again, from sundhed.dk, which
-// is never written to. Rendered on the server, with no script, so it keeps
-// the strict Content-Security-Policy of the other pages.
+// saved copy; the only action is fetching it again. When the server allows
+// it, a renewal page also asks the GP to renew a prescription, the one write
+// to sundhed.dk (renewal.ts). Rendered on the server, with no script, so it
+// keeps the strict Content-Security-Policy of the other pages.
 //
 // sundhed.dk's field names are not documented and differ between its apps,
 // so the lab results are read by shape (labSeries), not by fixed keys.
 import { esc, type Lang, shell, view, when } from "./pages.ts";
 import { PART_NAMES, type PartName, type Snapshot } from "./snapshot.ts";
 import type { SyncStatus } from "./sync.ts";
+import type { RenewalOverview, RenewalPackage, RenewableMedicine } from "./renewal.ts";
 
 /** URL path of each part, the same as in /api/v1. */
 export const PART_SLUGS: Record<PartName, string> = {
@@ -42,6 +44,17 @@ const T = {
     noLab: "Ingen prøvesvar med talværdier i den gemte kopi.",
     api: "API", apiBody: "Samme data som JSON, til scripts og egne dashboards. Kald den med et adgangstoken; se SELF-HOSTING.md for, hvordan du får et.",
     parts: { summary: "Overblik", medicationCard: "Medicinkort", prescriptions: "Recepter", vaccinations: "Vaccinationer", labResults: "Prøvesvar", referrals: "Henvisninger" },
+    renewals: "Forny recept",
+    renewalNote: "Bed din læge om at forny en recept. Listen hentes direkte fra sundhed.dk, ikke fra den gemte kopi. Lægen afgør anmodningen.",
+    renewalLogin: "Fornyelse læser dit medicinkort direkte, så du skal være logget ind.",
+    noDoctor: "sundhed.dk har ingen praktiserende læge registreret, som anmodningen kan sendes til.",
+    noRenewable: "Der er ingen medicin på dit medicinkort, der kan fornyes her.",
+    medicine: "Medicin", status: "Status", renew: "Forny", cannot: "Kan ikke fornyes",
+    requests: "Tidligere anmodninger",
+    choose: "Vælg pakning og antal", pkg: "Pakning", quantity: "Antal pakninger",
+    confirm: "Jeg vil bede min læge om at forny denne recept.", send: "Send anmodning", cancel: "Fortryd",
+    sent: "Anmodningen er sendt", sentBody: (drug: string, pkg: string, n: number) => `Din læge er bedt om at forny ${drug}: ${n} × ${pkg}. Svaret vises under Tidligere anmodninger.`,
+    notSent: "Anmodningen blev ikke sendt", mustConfirm: "Sæt kryds for at bekræfte, før anmodningen sendes.",
   },
   en: {
     title: "Your record", pill: "Saved copy",
@@ -56,6 +69,17 @@ const T = {
     noLab: "No lab results with numbers in the saved copy.",
     api: "API", apiBody: "The same data as JSON, for scripts and your own dashboards. Call it with an access token; SELF-HOSTING.md says how to get one.",
     parts: { summary: "Overview", medicationCard: "Medication card", prescriptions: "Prescriptions", vaccinations: "Vaccinations", labResults: "Lab results", referrals: "Referrals" },
+    renewals: "Renew prescription",
+    renewalNote: "Ask your GP to renew a prescription. The list is read live from sundhed.dk, not from the saved copy. Your GP decides on the request.",
+    renewalLogin: "Renewal reads your medicine card live, so you need to be logged in.",
+    noDoctor: "sundhed.dk has no GP registered to send the request to.",
+    noRenewable: "No medicine on your medicine card can be renewed here.",
+    medicine: "Medicine", status: "Status", renew: "Renew", cannot: "Cannot be renewed",
+    requests: "Earlier requests",
+    choose: "Choose package and quantity", pkg: "Package", quantity: "Number of packages",
+    confirm: "I want to ask my GP to renew this prescription.", send: "Send request", cancel: "Cancel",
+    sent: "The request was sent", sentBody: (drug: string, pkg: string, n: number) => `Your GP was asked to renew ${drug}: ${n} × ${pkg}. The answer shows under Earlier requests.`,
+    notSent: "The request was not sent", mustConfirm: "Tick the box to confirm before the request is sent.",
   },
 } as const;
 
@@ -65,6 +89,8 @@ export interface DashboardInput {
   refreshing: boolean;
   sync: SyncStatus | null;
   apiUrl: string;
+  /** The server allows prescription renewal: show its page in the menu. */
+  renewal?: boolean;
 }
 
 // --- Reading the copy ---
@@ -230,13 +256,14 @@ const CSS = `<style>
 </style>`;
 
 const BASE = "/connect/record";
+export const RENEWALS = `${BASE}/renewals`;
 
-function nav(lang: Lang, current: PartName | null): string {
+function nav(lang: Lang, current: PartName | "renewals" | null, renewal = false): string {
   const t = T[lang];
   const link = (href: string, label: string, on: boolean) => `<a href="${href}"${on ? ' aria-current="page"' : ""}>${label}</a>`;
   return `<nav class="nav">${link(BASE, t.overview, current === null)}${PART_NAMES.filter((p) => p !== "summary")
     .map((p) => link(`${BASE}/${PART_SLUGS[p]}`, t.parts[p], current === p))
-    .join("")}</nav>`;
+    .join("")}${renewal ? link(RENEWALS, t.renewals, current === "renewals") : ""}</nav>`;
 }
 
 function refreshButton(lang: Lang, input: DashboardInput, part?: PartName): string {
@@ -267,7 +294,7 @@ export function dashboardPage(lang: Lang, input: DashboardInput): string {
   const t = T[lang];
   const snap = input.snapshot;
   const kind = input.loggedIn ? "ok" : "neutral";
-  if (!snap) return page(lang, t.title, `${nav(lang, null)}<p>${t.none}</p>${status(lang, input)}`, kind, BASE);
+  if (!snap) return page(lang, t.title, `${nav(lang, null, input.renewal)}<p>${t.none}</p>${status(lang, input)}`, kind, BASE);
   const tiles = PART_NAMES.filter((p) => p !== "summary").map((part) => {
     const data = part === "labResults" ? snap.labResults?.results : snap[part];
     const error = snap.errors[part];
@@ -279,7 +306,7 @@ export function dashboardPage(lang: Lang, input: DashboardInput): string {
   });
   const summary = snap.summary === undefined ? "" : `<section><h2>${t.parts.summary}</h2>${view(lang, snap.summary)}</section>`;
   const api = `<section><h2>${t.api}</h2><p class="muted">${t.apiBody}</p><p><code>${esc(input.apiUrl)}</code></p><p class="small"><a href="/api/v1/openapi.json">openapi.json</a></p></section>`;
-  return page(lang, t.title, `${nav(lang, null)}<p class="muted small">${t.note}</p>${status(lang, input)}<div class="tiles">${tiles.join("")}</div>${summary}${api}`, kind, BASE);
+  return page(lang, t.title, `${nav(lang, null, input.renewal)}<p class="muted small">${t.note}</p>${status(lang, input)}<div class="tiles">${tiles.join("")}</div>${summary}${api}`, kind, BASE);
 }
 
 /** One part: when it was fetched, its data, and the details of each entry. Lab results are drawn. */
@@ -289,7 +316,7 @@ export function partPage(lang: Lang, part: PartName, input: DashboardInput): str
   const back = `${BASE}/${PART_SLUGS[part]}`;
   const kind = input.loggedIn ? "ok" : "neutral";
   const data = part === "labResults" ? snap?.labResults?.results : snap?.[part];
-  const head = `${nav(lang, part)}<div class="row"><span class="muted small">${data === undefined ? t.notFetched : `${t.fetchedAt} ${when(lang, snap?.fetchedAt[part])}`}${part === "labResults" && snap?.labResults ? ` · ${esc(snap.labResults.from)} – ${esc(snap.labResults.to)}` : ""}</span><span class="muted small">${nextRun(lang, input.sync, part)}</span>${refreshButton(lang, input, part)}</div>${snap?.errors[part] ? `<p class="error small">${esc(snap.errors[part])}</p>` : ""}`;
+  const head = `${nav(lang, part, input.renewal)}<div class="row"><span class="muted small">${data === undefined ? t.notFetched : `${t.fetchedAt} ${when(lang, snap?.fetchedAt[part])}`}${part === "labResults" && snap?.labResults ? ` · ${esc(snap.labResults.from)} – ${esc(snap.labResults.to)}` : ""}</span><span class="muted small">${nextRun(lang, input.sync, part)}</span>${refreshButton(lang, input, part)}</div>${snap?.errors[part] ? `<p class="error small">${esc(snap.errors[part])}</p>` : ""}`;
   if (!snap || data === undefined) return page(lang, t.parts[part], `${head}${snap ? "" : `<p>${t.none}</p>`}`, kind, back);
 
   if (part === "labResults") {
@@ -321,3 +348,59 @@ export function partPage(lang: Lang, part: PartName, input: DashboardInput): str
   const errorList = errors.length ? `<ul class="plain small error">${errors.map(([k, v]) => `<li>${esc(k)}: ${esc(v)}</li>`).join("")}</ul>` : "";
   return page(lang, t.parts[part], `${head}${view(lang, data)}${errorList}${detailList}`, kind, back);
 }
+
+// --- Prescription renewal (only when the server allows it) ---
+
+const renewalPage = (lang: Lang, title: string, body: string, back?: string) => shell(lang, title, body, { pill: T[lang].renewals, kind: "neutral", head: CSS, wide: true, back });
+
+/** The medicine that can be renewed, live from sundhed.dk, or why it cannot be shown. */
+export function renewalsPage(lang: Lang, state: { loggedIn: boolean; overview?: RenewalOverview; error?: string }): string {
+  const t = T[lang];
+  const head = `${nav(lang, "renewals", true)}<p class="muted small">${t.renewalNote}</p>`;
+  if (!state.loggedIn || !state.overview) {
+    const why = state.error ? `<p class="error small">${esc(state.error)}</p>` : `<p>${t.renewalLogin}</p><p><a href="/connect">${t.login}</a></p>`;
+    return renewalPage(lang, t.renewals, `${head}${why}`, RENEWALS);
+  }
+  const o = state.overview;
+  const name = (m: RenewableMedicine) => `${esc(m.drug)}${m.strength ? ` <span class="muted">${esc(m.strength)}</span>` : ""}${m.form ? ` <span class="muted small">${esc(m.form)}</span>` : ""}`;
+  const rows = o.medicines.map(
+    (m) =>
+      `<tr><td>${name(m)}</td><td>${m.renewable ? `<a href="${RENEWALS}/${encodeURIComponent(m.id)}">${t.renew}</a>` : `<span class="muted small">${t.cannot}: ${esc(m.reason ?? "")}</span>`}</td></tr>`,
+  );
+  const list = o.medicines.length
+    ? `<div class="scroll"><table><thead><tr><th>${t.medicine}</th><th>${t.status}</th></tr></thead><tbody>${rows.join("")}</tbody></table></div>`
+    : `<p class="muted">${t.noRenewable}</p>`;
+  const requests = Array.isArray(o.requests) && o.requests.length === 0 ? "" : `<section><h2>${t.requests}</h2>${view(lang, o.requests)}</section>`;
+  return renewalPage(lang, t.renewals, `${head}${o.hasDoctor ? "" : `<p class="error small">${t.noDoctor}</p>`}${list}${requests}`, RENEWALS);
+}
+
+/** The form for one medicine: package, number of packages and a tick to confirm. Sending it renews. */
+export function renewalFormPage(lang: Lang, c: { medicine: RenewableMedicine; packages: RenewalPackage[]; defaultPackage?: string; maxQuantity: number }, error?: string): string {
+  const t = T[lang];
+  const picked = c.defaultPackage ?? c.packages[0]?.number;
+  const radios = c.packages
+    .map((p) => `<label class="choice"><input type="radio" name="packageNumber" value="${esc(p.number)}" required${p.number === picked ? " checked" : ""}> ${esc(p.text)}</label>`)
+    .join("");
+  const form = `<form method="post" action="${RENEWALS}" class="renew">
+    <input type="hidden" name="id" value="${esc(c.medicine.id)}">
+    <fieldset><legend>${t.pkg}</legend>${radios}</fieldset>
+    <label>${t.quantity} <input type="number" name="quantity" min="1" max="${c.maxQuantity}" value="1" required></label>
+    <label class="choice"><input type="checkbox" name="confirm" value="1" required> ${t.confirm}</label>
+    <div class="row"><button type="submit">${t.send}</button><a href="${RENEWALS}">${t.cancel}</a></div>
+  </form>`;
+  const style = `<style>.renew{display:grid;gap:14px;max-width:520px;margin:16px 0}.renew fieldset{border:1px solid var(--line);border-radius:12px;padding:10px 14px}.choice{display:block;margin:4px 0}.renew input[type=number]{width:5em;margin-left:8px}</style>`;
+  const back = `${RENEWALS}/${encodeURIComponent(c.medicine.id)}`;
+  return renewalPage(lang, t.renewals, `${style}${nav(lang, "renewals", true)}<h2>${esc(c.medicine.drug)}${c.medicine.strength ? ` <span class="muted">${esc(c.medicine.strength)}</span>` : ""}</h2><p class="muted small">${t.choose}</p>${error ? `<p class="error small">${esc(error)}</p>` : ""}${form}`, back);
+}
+
+/** After sending: what was asked for, or why nothing was sent. */
+export function renewalResultPage(lang: Lang, result: { drug: string; pkg: string; quantity: number } | { error: string }): string {
+  const t = T[lang];
+  const body =
+    "error" in result
+      ? `<h2>${t.notSent}</h2><p class="error">${esc(result.error)}</p>`
+      : `<h2>${t.sent}</h2><p>${esc(t.sentBody(result.drug, result.pkg, result.quantity))}</p>`;
+  return renewalPage(lang, t.renewals, `${nav(lang, "renewals", true)}${body}<p><a href="${RENEWALS}">${t.renewals}</a></p>`);
+}
+
+export const renewalTexts = (lang: Lang) => ({ mustConfirm: T[lang].mustConfirm });
