@@ -102,6 +102,7 @@ test("a plain snapshot.json is moved into storage, and the copy survives a resta
   const legacy = join(dir, "snapshot.json");
   const snap: Snapshot = {
     savedAt: "2026-01-02T03:04:05.000Z",
+    fetchedAt: {},
     summary: { name: "Test Person" },
     medicationCard: [{ OrdinationId: "m1" }],
     medicationDetails: { m1: { drug: "Testamol" } },
@@ -111,7 +112,11 @@ test("a plain snapshot.json is moved into storage, and the copy survives a resta
     labResults: { from: "2016-01-02", to: "2026-01-02", results: [] },
     errors: { referrals: "HTTP 500" },
   };
-  writeFileSync(legacy, JSON.stringify(snap));
+  // A copy from before sync has no fetchedAt; every part it has was fetched at savedAt.
+  const { fetchedAt: _, ...old } = snap;
+  writeFileSync(legacy, JSON.stringify(old));
+  const at = snap.savedAt;
+  snap.fetchedAt = { summary: at, medicationCard: at, vaccinations: at, labResults: at };
 
   const env = { SUNDHEDMCP_STORAGE_KEY: randomBytes(32).toString("base64") };
   const storage = await openStorage(dir, "sqlite", env);
@@ -134,6 +139,7 @@ test("a part that failed keeps the previous copy, with its details", () => {
   const previous: Snapshot = {
     ...empty,
     savedAt: "2026-01-01T00:00:00.000Z",
+    fetchedAt: { medicationCard: "2025-12-31T00:00:00.000Z" },
     medicationCard: [{ OrdinationId: "m1" }],
     medicationDetails: { m1: { drug: "Testamol" } },
     vaccinations: [{ VaccinationIdentifier: "v1" }],
@@ -143,14 +149,15 @@ test("a part that failed keeps the previous copy, with its details", () => {
   const now: Snapshot = {
     ...empty,
     savedAt: "2026-02-01T00:00:00.000Z",
+    fetchedAt: {},
     vaccinations: [{ VaccinationIdentifier: "v1" }],
     vaccinationDetails: { v1: undefined },
-    errors: { medicationCard: "HTTP 500", "vaccination v1": "HTTP 502" },
+    errors: { medicationCard: "HTTP 500", "vaccinationDetails v1": "HTTP 502" },
   };
   keepFailedParts(now, previous);
   assert.deepEqual(now.medicationCard, previous.medicationCard);
   assert.deepEqual(now.medicationDetails, previous.medicationDetails);
   assert.deepEqual(now.vaccinationDetails, previous.vaccinationDetails);
-  assert.equal(now.errors.medicationCard, "HTTP 500 (kept the copy from 2026-01-01T00:00:00.000Z)");
+  assert.equal(now.errors.medicationCard, "HTTP 500 (kept the copy from 2025-12-31T00:00:00.000Z)");
   assert.equal(now.prescriptions, undefined);
 });

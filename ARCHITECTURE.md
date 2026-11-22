@@ -50,8 +50,15 @@ Rotation: the current key seals, previous keys still open, and `reencrypt()`
 seals the old rows again.
 
 `snapshot.ts` holds the copy in memory for the tools and writes it through to
-storage. A part that fails to fetch keeps the previous copy of it, and its
-error says from when.
+storage. It fetches by part (`summary`, `medicationCard` with its details,
+...), one fetch at a time. A part that fails keeps the previous copy of it,
+and its error says from when; each part records when it was fetched, which
+the tools give as the copy's age.
+
+`sync.ts` fetches the whole copy after each login (`onLogin`), then each part
+again on its own interval while the session lasts, with jitter and backoff.
+When a fetch finds the session gone it waits for the next login. The schedule
+is in memory only: after a restart there is no session until the next login.
 
 ## Running and building
 

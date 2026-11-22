@@ -4,7 +4,8 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { connect, disconnect, hostedLoginUrl, SessionGone, startLogin, status } from "@sundhedmcp/session";
 import { isoDate, monthsAgo, sundhed } from "@sundhedmcp/client";
-import { forget, isRunning, saved, type Snapshot } from "./snapshot.ts";
+import { forget, isRunning, type PartName, saved, type Snapshot } from "./snapshot.ts";
+import { syncStatus } from "./sync.ts";
 
 const json = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value ?? [], null, 2) }] });
 const text = (message: string) => ({ content: [{ type: "text" as const, text: message }] });
@@ -14,9 +15,10 @@ type Result = ReturnType<typeof json> | ReturnType<typeof fail>;
 
 /**
  * Runs a live call. When the person is not logged in, answers from the copy
- * saved after the last login instead, if `cached` finds the data in it.
+ * saved while they were last logged in instead, if `cached` finds the data in
+ * the copy's `part`.
  */
-function guard<A extends unknown[]>(fn: (...args: A) => Promise<Result>, cached?: (snap: Snapshot, ...args: A) => unknown) {
+function guard<A extends unknown[]>(fn: (...args: A) => Promise<Result>, part?: PartName, cached?: (snap: Snapshot, ...args: A) => unknown) {
   return async (...args: A): Promise<Result> => {
     try {
       return await fn(...args);
@@ -26,7 +28,7 @@ function guard<A extends unknown[]>(fn: (...args: A) => Promise<Result>, cached?
         const data = snap && cached ? cached(snap, ...args) : undefined;
         if (snap && data !== undefined) {
           return json({
-            source: `Saved copy from ${snap.savedAt}, fetched right after the last MitID login. The live session has ended, so this may be out of date; to refresh it, the person logs in again on a computer (connect_sundhed).`,
+            source: `Saved copy fetched ${(part && snap.fetchedAt[part]) || snap.savedAt}, while the person was last logged in. The live session has ended, so this may be out of date; to refresh it, the person logs in again on a computer (connect_sundhed).`,
             data,
           });
         }
@@ -48,7 +50,7 @@ export function registerTools(server: McpServer): void {
     {
       title: "Connect sundhed.dk",
       description:
-        "Starts a sundhed.dk login with MitID. It opens a browser window on this computer and waits up to 3 minutes; tell the person to enter their MitID user ID there and approve in the MitID app themselves. SundhedMCP never sees or stores MitID credentials. Right after the login it fetches the whole record into memory, so the tools still answer from it after the session ends, until the process stops. Call this when another tool says the person is not logged in.",
+        "Starts a sundhed.dk login with MitID. It opens a browser window on this computer and waits up to 3 minutes; tell the person to enter their MitID user ID there and approve in the MitID app themselves. SundhedMCP never sees or stores MitID credentials. Right after the login it fetches the whole record into memory and keeps it current while the session lasts, so the tools still answer from it after the session ends, until the process stops. Call this when another tool says the person is not logged in.",
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
     guard(async () => {
@@ -69,12 +71,17 @@ export function registerTools(server: McpServer): void {
     "session_status",
     {
       title: "Session status",
-      description: "Whether the sundhed.dk session is live, for how long, how long the previous one lasted before sundhed.dk ended it, and when the saved copy of the record was fetched.",
+      description: "Whether the sundhed.dk session is live, for how long, how long the previous one lasted before sundhed.dk ended it, when each part of the saved copy of the record was fetched, and when sync fetches it next.",
       annotations: readOnly,
     },
     guard(async () => {
       const snap = saved();
-      return json({ ...(await status()), savedCopy: snap ? { savedAt: snap.savedAt, failedParts: Object.keys(snap.errors) } : null, fetchingCopy: isRunning() });
+      return json({
+        ...(await status()),
+        savedCopy: snap ? { savedAt: snap.savedAt, fetchedAt: snap.fetchedAt, failedParts: Object.keys(snap.errors) } : null,
+        fetchingCopy: isRunning(),
+        sync: syncStatus(),
+      });
     }),
   );
 
@@ -104,7 +111,7 @@ export function registerTools(server: McpServer): void {
         "Counts across the record: active, paused and stopped medicine; open, closed and future prescriptions; given, planned and overdue vaccinations. A cheap first call.",
       annotations: readOnly,
     },
-    guard(async () => json(await sundhed.summary()), (snap) => snap.summary),
+    guard(async () => json(await sundhed.summary()), "summary", (snap) => snap.summary),
   );
 
   server.registerTool(
@@ -115,7 +122,7 @@ export function registerTools(server: McpServer): void {
         "Current medicine on Fælles Medicinkort, newest first: drug, form, strength, dosage text, reason (Cause), active substance, start date and status. Use OrdinationId with get_medication_details.",
       annotations: readOnly,
     },
-    guard(async () => json(await sundhed.medicationCard()), (snap) => snap.medicationCard ?? []),
+    guard(async () => json(await sundhed.medicationCard()), "medicationCard", (snap) => snap.medicationCard ?? []),
   );
 
   server.registerTool(
@@ -129,6 +136,7 @@ export function registerTools(server: McpServer): void {
     },
     guard(
       async ({ ordination_id }) => json(await sundhed.medicationDetails(ordination_id)),
+      "medicationCard",
       (snap, { ordination_id }) => snap.medicationDetails[ordination_id],
     ),
   );
@@ -141,7 +149,7 @@ export function registerTools(server: McpServer): void {
         "Open prescriptions (recepter): drug, strength, dosage, valid from and to, remaining units and status. Use PrescriptionId with get_prescription for dispensings left and the pharmacy.",
       annotations: readOnly,
     },
-    guard(async () => json(await sundhed.openPrescriptions()), (snap) => snap.prescriptions ?? []),
+    guard(async () => json(await sundhed.openPrescriptions()), "prescriptions", (snap) => snap.prescriptions ?? []),
   );
 
   server.registerTool(
@@ -155,6 +163,7 @@ export function registerTools(server: McpServer): void {
     },
     guard(
       async ({ prescription_id }) => json(await sundhed.prescription(prescription_id)),
+      "prescriptions",
       (snap, { prescription_id }) => snap.prescriptionDetails[prescription_id],
     ),
   );
@@ -176,7 +185,7 @@ export function registerTools(server: McpServer): void {
       const start = from ? new Date(`${from}T12:00:00`) : monthsAgo(12, end);
       if (start > end) return fail("`from` is after `to`.");
       return json(await sundhed.labResults(start, end));
-    }, (snap, { from, to }) => {
+    }, "labResults", (snap, { from, to }) => {
       const lab = snap.labResults;
       if (!lab) return undefined;
       const wanted = `${from ?? isoDate(monthsAgo(12))} to ${to ?? isoDate(new Date())}`;
@@ -192,7 +201,7 @@ export function registerTools(server: McpServer): void {
         "Every registered vaccination, newest first: vaccine, date, who gave it and how long it covers. Use VaccinationIdentifier with get_vaccination for the diseases it protects against.",
       annotations: readOnly,
     },
-    guard(async () => json(await sundhed.vaccinations()), (snap) => snap.vaccinations ?? []),
+    guard(async () => json(await sundhed.vaccinations()), "vaccinations", (snap) => snap.vaccinations ?? []),
   );
 
   server.registerTool(
@@ -206,6 +215,7 @@ export function registerTools(server: McpServer): void {
     },
     guard(
       async ({ vaccination_id }) => json(await sundhed.vaccination(vaccination_id)),
+      "vaccinations",
       (snap, { vaccination_id }) => snap.vaccinationDetails[vaccination_id],
     ),
   );
@@ -217,7 +227,7 @@ export function registerTools(server: McpServer): void {
       description: "Active and earlier referrals (henvisninger) to specialists and hospitals.",
       annotations: readOnly,
     },
-    guard(async () => json(await sundhed.referrals()), (snap) => snap.referrals),
+    guard(async () => json(await sundhed.referrals()), "referrals", (snap) => snap.referrals),
   );
 
   // --- Phone: only where SundhedMCP runs locally; a hosted server is already reachable ---
