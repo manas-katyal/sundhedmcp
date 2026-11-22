@@ -11,7 +11,8 @@
       "!**/dist",
       "!**/docs",
       "!**/site",
-      "!**/*.md"
+      "!**/*.md",
+      "!charts"
     ]
   },
   "formatter": {

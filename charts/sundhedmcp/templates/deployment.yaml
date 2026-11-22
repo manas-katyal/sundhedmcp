@@ -1,0 +1,154 @@
+{{- $fullname := include "sundhedmcp.fullname" . }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}
+  labels:
+    {{- include "sundhedmcp.labels" . | nindent 4 }}
+spec:
+  # One browser holds the sundhed.dk session, and SQLite is a single file:
+  # never two pods at once.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "sundhedmcp.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/secrets: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "sundhedmcp.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: sundhedmcp
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: SUNDHEDMCP_HOSTED
+              value: "1"
+            - name: PORT
+              value: "8080"
+            - name: BASE_URL
+              value: {{ .Values.baseUrl | quote }}
+            - name: DATA_DIR
+              value: /data
+            # Chromium writes its profile and caches under HOME.
+            - name: HOME
+              value: /tmp
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "sundhedmcp.passwordSecret" . }}
+                  key: {{ .Values.adminPassword.secretKey }}
+            {{- if include "sundhedmcp.apiTokenEnabled" . }}
+            - name: SUNDHEDMCP_API_TOKENS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "sundhedmcp.apiTokenSecret" . }}
+                  key: {{ .Values.apiToken.tokenKey }}
+            {{- end }}
+            - name: SUNDHEDMCP_STORAGE
+              value: {{ .Values.storage.type }}
+            {{- if eq .Values.storage.type "postgres" }}
+            - name: SUNDHEDMCP_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.storage.postgres.existingSecret }}
+                  key: {{ .Values.storage.postgres.urlKey }}
+            {{- end }}
+            {{- with .Values.storage.key.existingSecret }}
+            - name: SUNDHEDMCP_STORAGE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ . }}
+                  key: {{ $.Values.storage.key.secretKey }}
+            - name: SUNDHEDMCP_STORAGE_PREVIOUS_KEYS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ . }}
+                  key: {{ $.Values.storage.key.previousKeysKey }}
+                  optional: true
+            {{- end }}
+            - name: SUNDHEDMCP_SYNC
+              value: {{ ternary "1" "0" .Values.sync.enabled | quote }}
+            - name: SUNDHEDMCP_KEEPALIVE_MS
+              value: {{ .Values.keepAliveMs | quote }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+            - name: shm
+              mountPath: /dev/shm
+      volumes:
+        - name: data
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.existingClaim | default $fullname }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: tmp
+          emptyDir: {}
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: {{ .Values.shmSize }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

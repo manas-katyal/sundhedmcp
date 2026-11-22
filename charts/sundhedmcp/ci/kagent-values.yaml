@@ -1,0 +1,10 @@
+image:
+  repository: localhost/sundhedmcp
+  tag: dev
+  pullPolicy: Never
+networkPolicy:
+  enabled: true
+kagent:
+  enabled: true
+  agent:
+    enabled: true

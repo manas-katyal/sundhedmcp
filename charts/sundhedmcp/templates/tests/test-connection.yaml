@@ -1,0 +1,52 @@
+{{- $fullname := include "sundhedmcp.fullname" . }}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ $fullname }}-test
+  labels:
+    {{- include "sundhedmcp.labels" . | nindent 4 }}
+    {{- include "sundhedmcp.clientLabel" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 100
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: healthz
+      image: {{ .Values.tests.image }}
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop: [ALL]
+      {{- if include "sundhedmcp.apiTokenEnabled" . }}
+      env:
+        - name: TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "sundhedmcp.apiTokenSecret" . }}
+              key: {{ .Values.apiToken.tokenKey }}
+      {{- end }}
+      command: [sh, -ec]
+      args:
+        - |
+          base=http://{{ $fullname }}:{{ .Values.service.port }}
+          # Retried: the Service may not route to a pod that just became ready.
+          curl -fsS --retry 15 --retry-all-errors --retry-delay 2 "$base/healthz"; echo
+          # /mcp refuses a request without a token.
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$base/mcp")
+          test "$code" = 401 || { echo "/mcp without a token: $code, want 401"; exit 1; }
+          {{- if include "sundhedmcp.apiTokenEnabled" . }}
+          # ...and lists the tools with the API token.
+          curl -fsS -X POST "$base/mcp" -H "Authorization: Bearer $TOKEN" \
+            -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+            -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"helm-test","version":"0"}}}' \
+            | grep -q '"serverInfo"'
+          echo "API token accepted"
+          {{- end }}

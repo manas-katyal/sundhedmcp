@@ -1,0 +1,126 @@
+# Build the image from the repository root (see Dockerfile) and push it, or
+# load it into kind with `kind load image-archive`. The published image is
+# ghcr.io/<owner>/sundhedmcp, tagged `latest` and with each commit sha; pin a
+# sha in production.
+image:
+  repository: ghcr.io/manas-katyal/sundhedmcp
+  tag: latest
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+# The address people open in a browser (BASE_URL): the OAuth issuer, and the
+# /connect page where the person logs in with MitID. The default suits
+# `kubectl port-forward svc/<release>-sundhedmcp 8080`; set the public URL
+# when httpRoute is on.
+baseUrl: http://localhost:8080
+
+# The password for signing in to the server (OAuth, and the /connect page).
+# Without existingSecret the chart creates a Secret with a random password,
+# kept across upgrades; NOTES.txt shows how to read it.
+adminPassword:
+  existingSecret: ""
+  secretKey: ADMIN_PASSWORD
+
+# Bearer tokens /mcp accepts besides OAuth (SUNDHEDMCP_API_TOKENS), for
+# clients that cannot sign in with the password, such as kagent. On when
+# kagent.enabled. Without existingSecret the chart creates a Secret with a
+# random token, kept across upgrades. With kagent, the chart copies it as an
+# Authorization header Secret into kagent's namespace.
+apiToken:
+  enabled: false
+  existingSecret: ""
+  tokenKey: token
+
+# Saved copy of the record, encrypted (see README, "Storage of the saved copy").
+storage:
+  # sqlite (a file on the data volume), postgres, or none (memory only).
+  type: sqlite
+  postgres:
+    # Secret holding the connection URL. For CloudNativePG this is the
+    # <cluster>-app secret, whose `uri` key has the URL.
+    existingSecret: ""
+    urlKey: uri
+  # The storage key (32 random bytes, base64). Without existingSecret it is
+  # generated into storage.key on the data volume. Keep a copy: without the
+  # key the saved copy cannot be read (it is fetched again at the next login).
+  key:
+    existingSecret: ""
+    secretKey: SUNDHEDMCP_STORAGE_KEY
+    # Optional key in the same Secret with earlier keys, comma-separated.
+    previousKeysKey: SUNDHEDMCP_STORAGE_PREVIOUS_KEYS
+
+# Fetch each part of the record again while the session lasts (SUNDHEDMCP_SYNC).
+sync:
+  enabled: true
+
+# How often to touch the sundhed.dk session so it is kept (ms; 0 turns it off).
+keepAliveMs: 240000
+
+# OAuth state, the password hash, the SQLite file and the storage key.
+persistence:
+  enabled: true
+  existingClaim: ""
+  storageClass: ""
+  accessModes: [ReadWriteOnce]
+  size: 1Gi
+
+service:
+  type: ClusterIP
+  port: 8080
+
+# Gateway API route to the whole server: OAuth, /connect and /mcp. Every
+# path needs the admin password or a token, so it may be public; set baseUrl
+# to the public URL. When networkPolicy is on, allow the gateway in
+# networkPolicy.from.
+httpRoute:
+  enabled: false
+  parentRefs: []
+  hostnames: []
+  annotations: {}
+
+# Limit who can reach the pod: kagent's namespace (with kagent.enabled), pods
+# with the chart's client label (helm test), and networkPolicy.from.
+networkPolicy:
+  enabled: false
+  from: []
+
+kagent:
+  enabled: false
+  namespace: kagent
+  remoteMCPServer:
+    name: sundhedmcp
+    description: The signed-in person's own sundhed.dk record (read only)
+    timeout: 60s
+  agent:
+    enabled: false
+    name: sundhed-assistant
+    harness: kagent-default
+    modelConfig: default-model-config
+    description: Answers questions about the person's own sundhed.dk record.
+    systemPrompt: |
+      You help a person read their own health record on sundhed.dk: medicine,
+      prescriptions, lab results, vaccinations and referrals. Answer in the
+      language they write in. You only read; you cannot change anything on
+      sundhed.dk. Do not give medical advice beyond explaining what the
+      record says; for anything else, suggest asking their doctor. Start with
+      get_summary. If a tool says the person is not logged in, tell them to
+      log in with MitID at the link it gives, on a computer, and stop.
+
+podAnnotations: {}
+podLabels: {}
+# Chromium runs in the pod, so it needs more memory than the server alone.
+resources:
+  requests:
+    cpu: 100m
+    memory: 384Mi
+  limits:
+    memory: 1536Mi
+# Chromium uses /dev/shm; the container default (64Mi) is too small.
+shmSize: 256Mi
+nodeSelector: {}
+tolerations: []
+affinity: {}
+extraEnv: []
+
+tests:
+  image: curlimages/curl:8.17.0

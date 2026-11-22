@@ -38,6 +38,13 @@ SundhedMCP only reads.
 | `src/serve.ts` | `sundhedmcp serve`: this computer as the server for claude.ai and the phone |
 | `src/server.ts` | The Docker image: an info page, or hosted mode with `SUNDHEDMCP_HOSTED=1` |
 
+In hosted mode `auth.ts` is the OAuth server for one user, the admin
+password; `/mcp` takes its bearer tokens. Tokens from `SUNDHEDMCP_API_TOKENS`
+are accepted too, for clients such as kagent that cannot sign in; they are
+compared by sha256, like the stored OAuth tokens. `charts/sundhedmcp` deploys
+hosted mode to Kubernetes and wires such a token into a kagent
+`RemoteMCPServer`.
+
 ## Storage
 
 `storage.ts` keeps the saved copy of the record in SQLite (`node:sqlite`) or

@@ -61,10 +61,13 @@ export class SingleUserProvider implements OAuthServerProvider {
   private failures = new Map<string, { count: number; until: number }>();
   private store: Store;
   private onLogin?: (e: LoginEvent) => void;
+  /** Digests of the SUNDHEDMCP_API_TOKENS tokens, which never expire. */
+  private apiTokens: Set<string>;
 
-  constructor(store: Store, opts: { onLogin?: (e: LoginEvent) => void } = {}) {
+  constructor(store: Store, opts: { onLogin?: (e: LoginEvent) => void; apiTokens?: string[] } = {}) {
     this.store = store;
     this.onLogin = opts.onLogin;
+    this.apiTokens = new Set((opts.apiTokens ?? []).map(sha256));
   }
 
   /** Every token and pending code is dropped. Used when the admin password changes. */
@@ -197,7 +200,10 @@ export class SingleUserProvider implements OAuthServerProvider {
   }
 
   async verifyAccessToken(tokenValue: string): Promise<AuthInfo> {
-    const t = this.store.data.tokens[sha256(tokenValue)];
+    const key = sha256(tokenValue);
+    // The SDK wants an expiry; an API token is valid until it is taken out of the env.
+    if (this.apiTokens.has(key)) return { token: tokenValue, clientId: "api-token", scopes: [], expiresAt: now() + ACCESS_TTL };
+    const t = this.store.data.tokens[key];
     if (!t || t.kind !== "access") throw new InvalidClientError("Invalid access token");
     if (t.expires < now()) throw new InvalidClientError("Access token expired");
     return { token: tokenValue, clientId: t.client_id, scopes: t.scopes, expiresAt: t.expires, resource: t.resource ? new URL(t.resource) : undefined };
