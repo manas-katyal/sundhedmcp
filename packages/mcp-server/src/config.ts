@@ -28,6 +28,9 @@ export const config = {
     return join(this.dataDir, "oauth.json");
   },
   adminPassword: env.ADMIN_PASSWORD ?? "",
+  // Bearer tokens for clients that cannot do the OAuth sign-in, such as a
+  // kagent RemoteMCPServer. Kept as digests; compared by digest.
+  apiTokens: (env.SUNDHEDMCP_API_TOKENS ?? "").split(/[\s,]+/).filter(Boolean),
   // Hosts an OAuth client may send the sign-in back to. Stops a phishing link
   // from registering a client that redirects your authorization code elsewhere.
   allowedRedirectHosts: (env.ALLOWED_REDIRECT_HOSTS ?? "claude.ai,claude.com,chatgpt.com,cursor.com,vscode.dev,localhost,127.0.0.1")
@@ -37,11 +40,13 @@ export const config = {
 };
 
 export const MIN_PASSWORD_LENGTH = 12;
+export const MIN_API_TOKEN_LENGTH = 32;
 
 /** What is wrong with the configuration, beyond the password the first-run page asks for. */
 export function setupProblems(): string[] {
   const problems: string[] = [];
   if (config.adminPassword && config.adminPassword.length < MIN_PASSWORD_LENGTH) problems.push(`ADMIN_PASSWORD must be at least ${MIN_PASSWORD_LENGTH} characters`);
+  if (config.apiTokens.some((t) => t.length < MIN_API_TOKEN_LENGTH)) problems.push(`Every SUNDHEDMCP_API_TOKENS token must be at least ${MIN_API_TOKEN_LENGTH} characters`);
   if (!/^https?:\/\//.test(config.baseUrl)) problems.push("BASE_URL must start with http:// or https://");
   return problems;
 }

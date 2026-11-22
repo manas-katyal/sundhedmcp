@@ -1,0 +1,7 @@
+# chart-testing (ct lint), run by .github/workflows/ci.yml.
+chart-dirs:
+  - charts
+target-branch: main
+# Chart versions are bumped by hand with the chart, not on every PR.
+check-version-increment: false
+validate-maintainers: false

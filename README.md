@@ -116,6 +116,7 @@ Set `SUNDHEDMCP_HOSTED=1` to run hosted mode there at your own risk.
 | `SUNDHEDMCP_TAILSCALE` | found in the usual places | Path to the tailscale CLI, for `serve` |
 | `SUNDHEDMCP_KEEPALIVE_MS` | `240000` | How often to touch the session; `0` turns it off |
 | `SUNDHEDMCP_SYNC` | on | `0` fetches the saved copy after each login only |
+| `SUNDHEDMCP_API_TOKENS` | | Hosted: bearer tokens `/mcp` accepts besides OAuth, comma-separated, 32+ characters each, for clients that cannot sign in with the password (kagent) |
 
 ### Sync
 
@@ -147,6 +148,40 @@ it is fetched again at the next login.
 `DATA_DIR` is `~/.sundhedmcp` for `serve` and `./data` (`/data` in the image)
 otherwise. A `snapshot.json` from an earlier version is moved into the
 database on start and then deleted.
+
+### Kubernetes (Helm, kagent)
+
+The chart in [`charts/sundhedmcp`](./charts/sundhedmcp) runs hosted mode in
+one pod, with Chromium in it and a PVC for the OAuth state, the password hash
+and the encrypted SQLite copy. It creates the server password (and with
+`apiToken.enabled` or `kagent.enabled` an API token) as Secrets kept across
+upgrades; `NOTES.txt` shows how to read them.
+
+```bash
+helm upgrade --install sundhedmcp charts/sundhedmcp -n sundhedmcp --create-namespace \
+  --set image.repository=ghcr.io/<owner>/sundhedmcp --set image.tag=<sha>
+kubectl -n sundhedmcp port-forward svc/sundhedmcp 8080
+```
+
+Then log in with MitID at `http://localhost:8080/connect` on your computer.
+To reach it from elsewhere, set `httpRoute.enabled` with your Gateway's
+`parentRefs` and `baseUrl` to the public URL; every path needs the password or
+a token.
+
+With `kagent.enabled: true` the chart adds a `RemoteMCPServer` (and with
+`kagent.agent.enabled` an example `Agent`) in kagent's namespace. kagent sends
+the API token as its `Authorization` header, from a Secret the chart copies
+there. `networkPolicy.enabled` limits who reaches the pod to kagent, the helm
+test and `networkPolicy.from`. See [`values.yaml`](./charts/sundhedmcp/values.yaml)
+for Postgres, an existing storage key and the rest.
+
+Test the chart in [kind](https://kind.sigs.k8s.io/) (needs kind, helm,
+kubectl and podman or docker):
+
+```bash
+scripts/kind-test.sh          # builds the image, installs each ci values file, runs helm test
+scripts/kind-test.sh delete   # removes the cluster and the image
+```
 
 ## Development
 

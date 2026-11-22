@@ -1,0 +1,12 @@
+image:
+  repository: localhost/sundhedmcp
+  tag: dev
+  pullPolicy: Never
+apiToken:
+  enabled: true
+persistence:
+  enabled: false
+storage:
+  type: none
+sync:
+  enabled: false

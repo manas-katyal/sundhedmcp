@@ -1,0 +1,41 @@
+SundhedMCP is running in {{ .Release.Namespace }} as {{ include "sundhedmcp.fullname" . }}.
+
+{{- if hasPrefix "http://localhost" .Values.baseUrl }}
+
+Open it on your computer:
+
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "sundhedmcp.fullname" . }} 8080:{{ .Values.service.port }}
+  open {{ .Values.baseUrl }}
+{{- else }}
+
+Open {{ .Values.baseUrl }} on a computer.
+{{- end }}
+
+Log in to sundhed.dk with MitID at {{ .Values.baseUrl }}/connect (on a computer: MitID
+shows a QR code there for the app on your phone). The server password:
+
+  kubectl -n {{ .Release.Namespace }} get secret {{ include "sundhedmcp.passwordSecret" . }} -o jsonpath='{.data.{{ .Values.adminPassword.secretKey }}}' | base64 -d; echo
+
+MCP endpoint for clients that sign in with OAuth (claude.ai, Claude Desktop):
+
+  {{ .Values.baseUrl }}/mcp
+{{- if include "sundhedmcp.apiTokenEnabled" . }}
+
+Inside the cluster, with the API token as a bearer token:
+
+  {{ include "sundhedmcp.mcpUrl" . }}
+  kubectl -n {{ .Release.Namespace }} get secret {{ include "sundhedmcp.apiTokenSecret" . }} -o jsonpath='{.data.{{ .Values.apiToken.tokenKey }}}' | base64 -d; echo
+{{- end }}
+{{- if .Values.kagent.enabled }}
+
+kagent: RemoteMCPServer {{ .Values.kagent.namespace }}/{{ .Values.kagent.remoteMCPServer.name }}
+{{- if .Values.kagent.agent.enabled }} and Agent {{ .Values.kagent.namespace }}/{{ .Values.kagent.agent.name }}{{ end }}.
+{{- end }}
+{{- if eq .Values.storage.type "sqlite" }}
+{{- if not .Values.storage.key.existingSecret }}
+
+The saved copy is encrypted with a key in storage.key on the data volume. Keep a copy:
+
+  kubectl -n {{ .Release.Namespace }} exec deploy/{{ include "sundhedmcp.fullname" . }} -- cat /data/storage.key
+{{- end }}
+{{- end }}

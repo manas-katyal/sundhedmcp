@@ -62,6 +62,7 @@ export async function startHosted(opts: HostedOptions = {}): Promise<void> {
       const problems = setupProblems();
       if (problems.length) console.log("[sundhed] not configured:", problems);
       if (!passwordConfigured()) console.log(`[sundhed] no password yet: open ${config.baseUrl} to choose one`);
+      if (config.apiTokens.length) console.log(`[sundhed] ${config.apiTokens.length} API token(s) accepted on /mcp`);
       resolve();
     });
   });

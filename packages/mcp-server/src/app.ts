@@ -6,7 +6,7 @@ import express from "express";
 import { mcpAuthRouter, getOAuthProtectedResourceMetadataUrl } from "@modelcontextprotocol/sdk/server/auth/router.js";
 import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { config, MIN_PASSWORD_LENGTH, passwordConfigured, passwordFingerprint, setPassword, setupProblems } from "./config.ts";
+import { config, MIN_API_TOKEN_LENGTH, MIN_PASSWORD_LENGTH, passwordConfigured, passwordFingerprint, setPassword, setupProblems } from "./config.ts";
 import { store } from "./store.ts";
 import { SingleUserProvider, verifyPassword } from "./auth.ts";
 import { connectPage, connectSignInPage, firstRunPage, LANG_COOKIE, langOf, loginPage, returningPage, signedInPage, signInFailedPage, statusPage } from "./pages.ts";
@@ -34,6 +34,7 @@ export function createApp(guide?: GuideOptions) {
   const mcpUrl = new URL("/mcp", baseUrl);
   const provider = new SingleUserProvider(store(), {
     onLogin: (e) => log(`${e.ok ? "sign-in" : `failed sign-in (${e.reason})`} from ${e.ip}${e.clientName ? ` for ${e.clientName}` : ""}`),
+    apiTokens: config.apiTokens.filter((t) => t.length >= MIN_API_TOKEN_LENGTH),
   });
 
   // Changing the admin password logs every client out.
