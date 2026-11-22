@@ -8,7 +8,7 @@ import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middlew
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { config, MIN_PASSWORD_LENGTH, passwordConfigured, passwordFingerprint, setPassword, setupProblems } from "./config.ts";
 import { store } from "./store.ts";
-import { SingleUserProvider, verifyPassword } from "./auth.ts";
+import { passwordLocked, SingleUserProvider, verifyPassword } from "./auth.ts";
 import { connectPage, connectSignInPage, firstRunPage, LANG_COOKIE, langOf, loginPage, returningPage, signedInPage, signInFailedPage, statusPage } from "./pages.ts";
 import { createServer, VERSION } from "./mcp.ts";
 import { isLocal, mountGuide, type GuideOptions } from "./guide.ts";
@@ -136,7 +136,7 @@ export function createApp(guide?: GuideOptions) {
   app.post("/connect/signin", express.urlencoded({ extended: false, limit: "4kb" }), (req, res) => {
     const ip = req.ip ?? "unknown";
     const f = failures.get(ip);
-    if (f && f.until > Date.now()) return void res.status(429).type("html").send(connectSignInPage(langOf(req), "Too many attempts. Try again in 15 minutes."));
+    if ((f && f.until > Date.now()) || passwordLocked()) return void res.status(429).type("html").send(connectSignInPage(langOf(req), "Too many attempts. Try again in 15 minutes."));
     if (!verifyPassword(String((req.body as Record<string, string>).password ?? ""))) {
       const next = { count: (f?.count ?? 0) + 1, until: 0 };
       if (next.count >= 5) next.until = Date.now() + 15 * 60_000;

@@ -22,8 +22,23 @@ const DONE_TTL = 30 * 60; // how long a used sign-in page is remembered, so a re
 
 // --- Password ---
 
+// Failed attempts from every address together. The per-address lockouts
+// alone let an attacker with many addresses keep guessing over Funnel.
+const GLOBAL_MAX_FAILURES = 20;
+const GLOBAL_WINDOW = 15 * 60;
+const failedAt: number[] = [];
+
+/** True while too many attempts have failed recently, whoever made them. */
+export function passwordLocked(): boolean {
+  const since = now() - GLOBAL_WINDOW;
+  while (failedAt.length && failedAt[0]! < since) failedAt.shift();
+  return failedAt.length >= GLOBAL_MAX_FAILURES;
+}
+
 export function verifyPassword(password: string): boolean {
-  return checkPassword(password);
+  const ok = checkPassword(password);
+  if (!ok) failedAt.push(now());
+  return ok;
 }
 
 export function redirectAllowed(uri: string): boolean {
@@ -116,7 +131,7 @@ export class SingleUserProvider implements OAuthServerProvider {
   completeLogin(requestId: string, password: string, ip: string): { redirect: string } | { done: true } | { error: string; requestId?: string } {
     this.sweep();
     const lock = this.failures.get(ip);
-    if (lock && lock.until > now()) {
+    if ((lock && lock.until > now()) || passwordLocked()) {
       this.onLogin?.({ ok: false, ip, reason: "locked out" });
       return { error: "Too many attempts. Try again in a few minutes." };
     }
