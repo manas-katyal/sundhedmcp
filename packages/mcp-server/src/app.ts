@@ -158,8 +158,12 @@ export function createApp(guide?: GuideOptions, multi?: MultiUser) {
     return (await viewerCopy(req))?.session ?? null;
   }
   const requireViewer: express.RequestHandler = (req, res, next) => {
-    // The viewer page's own scripts send its Origin; another site's do too.
-    if (multi && req.method === "POST" && req.headers.origin !== baseUrl.origin) return void res.status(403).json({ error: "Forbidden" });
+    // The viewer page's own scripts send its Origin; another site's do too. A
+    // form on these pages sends "Origin: null" (Referrer-Policy: no-referrer),
+    // so for that the browser's own Sec-Fetch-Site must say same-origin.
+    const origin = req.headers.origin;
+    const sameOrigin = origin === baseUrl.origin || ((origin === undefined || origin === "null") && req.headers["sec-fetch-site"] === "same-origin");
+    if (multi && req.method === "POST" && !sameOrigin) return void res.status(403).json({ error: "Forbidden" });
     viewerSession(req).then(
       (session) => {
         if (!session) return void res.status(401).json({ error: "Sign in at /connect" });

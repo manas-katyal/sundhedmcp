@@ -158,6 +158,17 @@ test("the MCP tool refuses a caller without the write scope", async () => {
   assert.doesNotMatch(withScope.content[0]?.text ?? "", /may only read/);
 });
 
+test("a dashboard form sent with Origin: null passes the same-origin check only when the browser says same-origin", async () => {
+  const post = (headers: Record<string, string>) =>
+    fetch(`${base}/connect/record/renewals`, { method: "POST", redirect: "manual", headers: { "content-type": "application/x-www-form-urlencoded", ...headers }, body: "id=101&packageNumber=111&quantity=1&confirm=1" });
+  // Not signed in, so a request that passes the check stops at 401, never 403.
+  assert.equal((await post({ origin: "null", "sec-fetch-site": "same-origin" })).status, 401);
+  assert.equal((await post({ origin: base })).status, 401);
+  assert.equal((await post({ origin: "null", "sec-fetch-site": "cross-site" })).status, 403);
+  assert.equal((await post({ origin: "null" })).status, 403);
+  assert.equal((await post({ origin: "https://evil.example.test", "sec-fetch-site": "same-origin" })).status, 403);
+});
+
 test("the dashboard form asks to confirm, and escapes what sundhed.dk wrote", async () => {
   const { renewalFormPage, renewalsPage } = await import("../src/dashboard.ts");
   const c = await renewalChoices("101", fakeClient().client);
