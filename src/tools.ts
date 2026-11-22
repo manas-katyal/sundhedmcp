@@ -40,6 +40,8 @@ function guard<A extends unknown[]>(fn: (...args: A) => Promise<Result>, cached?
 
 const readOnly = { readOnlyHint: true, openWorldHint: true } as const;
 const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
+// Ids go into sundhed.dk paths: no slashes or dots, so a call cannot reach another endpoint.
+const recordId = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/, "Use the id exactly as an earlier tool returned it");
 
 export function registerTools(server: McpServer): void {
   // --- Session ---
@@ -125,7 +127,7 @@ export function registerTools(server: McpServer): void {
       title: "Medicine details",
       description:
         "One medicine on the card in full: ATC code, administration, substitution and reimbursement, dosage period, and who created, changed or stopped it.",
-      inputSchema: { ordination_id: z.string().describe("OrdinationId from get_medication_card") },
+      inputSchema: { ordination_id: recordId.describe("OrdinationId from get_medication_card") },
       annotations: readOnly,
     },
     guard(
@@ -151,7 +153,7 @@ export function registerTools(server: McpServer): void {
       title: "Prescription details",
       description:
         "One prescription in full: dispensings given and remaining, remaining units, validity, issuing doctor and clinic, receiving pharmacy, package size, reimbursement and substitution.",
-      inputSchema: { prescription_id: z.string().describe("PrescriptionId from get_prescriptions") },
+      inputSchema: { prescription_id: recordId.describe("PrescriptionId from get_prescriptions") },
       annotations: readOnly,
     },
     guard(
@@ -202,7 +204,7 @@ export function registerTools(server: McpServer): void {
       title: "Vaccination details",
       description:
         "One vaccination in full: diseases covered, vaccination programme, coverage, organisation, and whether a pharmacy or health record confirmed it.",
-      inputSchema: { vaccination_id: z.string().describe("VaccinationIdentifier from get_vaccinations") },
+      inputSchema: { vaccination_id: recordId.describe("VaccinationIdentifier from get_vaccinations") },
       annotations: readOnly,
     },
     guard(
