@@ -1,7 +1,7 @@
 // The setup guide for `sundhedmcp serve`: your own computer becomes the
 // server, and the guide walks you from a password to a working claude.ai
 // connector, one step at a time. Only reachable from this computer.
-import express from "express";
+import type express from "express";
 import { MIN_PASSWORD_LENGTH, passwordConfigured } from "./config.ts";
 import { autostartInstalled, autostartSupported, installAutostart } from "./autostart.ts";
 import { esc, langOf, shell, type Lang } from "./pages.ts";
