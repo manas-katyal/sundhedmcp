@@ -127,6 +127,28 @@ sundhed.dk. With several people their tokens need the
 `sundhed:write` the client asks for); a token without it reads only, which
 suits an assistant such as kagent.
 
+### Prescription renewal
+
+`SUNDHEDMCP_ALLOW_RENEWAL=1` (chart: `allowRenewal: true`) lets a person ask
+their GP to renew a prescription, as the "Forny recept" button on the
+sundhed.dk medicine card does. It is the only thing SundhedMCP writes to
+sundhed.dk, so it is off by default. It reads the medicine card live, so the
+person must be logged in with MitID, and each request is checked against the
+card as it is right then: the medicine must be one sundhed.dk offers to
+renew, the package one it offers for it, and the number of packages 1 to 10.
+The GP decides on the request.
+
+| Where | |
+|---|---|
+| MCP | `get_renewable_prescriptions`; `renew_prescription` first returns the package sizes and sends nothing, then sends on a second call with `packageNumber`, `quantity` and `confirm: true` |
+| API | `GET /renewals` (medicine and earlier requests), `GET /renewals/{id}` (package sizes), `POST /renewals` with `{"id", "packageNumber", "quantity"}`; `201` sent, `409` not logged in or cannot be renewed |
+| Dashboard | `/connect/record/renewals`: a form per medicine with package, number and a tick to confirm |
+
+With several people the MCP tool and `POST /renewals` need the
+`SUNDHEDMCP_API_WRITE_SCOPE` scope, so an assistant that signs in without it
+(kagent, as set up above) can list but not renew. The dashboard needs only
+the person's own sign-in.
+
 ### A token for your own scripts
 
 With one person, use one of `SUNDHEDMCP_API_TOKENS`:

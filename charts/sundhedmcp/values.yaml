@@ -14,6 +14,12 @@ imagePullSecrets: []
 # when httpRoute is on.
 baseUrl: http://localhost:8080
 
+# Let people ask their GP to renew a prescription through sundhed.dk (MCP
+# tool renew_prescription, POST /api/v1/renewals, the dashboard's "Renew
+# prescription" page). The only thing that writes to sundhed.dk; with
+# several people the token also needs oidc.apiWriteScope.
+allowRenewal: false
+
 # single-user: one person, signed in with the admin password (OAuth for
 #   claude.ai, an API token for kagent).
 # multi-user: everyone signs in with oidc.issuer, and each person gets their

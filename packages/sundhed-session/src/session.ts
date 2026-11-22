@@ -332,12 +332,25 @@ export class SundhedSession {
 
   /** GET a sundhed.dk path (e.g. "/app/vaccination/api/v1/overview") as JSON, inside the logged-in browser. */
   apiGet(path: string): Promise<unknown> {
-    const run = this.queue.then(() => traced(appOf(path), () => this.apiGetNow(path)));
+    return this.call(path);
+  }
+
+  /**
+   * POST JSON to a sundhed.dk path, inside the logged-in browser. This changes
+   * something on sundhed.dk; only prescription renewal uses it, and only when
+   * the server allows renewal (SUNDHEDMCP_ALLOW_RENEWAL).
+   */
+  apiPost(path: string, body: unknown): Promise<unknown> {
+    return this.call(path, JSON.stringify(body));
+  }
+
+  private call(path: string, body?: string): Promise<unknown> {
+    const run = this.queue.then(() => traced(appOf(path), () => this.callNow(path, body)));
     this.queue = run.catch(() => {});
     return run;
   }
 
-  private async apiGetNow(path: string): Promise<unknown> {
+  private async callNow(path: string, body?: string): Promise<unknown> {
     const s = this.state;
     if (!s) throw new SessionGone();
     if (!s.connectedAt) {
@@ -346,11 +359,12 @@ export class SundhedSession {
       this.markConnected(s);
     }
     const app = appOf(path);
-    let res = await fetchInPage(s, app, path);
+    let res = await fetchInPage(s, app, path, body);
     if (res.status === 401 || res.status === 403) {
       // The app's own auth may have expired: load its page again and retry once.
+      // A refused POST changed nothing, so sending it again is safe.
       s.apps.delete(app);
-      res = await fetchInPage(s, app, path);
+      res = await fetchInPage(s, app, path, body);
     }
     trace.getActiveSpan()?.setAttribute("http.response.status_code", res.status);
     if (res.status === 401 || res.status === 403) {
@@ -360,7 +374,12 @@ export class SundhedSession {
       }
       throw new Error(`sundhed.dk refused ${app || "this"} data (${res.status}) although you are logged in. The site may have changed how this app signs in.`);
     }
-    if (res.status >= 400) throw new Error(`sundhed.dk answered ${res.status} for ${path.split("?")[0]}`);
+    if (res.status >= 400) throw new Error(`sundhed.dk answered ${res.status} for ${path.split("?")[0]}${body === undefined ? "" : reason(res.text)}`);
+    // A POST may answer with no body at all.
+    if (body !== undefined && !res.text) {
+      s.lastConfirmedAt = new Date();
+      return null;
+    }
     if (!res.type.includes("json")) throw new Error(`sundhed.dk did not answer with JSON for ${path.split("?")[0]}; the site may have changed.`);
     s.lastConfirmedAt = new Date();
     return res.text ? JSON.parse(res.text) : null;
@@ -500,15 +519,29 @@ async function traced<T>(appName: string, run: () => Promise<T>): Promise<T> {
   }
 }
 
-async function fetchInPage(s: State, app: string, path: string) {
+/** sundhed.dk's own explanation in an error answer, such as why a renewal was refused. */
+function reason(text: string): string {
+  try {
+    const message = (JSON.parse(text) as { Message?: unknown }).Message;
+    return typeof message === "string" && message.trim() ? `: ${message.trim().slice(0, 200)}` : "";
+  } catch {
+    return "";
+  }
+}
+
+/** A GET, or a POST of `body` (JSON) when given. */
+async function fetchInPage(s: State, app: string, path: string, body?: string) {
   if (!s.apps.has(app)) await bootApp(s, app);
   const page = await apiPage(s);
   return page.evaluate(
-    async ({ url, headers }) => {
-      const r = await fetch(url, { headers: { Accept: "application/json", ...headers }, credentials: "include" });
+    async ({ url, headers, body }) => {
+      const init: RequestInit = body === undefined
+        ? { headers: { Accept: "application/json", ...headers }, credentials: "include" }
+        : { method: "POST", body, headers: { Accept: "application/json", "Content-Type": "application/json", ...headers }, credentials: "include" };
+      const r = await fetch(url, init);
       return { status: r.status, type: r.headers.get("content-type") ?? "", text: await r.text() };
     },
-    { url: path, headers: s.apps.get(app) ?? {} },
+    { url: path, headers: s.apps.get(app) ?? {}, body },
   );
 }
 
@@ -528,6 +561,7 @@ export const connect = () => currentSession().connect();
 export const status = () => currentSession().status();
 export const disconnect = () => currentSession().disconnect();
 export const apiGet = (path: string) => currentSession().apiGet(path);
+export const apiPost = (path: string, body: unknown) => currentSession().apiPost(path, body);
 export const startLogin = () => currentSession().startLogin();
 export const restartLogin = () => currentSession().restartLogin();
 export const loginScreenshot = () => currentSession().loginScreenshot();

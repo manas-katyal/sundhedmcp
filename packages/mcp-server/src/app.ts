@@ -15,11 +15,12 @@ import { passwordLocked, SingleUserProvider, verifyPassword } from "./auth.ts";
 import { connectPage, connectSignInPage, firstRunPage, LANG_COOKIE, langOf, loginPage, returningPage, signedInPage, signInFailedPage, statusPage } from "./pages.ts";
 import { createServer, VERSION } from "./mcp.ts";
 import { isLocal, mountGuide, type GuideOptions } from "./guide.ts";
-import { currentSession, loginViewport, type LoginInput, type SundhedSession } from "@sundhedmcp/session";
+import { currentSession, loginViewport, type LoginInput, SessionGone, type SundhedSession } from "@sundhedmcp/session";
 import { createConnectSignIn, createTokenVerifier, type OidcConfig, type OidcDeps, onlyListsTools, protectedResourceMetadata, requireCaller } from "./oidc.ts";
 import { asOwner, defaultCopy, PART_NAMES, type SavedCopy } from "./snapshot.ts";
 import { type ApiCaller, mountApi } from "./api.ts";
-import { dashboardPage, type DashboardInput, PART_SLUGS, partOfSlug, partPage } from "./dashboard.ts";
+import { dashboardPage, type DashboardInput, PART_SLUGS, partOfSlug, partPage, renewalFormPage, renewalResultPage, renewalsPage, renewalTexts } from "./dashboard.ts";
+import { RenewalError, renewalChoices, renewalOverview, sendRenewal } from "./renewal.ts";
 import { syncStatus } from "./sync.ts";
 import { httpTelemetry } from "./telemetry.ts";
 import type { Users } from "./users.ts";
@@ -238,7 +239,76 @@ export function createApp(guide?: GuideOptions, multi?: MultiUser) {
   app.get("/dashboard", (_req, res) => void res.redirect(303, "/connect/record"));
   async function dashboardInput(copy: SavedCopy): Promise<DashboardInput> {
     const s = await copy.session.status().catch(() => ({ loggedIn: false }));
-    return { snapshot: copy.saved(), loggedIn: s.loggedIn, refreshing: copy.isRunning(), sync: asOwner(copy, syncStatus), apiUrl: new URL("/api/v1", baseUrl).href };
+    return { snapshot: copy.saved(), loggedIn: s.loggedIn, refreshing: copy.isRunning(), sync: asOwner(copy, syncStatus), apiUrl: new URL("/api/v1", baseUrl).href, renewal: config.allowRenewal };
+  }
+
+  // Prescription renewal, live against the viewer's session: the one write to sundhed.dk (renewal.ts).
+  if (config.allowRenewal) {
+    // The viewer's copy, or the sign-in (answered here) when there is none.
+    const renewalViewer = async (req: express.Request, res: express.Response): Promise<SavedCopy | null> => {
+      if (setupProblems().length || (!multi && !passwordConfigured())) {
+        res.redirect(303, "/");
+        return null;
+      }
+      const copy = await viewerCopy(req).catch(() => null);
+      if (copy) return copy;
+      if (multi) res.redirect(303, "/connect/login");
+      else res.type("html").send(connectSignInPage(langOf(req)));
+      return null;
+    };
+    // What the person is told when a renewal call fails. Drug names stay out of the log.
+    const renewalFailure = (err: unknown): string => {
+      if (err instanceof SessionGone || err instanceof RenewalError) return err.message;
+      log(`renewal failed: ${(err as Error).name}`);
+      return (err as Error).message;
+    };
+    app.get("/connect/record/renewals", async (req, res) => {
+      const copy = await renewalViewer(req, res);
+      if (!copy) return;
+      const lang = langOf(req);
+      const s = await copy.session.status().catch(() => ({ loggedIn: false }));
+      let page: string;
+      if (!s.loggedIn) page = renewalsPage(lang, { loggedIn: false });
+      else {
+        try {
+          page = renewalsPage(lang, { loggedIn: true, overview: await asOwner(copy, () => renewalOverview()) });
+        } catch (err) {
+          page = renewalsPage(lang, { loggedIn: true, error: renewalFailure(err) });
+        }
+      }
+      res.set("Cache-Control", "no-store").type("html").send(page);
+    });
+    app.get("/connect/record/renewals/:id", async (req, res) => {
+      const copy = await renewalViewer(req, res);
+      if (!copy) return;
+      const lang = langOf(req);
+      let page: string;
+      try {
+        page = renewalFormPage(lang, await asOwner(copy, () => renewalChoices(String(req.params.id))));
+      } catch (err) {
+        page = renewalResultPage(lang, { error: renewalFailure(err) });
+      }
+      res.set("Cache-Control", "no-store").type("html").send(page);
+    });
+    app.post("/connect/record/renewals", requireViewer, express.urlencoded({ extended: false, limit: "4kb" }), async (req, res) => {
+      const copy = await viewerCopy(req);
+      if (!copy) return void res.redirect(303, "/connect/record/renewals");
+      const lang = langOf(req);
+      const body = (req.body ?? {}) as Record<string, unknown>;
+      const id = String(body.id ?? "");
+      let page: string;
+      try {
+        if (body.confirm !== "1") {
+          page = renewalFormPage(lang, await asOwner(copy, () => renewalChoices(id)), renewalTexts(lang).mustConfirm);
+        } else {
+          const r = await asOwner(copy, () => sendRenewal({ id, packageNumber: String(body.packageNumber ?? ""), quantity: Number(body.quantity) }));
+          page = renewalResultPage(lang, { drug: r.medicine.drug, pkg: r.package.text, quantity: r.quantity });
+        }
+      } catch (err) {
+        page = renewalResultPage(lang, { error: renewalFailure(err) });
+      }
+      res.set("Cache-Control", "no-store").type("html").send(page);
+    });
   }
   app.get(["/connect/record", "/connect/record/:part"], async (req, res) => {
     if (setupProblems().length || (!multi && !passwordConfigured())) return void res.redirect(303, "/");
@@ -337,7 +407,7 @@ export function createApp(guide?: GuideOptions, multi?: MultiUser) {
         next();
       });
   }
-  mountApi(app, { auth: apiAuth, writeScope: multi ? config.apiWriteScope : "", log });
+  mountApi(app, { auth: apiAuth, writeScope: multi ? config.apiWriteScope : "", renewal: config.allowRenewal, log });
 
   // With several people the body is read first, to see if it only lists tools.
   const json = express.json({ limit: "1mb" });
@@ -346,7 +416,9 @@ export function createApp(guide?: GuideOptions, multi?: MultiUser) {
     return copy ? asOwner(copy, () => handleMcp(req, res)) : handleMcp(req, res);
   });
   async function handleMcp(req: express.Request, res: express.Response): Promise<void> {
-    const server = createServer();
+    // With several people, only a token with the write scope may renew prescriptions.
+    const scopes = (res.locals.caller as { scopes?: string[] } | undefined)?.scopes ?? [];
+    const server = createServer({ canWrite: !multi || !config.apiWriteScope || scopes.includes(config.apiWriteScope) });
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
     res.on("close", () => {
       transport.close().catch(() => {});

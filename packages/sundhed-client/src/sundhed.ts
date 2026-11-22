@@ -1,6 +1,7 @@
 // The sundhed.dk citizen endpoints, as the site's own pages call them.
 // Mapped from the Min Side apps; only query values seen in real traffic are used.
-import { apiGet } from "@sundhedmcp/session";
+// Everything here only reads, except requestRenewal at the end.
+import { apiGet, apiPost } from "@sundhedmcp/session";
 import { clean, isoDate } from "./data.ts";
 
 const MEDICINKORT = "/app/medicinkort2borger/api/v1";
@@ -58,3 +59,36 @@ export function labResults(from: Date, to: Date) {
 }
 
 export const referrals = () => get(`${HENVISNING}/henvisninger`);
+
+// --- Prescription renewal (receptfornyelse), as the medicine card's own "Forny recept" calls it ---
+
+/**
+ * The medicine that can be asked to be renewed, with HasDoctor (the person has
+ * a GP to send it to) and MedicineCardVersion (sent back with a request).
+ * Each row's Status: 0 can be renewed, 1 private-marked, 2 or 3 cannot be
+ * renewed, 4 being handled, 6 dose-dispensed.
+ */
+export const renewable = () => apiGet(`${MEDICINKORT}/orderprescriptions/ordinations`);
+
+/** Package sizes a renewal can ask for: Packages[] of { Varenummer, Tekst }, and DefaultPackageNumber. */
+export const renewalPackages = (drugMedicationId: string) =>
+  apiGet(`${MEDICINKORT}/renewprescription/drugpackages?${new URLSearchParams({ drugMedicationId: id(drugMedicationId) })}`);
+
+/** Renewal requests sent earlier, with their status (Unprescribed, Prescribed, CancelledCitizen, CancelledHealthcare). */
+export const renewalRequests = () => get(`${MEDICINKORT}/orderprescriptions/orders`);
+
+/**
+ * Sends a renewal request to the person's GP. This writes to sundhed.dk.
+ * Pass the ids exactly as renewable() and renewalPackages() gave them (number
+ * or string): the site's own page sends them unchanged.
+ */
+export function requestRenewal(r: { drugMedicationId: string | number; medicineCardVersion: unknown; packageNumber: string | number; quantity: number }) {
+  id(r.drugMedicationId);
+  id(r.packageNumber);
+  return apiPost(`${MEDICINKORT}/orderprescriptions`, {
+    DrugMedicationId: r.drugMedicationId,
+    MedicineCardVersion: r.medicineCardVersion,
+    PackageNumber: r.packageNumber,
+    Quantity: r.quantity,
+  });
+}
