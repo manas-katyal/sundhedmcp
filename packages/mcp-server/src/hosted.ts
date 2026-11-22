@@ -4,8 +4,8 @@
 import { createServer as createHttpServer } from "node:http";
 import { join } from "node:path";
 import { config, MIN_API_TOKEN_LENGTH, passwordConfigured, rememberEnvPassword, setupProblems } from "./config.ts";
-import { configureHosted, disconnect } from "@sundhedmcp/session";
-import { useStorage } from "./snapshot.ts";
+import { closeBrowser, configureHosted } from "@sundhedmcp/session";
+import { defaultCopy, useStorage } from "./snapshot.ts";
 import { startSync } from "./sync.ts";
 import { openStorage, SERVER_OWNER_ID, SINGLE_OWNER_ID } from "./storage.ts";
 import { store } from "./store.ts";
@@ -39,14 +39,18 @@ export async function startHosted(opts: HostedOptions = {}): Promise<void> {
     const users = new Users(storage);
     multi = { oidc, users };
     startSync(process.env, (session) => users.copyOf(session));
+    // After sync is listening: a resumed login is fetched like a new one.
+    void users.resumeLogins().then((n) => n && console.log(`[sundhed] resumed ${n} kept login(s)`), (err) => console.error(`[sundhed] could not resume logins: ${(err as Error).message}`));
     observeGauge("sundhedmcp.copies.loaded", "People whose saved copy is loaded in this process.", () => users.loaded);
     console.log(`[sundhed] several people: signing in with ${oidc.issuer}`);
   } else {
     if (storage) {
       await useStorage(storage.forOwner(SINGLE_OWNER_ID), join(config.dataDir, "snapshot.json"));
       await store().useStorage(storage.forOwner(SERVER_OWNER_ID));
+      defaultCopy.keepLogin();
     }
     startSync();
+    if (storage) void defaultCopy.resumeLogin().catch((err) => console.error(`[sundhed] could not resume the login: ${(err as Error).message}`));
     if (rememberEnvPassword()) console.log("[sundhed] stored a hash of ADMIN_PASSWORD on the volume; the variable can now be removed");
   }
 
@@ -72,7 +76,7 @@ export async function startHosted(opts: HostedOptions = {}): Promise<void> {
   // Take the browser, and the session in it, down with the process.
   for (const signal of ["SIGINT", "SIGTERM"] as const) {
     process.on(signal, async () => {
-      await Promise.race([Promise.all([disconnect(), multi?.users.disconnectAll(), store().flush().then(() => storage?.close()), telemetry?.shutdown()]), new Promise((r) => setTimeout(r, 3_000))]);
+      await Promise.race([Promise.all([closeBrowser(), multi?.users.closeAll(), store().flush().then(() => storage?.close()), telemetry?.shutdown()]), new Promise((r) => setTimeout(r, 3_000))]);
       process.exit(0);
     });
   }

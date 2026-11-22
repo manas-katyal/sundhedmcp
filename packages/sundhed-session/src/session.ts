@@ -2,6 +2,9 @@
 // The person logs in with MitID in its window; every API call then runs as a
 // fetch() inside that browser, so cookies and headers are exactly the site's own.
 // Nothing is written to disk: the context is in-memory and dies with the process.
+// Hosted, the owner of a session can keep its login (persistLogin): the
+// browser's cookies are handed over after each login and keep-alive, to be
+// stored encrypted, and resume() starts a new browser with them after a restart.
 //
 // Hosted with several people, each has their own SundhedSession (their own
 // browser). The functions below act on the session of whoever the current
@@ -31,6 +34,9 @@ const POLL_MS = 2_000;
 const KEEPALIVE_MS = Number(process.env.SUNDHEDMCP_KEEPALIVE_MS ?? 4 * 60_000);
 
 /** The person is not logged in, or sundhed.dk ended the session. */
+/** The browser's cookies and storage for sundhed.dk, as Playwright exports them. */
+export type LoginState = Awaited<ReturnType<BrowserContext["storageState"]>>;
+
 export class SessionGone extends Error {
   constructor() {
     super("Not logged in to sundhed.dk. Call connect_sundhed and approve the login in MitID.");
@@ -204,6 +210,7 @@ export class SundhedSession {
   // Calls share one background tab, and loading an app's page navigates it, so
   // calls run one at a time.
   private queue: Promise<unknown> = Promise.resolve();
+  private keeper: ((login: LoginState | null) => Promise<void>) | null = null;
 
   constructor(label = "default") {
     this.label = label;
@@ -213,11 +220,48 @@ export class SundhedSession {
     log(this.label === "default" ? msg : `${this.label}: ${msg}`);
   }
 
-  private async ensureBrowser(): Promise<State> {
+  /**
+   * Keep the login: `keep` gets the browser's cookies after each login and
+   * keep-alive, and null when the login ends (sundhed.dk ended it, or a logout).
+   * Closing the browser at shutdown (close) leaves what was kept.
+   */
+  persistLogin(keep: (login: LoginState | null) => Promise<void>): void {
+    this.keeper = keep;
+  }
+
+  private keep(s: State | null): void {
+    const keeper = this.keeper;
+    if (!keeper) return;
+    const login = s ? s.context.storageState() : Promise.resolve(null);
+    void login.then((state) => (s && this.state !== s ? undefined : keeper(state))).catch((err: unknown) => this.log(`could not keep the login: ${(err as Error).message}`));
+  }
+
+  /**
+   * Opens a browser with a login kept before a restart. Resolves to whether
+   * sundhed.dk still accepts it; if it does, this counts as a new login
+   * (onLogin), and if not the kept login is dropped.
+   */
+  async resume(login: LoginState): Promise<boolean> {
+    if (this.state || this.launching) return false;
+    const s = await this.ensureBrowser(login);
+    if (await checkLoggedIn(s)) {
+      this.log("resumed the login kept before the restart");
+      this.markConnected(s);
+      await apiPage(s);
+      return true;
+    }
+    this.log("the login kept before the restart has ended");
+    this.keep(null);
+    this.reset("kept login ended");
+    await s.browser.close().catch(() => {});
+    return false;
+  }
+
+  private async ensureBrowser(kept?: LoginState): Promise<State> {
     if (this.state) return this.state;
     this.launching ??= (async () => {
       const browser = await launchBrowser();
-      const context = await browser.newContext({ locale: "da-DK", viewport: hostedBaseUrl ? VIEWPORT : null });
+      const context = await browser.newContext({ locale: "da-DK", viewport: hostedBaseUrl ? VIEWPORT : null, ...(kept ? { storageState: kept } : {}) });
       const login = await context.newPage();
       const s: State = { browser, context, login, api: null, apps: new Map(), connectedAt: null, lastConfirmedAt: null, endedAt: null, lastSessionMinutes: null, keepAlive: null };
       browser.on("disconnected", () => {
@@ -252,7 +296,10 @@ export class SundhedSession {
       s.keepAlive = setInterval(() => void this.keepAlive(s), KEEPALIVE_MS);
       s.keepAlive.unref();
     }
-    if (fresh) for (const listener of loginListeners) setImmediate(() => listener(this));
+    if (fresh) {
+      this.keep(s);
+      for (const listener of loginListeners) setImmediate(() => listener(this));
+    }
   }
 
   private markEnded(s: State): void {
@@ -262,6 +309,7 @@ export class SundhedSession {
       s.endedAt = new Date();
       s.lastSessionMinutes = minutesBetween(s.connectedAt, s.endedAt);
       this.log(`sundhed.dk ended the session after ${s.lastSessionMinutes} min`);
+      this.keep(null);
     }
     s.connectedAt = null;
   }
@@ -272,6 +320,8 @@ export class SundhedSession {
     try {
       await this.apiGet("/app/minsideportal/api/v1/GetLoginInfo");
       if (!(await checkLoggedIn(s))) this.markEnded(s);
+      // sundhed.dk may have renewed its cookies; keep the newest.
+      else this.keep(s);
     } catch (err) {
       if (err instanceof SessionGone) return;
       this.log(`keep-alive failed: ${(err as Error).message}`);
@@ -323,10 +373,17 @@ export class SundhedSession {
     };
   }
 
+  /** Logs out here: closes the browser and drops a kept login. */
   async disconnect(): Promise<void> {
+    this.keep(null);
+    await this.close("disconnected");
+  }
+
+  /** Closes the browser at shutdown, leaving a kept login for resume(). */
+  async close(reason = "shutting down"): Promise<void> {
     const s = this.state;
     if (!s) return;
-    this.reset("disconnected");
+    this.reset(reason);
     await s.browser.close().catch(() => {});
   }
 
@@ -560,6 +617,7 @@ export const currentSession = (): SundhedSession => current.getStore() ?? defaul
 export const connect = () => currentSession().connect();
 export const status = () => currentSession().status();
 export const disconnect = () => currentSession().disconnect();
+export const closeBrowser = () => currentSession().close();
 export const apiGet = (path: string) => currentSession().apiGet(path);
 export const apiPost = (path: string, body: unknown) => currentSession().apiPost(path, body);
 export const startLogin = () => currentSession().startLogin();

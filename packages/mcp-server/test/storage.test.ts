@@ -161,3 +161,42 @@ test("a part that failed keeps the previous copy, with its details", () => {
   assert.equal(now.errors.medicationCard, "HTTP 500 (kept the copy from 2025-12-31T00:00:00.000Z)");
   assert.equal(now.prescriptions, undefined);
 });
+
+test("a kept login is stored encrypted with its owner's copy, found after a restart, and dropped when it ends", async () => {
+  const { SundhedSession } = await import("@sundhedmcp/session");
+  const { LOGIN_SETTING, SavedCopy } = await import("../src/snapshot.ts");
+  const dir = tempDir();
+  const env = { SUNDHEDMCP_STORAGE_KEY: randomBytes(32).toString("base64") };
+  const storage = await openStorage(dir, "sqlite", env);
+  assert.ok(storage);
+  const session = new SundhedSession("test");
+  // The session hands its login to whatever persistLogin was given; catch it.
+  let keep: ((login: unknown) => Promise<void>) | undefined;
+  session.persistLogin = (fn) => void (keep = fn as typeof keep);
+  const copy = new SavedCopy(session);
+  await copy.useStorage(storage.forOwner("abc123"));
+  assert.equal(keep as unknown, undefined, "only hosted mode keeps the login");
+  copy.keepLogin();
+  assert.ok(keep);
+  const login = { cookies: [{ name: "made-up", value: "not-a-real-cookie", domain: ".sundhed.example.test", path: "/", expires: -1, httpOnly: true, secure: true, sameSite: "Lax" }], origins: [] };
+  await keep(login);
+  assert.deepEqual(await storage.ownersWith("setting", LOGIN_SETTING), ["abc123"]);
+  assert.deepEqual(await copy.setting(LOGIN_SETTING), login);
+  await storage.close();
+  assert.ok(!readFileSync(join(dir, "sundhed.db")).includes("not-a-real-cookie"));
+
+  const reopened = await openStorage(dir, "sqlite", env);
+  assert.ok(reopened);
+  const restarted = new SundhedSession("test");
+  restarted.persistLogin = (fn) => void (keep = fn as typeof keep);
+  const again = new SavedCopy(restarted);
+  await again.useStorage(reopened.forOwner("abc123"));
+  again.keepLogin();
+  assert.deepEqual(await again.setting(LOGIN_SETTING), login);
+  // Another owner has none.
+  assert.equal(await reopened.forOwner("other").get("setting", LOGIN_SETTING), null);
+  // The login ended: it is dropped.
+  await keep(null);
+  assert.deepEqual(await reopened.ownersWith("setting", LOGIN_SETTING), []);
+  await reopened.close();
+});
