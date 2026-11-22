@@ -20,7 +20,8 @@ function detectBaseUrl(): string {
 export const config = {
   port,
   baseUrl: detectBaseUrl(),
-  // Only OAuth clients and hashed tokens are stored here. Never health data.
+  // OAuth state, the password hash and, in hosted mode, the saved copy of
+  // the record (snapshot.json) are stored here.
   // An empty DATA_DIR (as a platform template may set) counts as unset.
   dataDir: env.DATA_DIR?.trim() || "./data",
   get statePath(): string {
