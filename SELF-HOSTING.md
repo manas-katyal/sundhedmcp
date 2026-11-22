@@ -127,8 +127,54 @@ sundhed.dk. With several people their tokens need the
 `sundhed:write` the client asks for); a token without it reads only, which
 suits an assistant such as kagent.
 
-`/connect/record` shows the same copy in the browser after the `/connect`
-sign-in, with a button to fetch it again.
+### A token for your own scripts
+
+With one person, use one of `SUNDHEDMCP_API_TOKENS`:
+
+```sh
+curl -H "Authorization: Bearer $SUNDHEDMCP_API_TOKEN" https://sundhed.example.com/api/v1/status
+```
+
+With several people, each script needs its person's access token from the
+provider. In Keycloak:
+
+1. **Client scopes → Create**: `sundhed:write`, type *Optional*, *Include in
+   token scope* on. Skip it if the realm has it already.
+2. **Clients → Import client** with
+   `charts/sundhedmcp/examples/keycloak-api-client.json`. It is a public
+   client with only the device login on, and its mapper puts `sundhedmcp` in
+   the token's audience.
+
+Then [`scripts/sundhed-token.sh`](scripts/sundhed-token.sh) prints a token.
+The first run shows a link: open it in any browser and sign in as yourself.
+It keeps the refresh token in `~/.config/sundhedmcp/refresh-token` (mode
+600), so later runs need no browser until that expires; `--logout` forgets it.
+
+```sh
+export SUNDHED_ISSUER=https://keycloak.example.com/realms/main
+export TOKEN=$(scripts/sundhed-token.sh)
+curl -H "Authorization: Bearer $TOKEN" https://sundhed.example.com/api/v1/medication-card
+
+# The calls that change something need the write scope
+TOKEN=$(SUNDHED_SCOPE="openid sundhed:write" SUNDHED_TOKEN_CACHE=~/.config/sundhedmcp/write-token scripts/sundhed-token.sh)
+curl -X POST -H "Authorization: Bearer $TOKEN" https://sundhed.example.com/api/v1/refresh
+```
+
+The token is yours: it reaches only your own copy, the same one `/connect`
+and your assistant use. Keep it like a password.
+
+### The dashboard
+
+`/connect/record` (or `/dashboard`) shows the same copy in the browser after
+the `/connect` sign-in: an overview with each part's count, when it was
+fetched and when sync fetches it next, one page per part with the details of
+each entry, and the lab results drawn over time, with the reference range as
+a band and values outside it in red. Each page can fetch its part again. It is
+served from the copy, uses no script, and sends nothing to anyone but you.
+
+Lab results are read by shape, as any object with a test name, a value that
+reads as a number, and a date; results written as text are listed under
+*All data* but not drawn.
 
 ## Telemetry (OpenTelemetry)
 

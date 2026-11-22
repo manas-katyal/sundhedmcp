@@ -160,14 +160,25 @@ test("/connect/record shows the signed-in person's copy, escaped", async () => {
   const page = await fetch(`${multiBase}/connect/record?lang=en`, { headers: { cookie } });
   assert.equal(page.status, 200);
   const html = await page.text();
-  assert.ok(html.includes("Testamol 500 mg"));
   assert.ok(html.includes("Made-up failure"));
+  assert.ok(html.includes('href="/connect/record/medication-card"'));
   assert.ok(!html.includes("<script>alert(1)</script>"));
   assert.ok(html.includes("&lt;script&gt;alert(1)&lt;/script&gt;"));
+  const card = await (await fetch(`${multiBase}/connect/record/medication-card?lang=en`, { headers: { cookie } })).text();
+  assert.ok(card.includes("Testamol 500 mg"));
+  assert.ok(card.includes("Made up"));
+  assert.equal((await fetch(`${multiBase}/connect/record/nope`, { headers: { cookie } })).status, 404);
   const evil = await fetch(`${multiBase}/connect/record/refresh`, { method: "POST", redirect: "manual", headers: { cookie, origin: "https://evil.example.test" } });
   assert.equal(evil.status, 403);
   const ok = await fetch(`${multiBase}/connect/record/refresh`, { method: "POST", redirect: "manual", headers: { cookie, origin: multiBase } });
   assert.equal(ok.status, 303);
+  const one = await fetch(`${multiBase}/connect/record/refresh`, {
+    method: "POST",
+    redirect: "manual",
+    headers: { cookie, origin: multiBase, "content-type": "application/x-www-form-urlencoded" },
+    body: "part=labResults",
+  });
+  assert.equal(one.headers.get("location"), "/connect/record/lab-results");
 });
 
 test("with one person an API token reads and may change things", async () => {

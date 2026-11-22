@@ -67,9 +67,12 @@ Console lines go on as log records after `scrubLog`.
 `api.ts` serves `/api/v1` from the saved copy, behind the same bearer check
 as `/mcp`, inside `asOwner` too. Its changing calls (refresh, logout, delete
 the copy) act on the server only; with several people they need the write
-scope. `/connect/record` (`recordPage` in `pages.ts`) renders the copy
-for the browser without knowing its shapes: lists of objects as tables,
-objects as label and value, deeper data as escaped JSON.
+scope. The dashboard at `/connect/record` (`dashboard.ts`) renders the copy
+for the browser, on the server and with no script: an overview, one page per
+part, and lab results as SVG charts. It does not know sundhed.dk's shapes:
+`view` in `pages.ts` shows lists of objects as tables, objects as label and
+value, deeper data as escaped JSON, and `labSeries` finds lab results by
+shape (a test name, a number, a date of its own or a parent's).
 
 ## Storage
 
