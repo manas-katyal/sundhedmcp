@@ -1,37 +1,21 @@
 {
-  "name": "sundhedmcp",
+  "name": "sundhedmcp-workspace",
   "version": "0.2.0",
-  "description": "SundhedMCP: local, read-only MCP server that lets your AI read your own sundhed.dk record (medicine card, prescriptions, test results, vaccinations, referrals) after you log in with MitID",
-  "keywords": [
-    "mcp",
-    "mcp-server",
-    "model-context-protocol",
-    "sundhed.dk",
-    "medicinkort",
-    "mitid",
-    "health",
-    "claude"
-  ],
+  "private": true,
+  "description": "Workspace for SundhedMCP. The published package is packages/mcp-server.",
   "license": "MIT",
   "type": "module",
   "engines": {
     "node": ">=24"
   },
   "scripts": {
-    "start": "node src/stdio.ts",
-    "serve": "node src/serve.ts",
-    "test": "node --test test/*.test.ts",
+    "start": "node packages/mcp-server/src/stdio.ts",
+    "serve": "node packages/mcp-server/src/serve.ts",
+    "test": "node --test 'packages/*/test/*.test.ts'",
     "typecheck": "tsc --noEmit",
-    "build": "rm -rf dist/lib && tsc -p tsconfig.build.json && cp -R src/assets dist/lib/assets",
-    "prepublishOnly": "pnpm build && pnpm test",
+    "build": "pnpm --filter sundhedmcp build",
     "lint": "biome lint .",
     "lint:fix": "biome lint --write ."
-  },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.30.0",
-    "express": "^5.2.1",
-    "playwright-core": "^1.56.0",
-    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.6.8",
@@ -39,15 +23,6 @@
     "@types/node": "^26.0.0",
     "typescript": "^5.8.0"
   },
-  "bin": {
-    "sundhedmcp": "bin/sundhedmcp.js"
-  },
-  "files": [
-    "bin",
-    "dist/lib",
-    "README.md",
-    "LICENSE"
-  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/manas-katyal/sundhedmcp.git"

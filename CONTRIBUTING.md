@@ -1,10 +1,13 @@
 # Contributing
 
 ```bash
-corepack enable
+npm install -g pnpm   # or corepack enable on Node 24
 pnpm install
 pnpm typecheck && pnpm lint && pnpm test
 ```
+
+The code is split into three packages; [ARCHITECTURE.md](ARCHITECTURE.md)
+has the layers and how the published package is built.
 
 - **No real health data, ever.** Tests and fixtures use made-up records only.
   Captured responses go in `fixtures/private/`, which git ignores.

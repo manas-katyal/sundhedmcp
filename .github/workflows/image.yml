@@ -5,7 +5,7 @@ name: image
 on:
   push:
     branches: [main]
-    paths: [src/**, Dockerfile, docker-entrypoint.sh, package.json, pnpm-lock.yaml, pnpm-workspace.yaml, .github/workflows/image.yml]
+    paths: [packages/**, Dockerfile, docker-entrypoint.sh, package.json, pnpm-lock.yaml, pnpm-workspace.yaml, .github/workflows/image.yml]
   workflow_dispatch:
 
 permissions:

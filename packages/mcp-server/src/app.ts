@@ -12,7 +12,7 @@ import { SingleUserProvider, verifyPassword } from "./auth.ts";
 import { connectPage, connectSignInPage, firstRunPage, LANG_COOKIE, langOf, loginPage, returningPage, signedInPage, signInFailedPage, statusPage } from "./pages.ts";
 import { createServer, VERSION } from "./mcp.ts";
 import { isLocal, mountGuide, type GuideOptions } from "./guide.ts";
-import { loginInput, loginScreenshot, loginViewport, loginWantsQr, restartLogin, startLogin, status, type LoginInput } from "./session.ts";
+import { loginInput, loginScreenshot, loginViewport, loginWantsQr, restartLogin, startLogin, status, type LoginInput } from "@sundhedmcp/session";
 
 const VIEWER_COOKIE = "sundhed_viewer";
 const VIEWER_TTL_MS = 30 * 60_000;

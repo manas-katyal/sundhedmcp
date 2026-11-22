@@ -5,8 +5,7 @@
 // file) so it survives restarts; locally it lives in memory only.
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import * as sundhed from "./sundhed.ts";
-import { monthsAgo } from "./data.ts";
+import { monthsAgo, sundhed } from "@sundhedmcp/client";
 
 /** How far back the copy's lab results go. */
 export const LAB_YEARS = 10;

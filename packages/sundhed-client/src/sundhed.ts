@@ -1,6 +1,6 @@
 // The sundhed.dk citizen endpoints, as the site's own pages call them.
 // Mapped from the Min Side apps; only query values seen in real traffic are used.
-import { apiGet } from "./session.ts";
+import { apiGet } from "@sundhedmcp/session";
 import { clean, isoDate } from "./data.ts";
 
 const MEDICINKORT = "/app/medicinkort2borger/api/v1";

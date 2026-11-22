@@ -1,0 +1,14 @@
+{
+  "name": "@sundhedmcp/client",
+  "version": "0.2.0",
+  "private": true,
+  "description": "sundhed.dk's citizen endpoints, and the cleaning that masks CPR numbers in every response.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@sundhedmcp/session": "workspace:*"
+  }
+}

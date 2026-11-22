@@ -7,7 +7,12 @@
   "packages": {
     ".": {
       "package-name": "sundhedmcp",
-      "extra-files": ["src/mcp.ts"]
+      "extra-files": [
+        "packages/mcp-server/src/mcp.ts",
+        { "type": "json", "path": "packages/mcp-server/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "packages/sundhed-client/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "packages/sundhed-session/package.json", "jsonpath": "$.version" }
+      ]
     }
   }
 }

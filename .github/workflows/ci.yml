@@ -42,6 +42,12 @@ jobs:
       - name: Build
         run: pnpm build
 
+      # The published package must hold the bundle, with no workspace imports left.
+      - name: Pack
+        run: |
+          pnpm --filter sundhedmcp pack --pack-destination "$RUNNER_TEMP"
+          ! grep -rl '@sundhedmcp/' packages/mcp-server/dist/lib
+
   # The image must still build; it is only pushed from main (image.yml).
   image:
     runs-on: ubuntu-latest
