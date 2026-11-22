@@ -47,7 +47,7 @@ endpoints the site's own pages use, from inside that logged-in browser.
 - **In memory.** The session lives in the browser this process owns. Right
   after each login the whole record is fetched into memory, so the tools still
   answer after sundhed.dk ends the session. Stop the server and it is gone.
-  Nothing is written to disk.
+  Nothing is written to disk. (Phone mode is different: see below.)
 - **Read-only.** Only GET requests to the citizen pages.
 - **CPR masked.** CPR numbers are replaced with `[CPR]` in every result.
 
@@ -86,6 +86,10 @@ the MitID login, a copy of your record is kept in `~/.sundhedmcp`, encrypted
 (AES-256-GCM, with a key in `~/.sundhedmcp/storage.key`), so your phone can
 read it after the sundhed.dk session ends. `disconnect_sundhed` with
 `forget_saved_copy` deletes it.
+
+That copy is your whole record (medicine, prescriptions, lab results,
+vaccinations, referrals). The key sits next to it, readable only by your user
+(mode 600), so keep disk encryption on (FileVault, BitLocker, LUKS).
 
 The Docker image (`packages/mcp-server/src/server.ts`) still serves only a page that points here.
 Set `SUNDHEDMCP_HOSTED=1` to run hosted mode there at your own risk.

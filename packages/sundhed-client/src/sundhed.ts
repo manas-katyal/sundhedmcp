@@ -8,7 +8,12 @@ const VACCINATION = "/app/vaccination/api/v1";
 const PROEVESVAR = "/app/proevesvarportal/api/v1";
 const HENVISNING = "/app/DenNationaleHenvisningsformidling/api/v1";
 
-const id = (value: string | number) => encodeURIComponent(String(value));
+/** One path segment. Refuses anything that is not a plain id, such as "..". */
+export function id(value: string | number): string {
+  const s = String(value);
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(s)) throw new Error(`Not a valid id: ${JSON.stringify(s.slice(0, 80))}`);
+  return s;
+}
 const get = async (path: string) => clean(await apiGet(path));
 
 export async function summary() {
