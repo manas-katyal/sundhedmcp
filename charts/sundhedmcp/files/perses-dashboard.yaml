@@ -3,7 +3,10 @@
 # a datasource line whose name is empty is dropped, so Perses uses the default
 # datasource of that kind. Metric names are the OpenTelemetry ones as the
 # collector's Prometheus exporter writes them: dots become underscores, a
-# unit of seconds adds _seconds.
+# unit of seconds adds _seconds. The HTTP queries keep to otel_scope_name
+# sundhedmcp (or no scope label): eBPF auto-instrumentation such as OBI or
+# Beyla records http.server.request.duration under the same service name,
+# which would count each request twice.
 kind: 'Dashboard'
 metadata:
   name: __DASHBOARD__
@@ -39,7 +42,7 @@ spec:
                 kind: 'PrometheusTimeSeriesQuery'
                 spec:
                   datasource: __PROMETHEUS_DATASOURCE__
-                  query: 'sum(rate(http_server_request_duration_seconds_count{__METRICS__}[5m]))'
+                  query: 'sum(rate(http_server_request_duration_seconds_count{__METRICS__,otel_scope_name=~"sundhedmcp|"}[5m]))'
     serverErrors:
       kind: 'Panel'
       spec:
@@ -67,7 +70,7 @@ spec:
                 kind: 'PrometheusTimeSeriesQuery'
                 spec:
                   datasource: __PROMETHEUS_DATASOURCE__
-                  query: '(sum(rate(http_server_request_duration_seconds_count{__METRICS__,http_response_status_code=~"5.."}[5m])) or vector(0)) / clamp_min(sum(rate(http_server_request_duration_seconds_count{__METRICS__}[5m])), 1e-9)'
+                  query: '(sum(rate(http_server_request_duration_seconds_count{__METRICS__,otel_scope_name=~"sundhedmcp|",http_response_status_code=~"5.."}[5m])) or vector(0)) / clamp_min(sum(rate(http_server_request_duration_seconds_count{__METRICS__,otel_scope_name=~"sundhedmcp|"}[5m])), 1e-9)'
     sundhedErrors:
       kind: 'Panel'
       spec:
@@ -206,7 +209,7 @@ spec:
                 kind: 'PrometheusTimeSeriesQuery'
                 spec:
                   datasource: __PROMETHEUS_DATASOURCE__
-                  query: 'sum by (http_route) (rate(http_server_request_duration_seconds_count{__METRICS__}[5m]))'
+                  query: 'sum by (http_route) (rate(http_server_request_duration_seconds_count{__METRICS__,otel_scope_name=~"sundhedmcp|"}[5m]))'
                   seriesNameFormat: '{{http_route}}'
     httpLatency:
       kind: 'Panel'
@@ -235,7 +238,7 @@ spec:
                 kind: 'PrometheusTimeSeriesQuery'
                 spec:
                   datasource: __PROMETHEUS_DATASOURCE__
-                  query: 'histogram_quantile(0.95, sum by (le, http_route) (rate(http_server_request_duration_seconds_bucket{__METRICS__}[5m])))'
+                  query: 'histogram_quantile(0.95, sum by (le, http_route) (rate(http_server_request_duration_seconds_bucket{__METRICS__,otel_scope_name=~"sundhedmcp|"}[5m])))'
                   seriesNameFormat: '{{http_route}}'
     httpStatus:
       kind: 'Panel'
@@ -264,7 +267,7 @@ spec:
                 kind: 'PrometheusTimeSeriesQuery'
                 spec:
                   datasource: __PROMETHEUS_DATASOURCE__
-                  query: 'sum by (http_response_status_code) (rate(http_server_request_duration_seconds_count{__METRICS__}[5m]))'
+                  query: 'sum by (http_response_status_code) (rate(http_server_request_duration_seconds_count{__METRICS__,otel_scope_name=~"sundhedmcp|"}[5m]))'
                   seriesNameFormat: '{{http_response_status_code}}'
     sundhedCalls:
       kind: 'Panel'
