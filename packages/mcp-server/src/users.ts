@@ -5,7 +5,7 @@
 // derived for one person never opens another's rows (storage-crypto.ts).
 import { SundhedSession } from "@sundhedmcp/session";
 import { type Caller, callerId } from "./oidc.ts";
-import { SavedCopy } from "./snapshot.ts";
+import { LOGIN_SETTING, SavedCopy } from "./snapshot.ts";
 import type { Storage } from "./storage.ts";
 
 export class Users {
@@ -19,13 +19,20 @@ export class Users {
 
   /** The person's own copy (and through it their session), loaded from storage on first use. */
   get(caller: Pick<Caller, "issuer" | "sub">): Promise<SavedCopy> {
-    const id = callerId(caller);
+    return this.byId(callerId(caller));
+  }
+
+  /** The copy of a callerId, for work no request asks for (a kept login, auto-renew). */
+  byId(id: string): Promise<SavedCopy> {
     let copy = this.copies.get(id);
     if (!copy) {
       copy = (async () => {
         // Only the start of the id goes into logs: enough to tell people apart.
         const created = new SavedCopy(new SundhedSession(`user ${id.slice(0, 8)}`));
-        if (this.storage) await created.useStorage(this.storage.forOwner(id));
+        if (this.storage) {
+          await created.useStorage(this.storage.forOwner(id));
+          created.keepLogin();
+        }
         this.bySession.set(created.session, created);
         return created;
       })();
@@ -45,8 +52,23 @@ export class Users {
     return this.bySession.get(session);
   }
 
-  /** Closes every person's browser. */
-  async disconnectAll(): Promise<void> {
-    await Promise.all([...this.bySession.keys()].map((session) => session.disconnect()));
+  /** Every loaded copy. */
+  all(): SavedCopy[] {
+    return [...this.bySession.values()];
+  }
+
+  /** After a restart: loads the people who kept their login, and logs them in again with it. */
+  async resumeLogins(): Promise<number> {
+    if (!this.storage) return 0;
+    let resumed = 0;
+    for (const id of await this.storage.ownersWith("setting", LOGIN_SETTING)) {
+      if (await (await this.byId(id)).resumeLogin().catch(() => false)) resumed++;
+    }
+    return resumed;
+  }
+
+  /** Closes every person's browser at shutdown; kept logins stay. */
+  async closeAll(): Promise<void> {
+    await Promise.all([...this.bySession.keys()].map((session) => session.close()));
   }
 }

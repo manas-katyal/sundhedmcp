@@ -24,7 +24,10 @@ packages/sundhed-session @sundhedmcp/session
 **`@sundhedmcp/session`** owns the browser. sundhed.dk has no refresh token
 and no public API, so the session is the logged-in browser itself: every call
 runs as a `fetch()` in its page, with the site's own cookies and headers.
-Nothing is written to disk here. A `SundhedSession` is one browser; the
+Nothing is written to disk here: hosted, the server can be handed the
+browser's cookies after each login and keep-alive (`persistLogin`) to store
+them, and `resume` opens a browser with them after a restart. A
+`SundhedSession` is one browser; the
 module functions (`connect`, `apiGet`, ...) act on the current one, set with
 `withSession` (AsyncLocalStorage), so the client and the tools never pass a
 session around. One person uses `defaultSession`.
@@ -95,7 +98,10 @@ the tools give as the copy's age.
 `sync.ts` fetches the whole copy after each login (`onLogin`), then each part
 again on its own interval while the session lasts, with jitter and backoff.
 When a fetch finds the session gone it waits for the next login. The schedule
-is in memory only: after a restart there is no session until the next login.
+is in memory only. Hosted with storage, the sundhed.dk login is kept
+encrypted (`setting` rows), so after a restart each kept login is tried
+again; if sundhed.dk still accepts it, that counts as a new login and sync
+starts. Otherwise there is no session until the next MitID login.
 
 ## Running and building
 

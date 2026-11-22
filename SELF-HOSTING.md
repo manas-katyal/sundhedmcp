@@ -273,8 +273,14 @@ scripts/kind-test.sh delete   # removes the cluster and the image
   and the old one in `SUNDHEDMCP_STORAGE_PREVIOUS_KEYS`. New rows are sealed
   with the new key as sync fetches them again; keep the old key listed until
   you no longer need the rows it sealed.
-- **Restarts.** The sundhed.dk session lives in the server's browser, so a
-  restart or a new version ends it. The saved copy stays, and the tools keep
-  answering from it until the next MitID login.
+- **Restarts.** The sundhed.dk session lives in the server's browser. With
+  storage on, its cookies are kept encrypted with the storage key, like the
+  saved copy, and refreshed on each keep-alive, so after a restart or a new
+  version the server logs in again with them, as long as sundhed.dk has not
+  ended the session meanwhile. Logging out, sundhed.dk ending the session, or
+  "Forget" deletes them. `SUNDHEDMCP_KEEP_LOGIN=0` turns this off: then a
+  restart ends the session, and the tools answer from the saved copy until
+  the next MitID login. Whoever holds the storage key and the database can use
+  a kept login while it lasts, so guard both as you guard the record.
 - **Logs.** Log lines name a person only by the first 8 characters of their
   `callerId` and carry no record data; CPR numbers are masked everywhere.

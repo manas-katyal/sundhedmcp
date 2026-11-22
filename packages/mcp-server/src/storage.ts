@@ -36,6 +36,9 @@ export const ITEM_KINDS = [
   "referrals",
   // The server's own state, under SERVER_OWNER_ID: OAuth clients and tokens (store.ts).
   "oauth_state",
+  // A person's own settings, kept with their copy but not part of it: the
+  // kept sundhed.dk login, auto-renew rules (snapshot.ts, auto-renew.ts).
+  "setting",
 ] as const;
 export type ItemKind = (typeof ITEM_KINDS)[number];
 
@@ -73,6 +76,8 @@ export interface StorageInfo {
 export interface Storage {
   readonly info: StorageInfo;
   forOwner(ownerId: string): OwnerStorage;
+  /** The owners that have an item of this kind and id. Reads no content. */
+  ownersWith(kind: ItemKind, id: string): Promise<string[]>;
   /** Seals every row not sealed with the current key again, after a key change. */
   reencrypt(): Promise<{ reencrypted: number; unreadable: number }>;
   close(): Promise<void>;
@@ -108,6 +113,8 @@ export async function createStorage(driver: SqlDriver, storageKeys: Buffer | Sto
   return {
     info,
     forOwner,
+    ownersWith: async (kind, id) =>
+      (await driver.all<{ owner_id: string }>("SELECT owner_id FROM items WHERE kind = $1 AND id = $2 ORDER BY owner_id", [kind, id])).map((row) => row.owner_id),
     reencrypt: async () => {
       const result = { reencrypted: 0, unreadable: 0 };
       const owners = await driver.all<{ owner_id: string }>("SELECT DISTINCT owner_id FROM items ORDER BY owner_id");
@@ -179,6 +186,11 @@ export class OwnerStorage {
       if (!wanted.has(id)) deleted += await this.db.run("DELETE FROM items WHERE owner_id = $1 AND kind = $2 AND id = $3", [this.ownerId, kind, id]);
     }
     return deleted;
+  }
+
+  /** Deletes one item. Resolves to how many (0 or 1). */
+  remove(kind: ItemKind, id: string): Promise<number> {
+    return this.db.run("DELETE FROM items WHERE owner_id = $1 AND kind = $2 AND id = $3", [this.ownerId, kind, id]);
   }
 
   /** Deletes one kind, or everything this owner has stored. Resolves to how many. */

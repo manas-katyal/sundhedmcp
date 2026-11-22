@@ -11,7 +11,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { monthsAgo, sundhed } from "@sundhedmcp/client";
-import { defaultSession, SessionGone, type SundhedSession, withSession } from "@sundhedmcp/session";
+import { defaultSession, type LoginState, SessionGone, type SundhedSession, withSession } from "@sundhedmcp/session";
 import type { ItemInput, ItemKind, OwnerStorage, StoredItem } from "./storage.ts";
 import { traceFetch } from "./telemetry.ts";
 
@@ -90,6 +90,9 @@ const FETCH: Record<PartName, (snap: Snapshot, take: Take) => Promise<void>> = {
 };
 
 /** One person's saved copy, fetched through their own session. */
+/** The setting that holds the kept sundhed.dk login (SUNDHEDMCP_KEEP_LOGIN=0 turns it off). */
+export const LOGIN_SETTING = "sundhed_login";
+
 export class SavedCopy {
   readonly session: SundhedSession;
   private current: Snapshot | null = null;
@@ -98,6 +101,8 @@ export class SavedCopy {
   private queue: Promise<unknown> = Promise.resolve();
   private pending = 0;
   private fullRun: Promise<RefreshResult> | null = null;
+  // Settings, when there is no storage to keep them in.
+  private readonly settings = new Map<string, unknown>();
 
   constructor(session: SundhedSession) {
     this.session = session;
@@ -122,6 +127,36 @@ export class SavedCopy {
     }
     this.current = fromItems(await owner.list());
     if (this.current) log(`loaded the copy saved ${this.current.savedAt}`);
+  }
+
+  /**
+   * Hosted, with storage: keeps the sundhed.dk login with the copy, encrypted,
+   * so it survives a restart. Local mode never does; its login ends with it.
+   */
+  keepLogin(): void {
+    if (!this.store || process.env.SUNDHEDMCP_KEEP_LOGIN?.trim() === "0") return;
+    this.session.persistLogin((login) => (login ? this.setSetting(LOGIN_SETTING, login) : this.removeSetting(LOGIN_SETTING)));
+  }
+
+  /** After a restart: logs in again with the login kept before it, if sundhed.dk still accepts it. */
+  async resumeLogin(): Promise<boolean> {
+    const login = (await this.setting(LOGIN_SETTING)) as LoginState | undefined;
+    return login ? this.session.resume(login) : false;
+  }
+
+  /** One of the person's settings, stored encrypted with the copy. */
+  async setting(id: string): Promise<unknown> {
+    return this.store ? (await this.store.get("setting", id))?.data : this.settings.get(id);
+  }
+
+  async setSetting(id: string, data: unknown): Promise<void> {
+    if (this.store) await this.store.put([{ kind: "setting", id, data }]);
+    else this.settings.set(id, data);
+  }
+
+  async removeSetting(id: string): Promise<void> {
+    if (this.store) await this.store.remove("setting", id);
+    else this.settings.delete(id);
   }
 
   saved(): Snapshot | null {
@@ -194,6 +229,7 @@ export class SavedCopy {
   /** Deletes the copy, in memory and in storage. */
   async forget(): Promise<void> {
     this.current = null;
+    this.settings.clear();
     await this.store?.delete();
   }
 
