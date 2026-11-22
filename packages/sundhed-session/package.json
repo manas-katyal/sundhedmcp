@@ -9,6 +9,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@opentelemetry/api": "^1.10.0",
     "playwright-core": "^1.65.1"
   }
 }

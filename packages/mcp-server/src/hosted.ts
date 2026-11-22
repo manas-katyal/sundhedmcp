@@ -13,6 +13,8 @@ import { createApp, type MultiUser } from "./app.ts";
 import { resolveOidc } from "./oidc.ts";
 import { Users } from "./users.ts";
 import type { GuideOptions } from "./guide.ts";
+import { VERSION } from "./mcp.ts";
+import { observeGauge, startTelemetry, telemetryConfig } from "./telemetry.ts";
 
 export interface HostedOptions {
   /** Interface to listen on; `serve` keeps it to this computer. */
@@ -23,6 +25,10 @@ export interface HostedOptions {
 export async function startHosted(opts: HostedOptions = {}): Promise<void> {
   // Several people, each signed in with the identity provider; refuses to start when half configured.
   const oidc = resolveOidc(process.env, config.apiTokens);
+  // OpenTelemetry, before anything records (telemetry.ts). Off unless SUNDHEDMCP_OTEL=1.
+  const otel = telemetryConfig(process.env, VERSION);
+  const telemetry = otel ? await startTelemetry(otel) : null;
+  if (telemetry) console.log(`[sundhed] telemetry: ${[...telemetry.config.signals].join(", ") || "no signals"} to ${telemetry.config.endpoint}`);
   configureHosted(config.baseUrl);
   // After each MitID login, fetch the whole record and keep an encrypted copy,
   // kept current while the session lasts (sync.ts).
@@ -33,6 +39,7 @@ export async function startHosted(opts: HostedOptions = {}): Promise<void> {
     const users = new Users(storage);
     multi = { oidc, users };
     startSync(process.env, (session) => users.copyOf(session));
+    observeGauge("sundhedmcp.copies.loaded", "People whose saved copy is loaded in this process.", () => users.loaded);
     console.log(`[sundhed] several people: signing in with ${oidc.issuer}`);
   } else {
     if (storage) {
@@ -65,7 +72,7 @@ export async function startHosted(opts: HostedOptions = {}): Promise<void> {
   // Take the browser, and the session in it, down with the process.
   for (const signal of ["SIGINT", "SIGTERM"] as const) {
     process.on(signal, async () => {
-      await Promise.race([Promise.all([disconnect(), multi?.users.disconnectAll(), store().flush().then(() => storage?.close())]), new Promise((r) => setTimeout(r, 3_000))]);
+      await Promise.race([Promise.all([disconnect(), multi?.users.disconnectAll(), store().flush().then(() => storage?.close()), telemetry?.shutdown()]), new Promise((r) => setTimeout(r, 3_000))]);
       process.exit(0);
     });
   }

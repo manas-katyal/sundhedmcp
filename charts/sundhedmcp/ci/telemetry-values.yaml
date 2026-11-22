@@ -1,0 +1,9 @@
+telemetry:
+  enabled: true
+  endpoint: http://otel-collector.observability.svc.cluster.local:4318
+  resourceAttributes:
+    deployment.environment.name: ci
+perses:
+  enabled: true
+  datasources:
+    tempo: tempo

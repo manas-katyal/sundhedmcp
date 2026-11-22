@@ -294,7 +294,10 @@ export function createConnectSignIn(oidc: OidcConfig, baseUrl: URL, log: (msg: s
     if (oidc.clientSecret) headers.authorization = `Basic ${Buffer.from(`${encodeURIComponent(oidc.clientId)}:${encodeURIComponent(oidc.clientSecret)}`).toString("base64")}`;
     const res = await (deps.fetch ?? fetch)(idp.tokenEndpoint, { method: "POST", headers, body: new URLSearchParams({ ...params, client_id: oidc.clientId }) });
     if (!res.ok) {
-      log(`the identity provider refused the sign-in code (${res.status})`);
+      // The OAuth error code and its description say why (a wrong client secret, an expired code), never anything about the person.
+      const body = (await res.json().catch(() => null)) as { error?: unknown; error_description?: unknown } | null;
+      const why = [body?.error, body?.error_description].filter((v): v is string => typeof v === "string").map((v) => v.slice(0, 200));
+      log(`the identity provider refused the sign-in code (${res.status}${why.length ? `: ${why.join(": ")}` : ""})`);
       return null;
     }
     const json = (await res.json().catch(() => null)) as unknown;

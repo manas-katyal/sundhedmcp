@@ -56,6 +56,13 @@ PKCE). `users.ts` gives each person, by `callerId` (sha256 of issuer and
 sub), their own `SundhedSession` and `SavedCopy`, and the request runs inside
 `asOwner`, so a tool only ever reaches its caller's session and copy.
 
+`telemetry.ts` sets up OpenTelemetry in hosted mode when `SUNDHEDMCP_OTEL=1`
+and loads the SDK only then; everything else records through the global API,
+a no-op without it. `httpTelemetry` names spans and metrics by Express route
+template, `instrumentTools` wraps each tool, `traceFetch` each part fetched
+into the saved copy, and the session wraps each sundhed.dk call by app name.
+Console lines go on as log records after `scrubLog`.
+
 `api.ts` serves `/api/v1` from the saved copy, behind the same bearer check
 as `/mcp`, inside `asOwner` too. Its changing calls (refresh, logout, delete
 the copy) act on the server only; with several people they need the write
