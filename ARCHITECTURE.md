@@ -23,7 +23,10 @@ packages/sundhed-session @sundhedmcp/session
 **`@sundhedmcp/session`** owns the browser. sundhed.dk has no refresh token
 and no public API, so the session is the logged-in browser itself: every call
 runs as a `fetch()` in its page, with the site's own cookies and headers.
-Nothing is written to disk here.
+Nothing is written to disk here. A `SundhedSession` is one browser; the
+module functions (`connect`, `apiGet`, ...) act on the current one, set with
+`withSession` (AsyncLocalStorage), so the client and the tools never pass a
+session around. One person uses `defaultSession`.
 
 **`@sundhedmcp/client`** maps the Min Side apps to functions, one per
 endpoint, and returns cleaned data. `data.ts` has the cleaning (CPR masking,
@@ -45,18 +48,27 @@ compared by sha256, like the stored OAuth tokens. `charts/sundhedmcp` deploys
 hosted mode to Kubernetes and wires such a token into a kagent
 `RemoteMCPServer`.
 
+With `SUNDHEDMCP_MULTI_USER=1` there is no OAuth server or password.
+`oidc.ts` checks each `/mcp` token against the identity provider's keys
+(`iss`, `aud`, `exp`, asymmetric algorithms only) and takes the person from
+`sub`; `/connect` signs the browser in with the same provider (code flow with
+PKCE). `users.ts` gives each person, by `callerId` (sha256 of issuer and
+sub), their own `SundhedSession` and `SavedCopy`, and the request runs inside
+`asOwner`, so a tool only ever reaches its caller's session and copy.
+
 ## Storage
 
 `storage.ts` keeps the saved copy of the record in SQLite (`node:sqlite`) or
 PostgreSQL (`pg`), one row per part (`summary`, `medication_card`, ...) and
-one per detail (`medication_detail/<id>`, ...), under an owner id (`default`
-until there are accounts). `storage-crypto.ts` seals every row with
+one per detail (`medication_detail/<id>`, ...), under an owner id: `default` for one
+person, the `callerId` for each of several. The OAuth state (clients, codes,
+token hashes) is one row under the owner `server` (`store.ts`). `storage-crypto.ts` seals every row with
 AES-256-GCM under a key derived per owner (HKDF), with owner, kind and id as
 associated data, so a row moved to another owner or id does not open.
 Rotation: the current key seals, previous keys still open, and `reencrypt()`
 seals the old rows again.
 
-`snapshot.ts` holds the copy in memory for the tools and writes it through to
+`snapshot.ts` holds the copy (a `SavedCopy`, one per person) in memory for the tools and writes it through to
 storage. It fetches by part (`summary`, `medicationCard` with its details,
 ...), one fetch at a time. A part that fails keeps the previous copy of it,
 and its error says from when; each part records when it was fetched, which

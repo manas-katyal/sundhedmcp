@@ -28,6 +28,8 @@ export const config = {
     return join(this.dataDir, "oauth.json");
   },
   adminPassword: env.ADMIN_PASSWORD ?? "",
+  // Several people, each signed in with an identity provider (oidc.ts).
+  multiUser: env.SUNDHEDMCP_MULTI_USER?.trim() === "1",
   // Bearer tokens for clients that cannot do the OAuth sign-in, such as a
   // kagent RemoteMCPServer. Kept as digests; compared by digest.
   apiTokens: (env.SUNDHEDMCP_API_TOKENS ?? "").split(/[\s,]+/).filter(Boolean),

@@ -2,6 +2,11 @@
 // The person logs in with MitID in its window; every API call then runs as a
 // fetch() inside that browser, so cookies and headers are exactly the site's own.
 // Nothing is written to disk: the context is in-memory and dies with the process.
+//
+// Hosted with several people, each has their own SundhedSession (their own
+// browser). The functions below act on the session of whoever the current
+// call runs for (withSession), or on the one default session otherwise.
+import { AsyncLocalStorage } from "node:async_hooks";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright-core";
 
 export const ORIGIN = "https://www.sundhed.dk";
@@ -48,8 +53,6 @@ interface State {
   keepAlive: NodeJS.Timeout | null;
 }
 
-let state: State | null = null;
-let launching: Promise<State> | null = null;
 
 // Hosted mode: the browser runs headless on a server, and the person logs in
 // through the /connect page, which shows it as screenshots and forwards input.
@@ -83,35 +86,6 @@ async function launchBrowser(): Promise<Browser> {
     "No Chromium-based browser found. Install Google Chrome or Microsoft Edge, or run `npx playwright-core install chromium`. Tried: " +
       errors.join("; "),
   );
-}
-
-async function ensureBrowser(): Promise<State> {
-  if (state) return state;
-  launching ??= (async () => {
-    const browser = await launchBrowser();
-    const context = await browser.newContext({ locale: "da-DK", viewport: hostedBaseUrl ? VIEWPORT : null });
-    const login = await context.newPage();
-    const s: State = { browser, context, login, api: null, apps: new Map(), connectedAt: null, lastConfirmedAt: null, endedAt: null, lastSessionMinutes: null, keepAlive: null };
-    browser.on("disconnected", () => {
-      if (state === s) reset("browser closed");
-    });
-    // Closing the login window is how a person says "stop": take the browser down with it.
-    login.on("close", () => {
-      if (state === s) void browser.close().catch(() => {});
-    });
-    state = s;
-    return s;
-  })().finally(() => {
-    launching = null;
-  });
-  return launching;
-}
-
-function reset(reason: string): void {
-  if (!state) return;
-  if (state.keepAlive) clearInterval(state.keepAlive);
-  log(`session gone (${reason})`);
-  state = null;
 }
 
 async function setWindow(page: Page, windowState: "minimized" | "normal"): Promise<void> {
@@ -179,47 +153,11 @@ async function bootApp(s: State, app: string): Promise<void> {
   log(`${app}: page loaded, ${captured ? `extra headers: ${Object.keys(headers).join(", ") || "none"}` : "no API call seen"}`);
 }
 
-const loginListeners: (() => void)[] = [];
+const loginListeners: ((session: SundhedSession) => void)[] = [];
 
-/** Runs after each new MitID login (not on every confirmation of a live one). */
-export function onLogin(listener: () => void): void {
+/** Runs after each new MitID login (not on every confirmation of a live one), with the session that logged in. */
+export function onLogin(listener: (session: SundhedSession) => void): void {
   loginListeners.push(listener);
-}
-
-function markConnected(s: State): void {
-  const now = new Date();
-  const fresh = s.connectedAt === null;
-  s.connectedAt ??= now;
-  s.lastConfirmedAt = now;
-  s.endedAt = null;
-  if (!s.keepAlive && KEEPALIVE_MS > 0) {
-    s.keepAlive = setInterval(() => void keepAlive(s), KEEPALIVE_MS);
-    s.keepAlive.unref();
-  }
-  if (fresh) for (const listener of loginListeners) setImmediate(listener);
-}
-
-function markEnded(s: State): void {
-  if (s.keepAlive) clearInterval(s.keepAlive);
-  s.keepAlive = null;
-  if (s.connectedAt) {
-    s.endedAt = new Date();
-    s.lastSessionMinutes = minutesBetween(s.connectedAt, s.endedAt);
-    log(`sundhed.dk ended the session after ${s.lastSessionMinutes} min`);
-  }
-  s.connectedAt = null;
-}
-
-/** Touches an authenticated page so sundhed.dk sees activity and keeps the session. */
-async function keepAlive(s: State): Promise<void> {
-  if (state !== s) return;
-  try {
-    await apiGet("/app/minsideportal/api/v1/GetLoginInfo");
-    if (!(await checkLoggedIn(s))) markEnded(s);
-  } catch (err) {
-    if (err instanceof SessionGone) return;
-    log(`keep-alive failed: ${(err as Error).message}`);
-  }
 }
 
 /**
@@ -239,36 +177,6 @@ const minutesBetween = (a: Date, b: Date) => Math.round((b.getTime() - a.getTime
 
 export type ConnectResult = { connected: true; since: Date } | { connected: false; reason: string };
 
-/**
- * Opens (or re-shows) the browser window on sundhed.dk and waits for the person
- * to log in with MitID. Returns once logged in or after LOGIN_WAIT_MS.
- */
-export async function connect(): Promise<ConnectResult> {
-  const s = await ensureBrowser();
-  if (await checkLoggedIn(s)) {
-    markConnected(s);
-    return { connected: true, since: s.connectedAt! };
-  }
-  markEnded(s);
-  await setWindow(s.login, "normal");
-  // Leave the window alone if the person is already partway through MitID.
-  if (!s.login.url().includes("mitid") && !s.login.url().includes("nemlog-in")) {
-    await openMitId(s.login);
-  }
-  const deadline = Date.now() + LOGIN_WAIT_MS;
-  while (Date.now() < deadline) {
-    if (state !== s) return { connected: false, reason: "The browser window was closed before the login finished." };
-    if (await checkLoggedIn(s)) {
-      markConnected(s);
-      await apiPage(s);
-      await setWindow(s.login, "minimized");
-      return { connected: true, since: s.connectedAt! };
-    }
-    await new Promise((r) => setTimeout(r, POLL_MS));
-  }
-  return { connected: false, reason: "Still waiting for the MitID login. The window stays open; log in there, then ask again." };
-}
-
 export interface Status {
   browserOpen: boolean;
   loggedIn: boolean;
@@ -276,65 +184,270 @@ export interface Status {
   lastSessionLastedMinutes?: number;
 }
 
-export async function status(): Promise<Status> {
-  const s = state;
-  if (!s) return { browserOpen: false, loggedIn: false };
-  const loggedIn = await checkLoggedIn(s);
-  if (loggedIn) markConnected(s);
-  else if (s.connectedAt) markEnded(s);
-  const now = new Date();
-  return {
-    browserOpen: true,
-    loggedIn,
-    ...(loggedIn && s.connectedAt ? { connectedMinutes: minutesBetween(s.connectedAt, now) } : {}),
-    ...(!loggedIn && s.lastSessionMinutes !== null ? { lastSessionLastedMinutes: s.lastSessionMinutes } : {}),
-  };
-}
+export type LoginInput =
+  | { type: "click"; x: number; y: number }
+  | { type: "text"; text: string }
+  | { type: "key"; key: string }
+  | { type: "wheel"; dy: number };
 
-export async function disconnect(): Promise<void> {
-  const s = state;
-  if (!s) return;
-  reset("disconnected");
-  await s.browser.close().catch(() => {});
-}
+// Only the keys a login form needs. Everything else arrives as text.
+const KEYS = new Set(["Enter", "Tab", "Backspace", "Delete", "Escape", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"]);
 
-// Calls share one background tab, and loading an app's page navigates it, so
-// calls run one at a time.
-let queue: Promise<unknown> = Promise.resolve();
+/** One person's sundhed.dk session: their own browser, login and API tab. */
+export class SundhedSession {
+  /** Who this session belongs to, for logs. Never a CPR number or a name. */
+  readonly label: string;
+  private state: State | null = null;
+  private launching: Promise<State> | null = null;
+  private watching = false;
+  // Calls share one background tab, and loading an app's page navigates it, so
+  // calls run one at a time.
+  private queue: Promise<unknown> = Promise.resolve();
 
-/** GET a sundhed.dk path (e.g. "/app/vaccination/api/v1/overview") as JSON, inside the logged-in browser. */
-export function apiGet(path: string): Promise<unknown> {
-  const run = queue.then(() => apiGetNow(path));
-  queue = run.catch(() => {});
-  return run;
-}
-
-async function apiGetNow(path: string): Promise<unknown> {
-  const s = state;
-  if (!s) throw new SessionGone();
-  if (!s.connectedAt) {
-    // The login may have finished on the /connect page since the last call.
-    if (!(await checkLoggedIn(s))) throw new SessionGone();
-    markConnected(s);
+  constructor(label = "default") {
+    this.label = label;
   }
-  const app = appOf(path);
-  let res = await fetchInPage(s, app, path);
-  if (res.status === 401 || res.status === 403) {
-    // The app's own auth may have expired: load its page again and retry once.
-    s.apps.delete(app);
-    res = await fetchInPage(s, app, path);
+
+  private log(msg: string): void {
+    log(this.label === "default" ? msg : `${this.label}: ${msg}`);
   }
-  if (res.status === 401 || res.status === 403) {
-    if (!(await checkLoggedIn(s))) {
-      markEnded(s);
-      throw new SessionGone();
+
+  private async ensureBrowser(): Promise<State> {
+    if (this.state) return this.state;
+    this.launching ??= (async () => {
+      const browser = await launchBrowser();
+      const context = await browser.newContext({ locale: "da-DK", viewport: hostedBaseUrl ? VIEWPORT : null });
+      const login = await context.newPage();
+      const s: State = { browser, context, login, api: null, apps: new Map(), connectedAt: null, lastConfirmedAt: null, endedAt: null, lastSessionMinutes: null, keepAlive: null };
+      browser.on("disconnected", () => {
+        if (this.state === s) this.reset("browser closed");
+      });
+      // Closing the login window is how a person says "stop": take the browser down with it.
+      login.on("close", () => {
+        if (this.state === s) void browser.close().catch(() => {});
+      });
+      this.state = s;
+      return s;
+    })().finally(() => {
+      this.launching = null;
+    });
+    return this.launching;
+  }
+
+  private reset(reason: string): void {
+    if (!this.state) return;
+    if (this.state.keepAlive) clearInterval(this.state.keepAlive);
+    this.log(`session gone (${reason})`);
+    this.state = null;
+  }
+
+  private markConnected(s: State): void {
+    const now = new Date();
+    const fresh = s.connectedAt === null;
+    s.connectedAt ??= now;
+    s.lastConfirmedAt = now;
+    s.endedAt = null;
+    if (!s.keepAlive && KEEPALIVE_MS > 0) {
+      s.keepAlive = setInterval(() => void this.keepAlive(s), KEEPALIVE_MS);
+      s.keepAlive.unref();
     }
-    throw new Error(`sundhed.dk refused ${app || "this"} data (${res.status}) although you are logged in. The site may have changed how this app signs in.`);
+    if (fresh) for (const listener of loginListeners) setImmediate(() => listener(this));
   }
-  if (res.status >= 400) throw new Error(`sundhed.dk answered ${res.status} for ${path.split("?")[0]}`);
-  if (!res.type.includes("json")) throw new Error(`sundhed.dk did not answer with JSON for ${path.split("?")[0]}; the site may have changed.`);
-  s.lastConfirmedAt = new Date();
-  return res.text ? JSON.parse(res.text) : null;
+
+  private markEnded(s: State): void {
+    if (s.keepAlive) clearInterval(s.keepAlive);
+    s.keepAlive = null;
+    if (s.connectedAt) {
+      s.endedAt = new Date();
+      s.lastSessionMinutes = minutesBetween(s.connectedAt, s.endedAt);
+      this.log(`sundhed.dk ended the session after ${s.lastSessionMinutes} min`);
+    }
+    s.connectedAt = null;
+  }
+
+  /** Touches an authenticated page so sundhed.dk sees activity and keeps the session. */
+  private async keepAlive(s: State): Promise<void> {
+    if (this.state !== s) return;
+    try {
+      await this.apiGet("/app/minsideportal/api/v1/GetLoginInfo");
+      if (!(await checkLoggedIn(s))) this.markEnded(s);
+    } catch (err) {
+      if (err instanceof SessionGone) return;
+      this.log(`keep-alive failed: ${(err as Error).message}`);
+    }
+  }
+
+  /**
+   * Opens (or re-shows) the browser window on sundhed.dk and waits for the person
+   * to log in with MitID. Returns once logged in or after LOGIN_WAIT_MS.
+   */
+  async connect(): Promise<ConnectResult> {
+    const s = await this.ensureBrowser();
+    if (await checkLoggedIn(s)) {
+      this.markConnected(s);
+      return { connected: true, since: s.connectedAt! };
+    }
+    this.markEnded(s);
+    await setWindow(s.login, "normal");
+    // Leave the window alone if the person is already partway through MitID.
+    if (!s.login.url().includes("mitid") && !s.login.url().includes("nemlog-in")) {
+      await openMitId(s.login);
+    }
+    const deadline = Date.now() + LOGIN_WAIT_MS;
+    while (Date.now() < deadline) {
+      if (this.state !== s) return { connected: false, reason: "The browser window was closed before the login finished." };
+      if (await checkLoggedIn(s)) {
+        this.markConnected(s);
+        await apiPage(s);
+        await setWindow(s.login, "minimized");
+        return { connected: true, since: s.connectedAt! };
+      }
+      await new Promise((r) => setTimeout(r, POLL_MS));
+    }
+    return { connected: false, reason: "Still waiting for the MitID login. The window stays open; log in there, then ask again." };
+  }
+
+  async status(): Promise<Status> {
+    const s = this.state;
+    if (!s) return { browserOpen: false, loggedIn: false };
+    const loggedIn = await checkLoggedIn(s);
+    if (loggedIn) this.markConnected(s);
+    else if (s.connectedAt) this.markEnded(s);
+    const now = new Date();
+    return {
+      browserOpen: true,
+      loggedIn,
+      ...(loggedIn && s.connectedAt ? { connectedMinutes: minutesBetween(s.connectedAt, now) } : {}),
+      ...(!loggedIn && s.lastSessionMinutes !== null ? { lastSessionLastedMinutes: s.lastSessionMinutes } : {}),
+    };
+  }
+
+  async disconnect(): Promise<void> {
+    const s = this.state;
+    if (!s) return;
+    this.reset("disconnected");
+    await s.browser.close().catch(() => {});
+  }
+
+  /** GET a sundhed.dk path (e.g. "/app/vaccination/api/v1/overview") as JSON, inside the logged-in browser. */
+  apiGet(path: string): Promise<unknown> {
+    const run = this.queue.then(() => this.apiGetNow(path));
+    this.queue = run.catch(() => {});
+    return run;
+  }
+
+  private async apiGetNow(path: string): Promise<unknown> {
+    const s = this.state;
+    if (!s) throw new SessionGone();
+    if (!s.connectedAt) {
+      // The login may have finished on the /connect page since the last call.
+      if (!(await checkLoggedIn(s))) throw new SessionGone();
+      this.markConnected(s);
+    }
+    const app = appOf(path);
+    let res = await fetchInPage(s, app, path);
+    if (res.status === 401 || res.status === 403) {
+      // The app's own auth may have expired: load its page again and retry once.
+      s.apps.delete(app);
+      res = await fetchInPage(s, app, path);
+    }
+    if (res.status === 401 || res.status === 403) {
+      if (!(await checkLoggedIn(s))) {
+        this.markEnded(s);
+        throw new SessionGone();
+      }
+      throw new Error(`sundhed.dk refused ${app || "this"} data (${res.status}) although you are logged in. The site may have changed how this app signs in.`);
+    }
+    if (res.status >= 400) throw new Error(`sundhed.dk answered ${res.status} for ${path.split("?")[0]}`);
+    if (!res.type.includes("json")) throw new Error(`sundhed.dk did not answer with JSON for ${path.split("?")[0]}; the site may have changed.`);
+    s.lastConfirmedAt = new Date();
+    return res.text ? JSON.parse(res.text) : null;
+  }
+
+  // --- Hosted login: the /connect page drives the login tab from afar ---
+
+  /** Notices when the login finishes, so the session is ready before the next tool call. */
+  private watchForLogin(s: State): void {
+    if (this.watching) return;
+    this.watching = true;
+    const deadline = Date.now() + 15 * 60_000;
+    const tick = async () => {
+      if (this.state !== s || Date.now() > deadline) return void (this.watching = false);
+      if (await checkLoggedIn(s)) {
+        this.watching = false;
+        this.markConnected(s);
+        this.log("logged in through the /connect page");
+        return;
+      }
+      setTimeout(() => void tick(), POLL_MS);
+    };
+    void tick();
+  }
+
+  /** Starts the browser on sundhed.dk's login page if needed. True when already logged in. */
+  async startLogin(): Promise<boolean> {
+    const s = await this.ensureBrowser();
+    if (await checkLoggedIn(s)) {
+      this.markConnected(s);
+      return true;
+    }
+    if (!s.login.url().startsWith("http")) await openMitId(s.login);
+    this.watchForLogin(s);
+    return false;
+  }
+
+  /**
+   * Starts the MitID login over in a fresh browser. Reusing the old one fails:
+   * NemLog-in remembers the half-finished login and answers "Du er allerede
+   * logget ind" (you cannot run two login flows at once).
+   */
+  async restartLogin(): Promise<void> {
+    await this.disconnect();
+    this.watching = false;
+    await this.startLogin();
+  }
+
+  async loginScreenshot(): Promise<Buffer | null> {
+    const s = this.state;
+    if (!s || s.login.isClosed()) return null;
+    return s.login.screenshot({ type: "jpeg", quality: 70 });
+  }
+
+  async loginInput(input: LoginInput): Promise<void> {
+    const s = this.state;
+    if (!s || s.login.isClosed()) return;
+    const page = s.login;
+    switch (input.type) {
+      case "click": {
+        const x = Math.max(0, Math.min(VIEWPORT.width, input.x));
+        const y = Math.max(0, Math.min(VIEWPORT.height, input.y));
+        await page.mouse.click(x, y);
+        break;
+      }
+      case "text":
+        await page.keyboard.insertText(input.text.slice(0, 200));
+        break;
+      case "key":
+        if (KEYS.has(input.key)) await page.keyboard.press(input.key === "Space" ? " " : input.key);
+        break;
+      case "wheel":
+        await page.mouse.wheel(0, Math.max(-2000, Math.min(2000, input.dy)));
+        break;
+    }
+  }
+
+  /**
+   * True when MitID asks for its QR code. MitID does that when the login comes
+   * from a browser it does not recognise, such as this server's; the code has to
+   * be scanned from a screen the person can point their phone at.
+   */
+  async loginWantsQr(): Promise<boolean> {
+    const s = this.state;
+    if (!s || s.login.isClosed()) return false;
+    // A string expression: it runs in the page, and this project has no DOM types.
+    const text = await s.login.evaluate<string>("document.body ? document.body.innerText : ''").catch(() => "");
+    return /scan qr/i.test(text);
+  }
 }
 
 async function fetchInPage(s: State, app: string, path: string) {
@@ -349,100 +462,24 @@ async function fetchInPage(s: State, app: string, path: string) {
   );
 }
 
-// --- Hosted login: the /connect page drives the login tab from afar ---
-
-let watching = false;
-
-/** Notices when the login finishes, so the session is ready before the next tool call. */
-function watchForLogin(s: State): void {
-  if (watching) return;
-  watching = true;
-  const deadline = Date.now() + 15 * 60_000;
-  const tick = async () => {
-    if (state !== s || Date.now() > deadline) return void (watching = false);
-    if (await checkLoggedIn(s)) {
-      watching = false;
-      markConnected(s);
-      log("logged in through the /connect page");
-      return;
-    }
-    setTimeout(() => void tick(), POLL_MS);
-  };
-  void tick();
-}
-
-/** Starts the browser on sundhed.dk's login page if needed. True when already logged in. */
-export async function startLogin(): Promise<boolean> {
-  const s = await ensureBrowser();
-  if (await checkLoggedIn(s)) {
-    markConnected(s);
-    return true;
-  }
-  if (!s.login.url().startsWith("http")) await openMitId(s.login);
-  watchForLogin(s);
-  return false;
-}
-
-/**
- * Starts the MitID login over in a fresh browser. Reusing the old one fails:
- * NemLog-in remembers the half-finished login and answers "Du er allerede
- * logget ind" (you cannot run two login flows at once).
- */
-export async function restartLogin(): Promise<void> {
-  await disconnect();
-  watching = false;
-  await startLogin();
-}
-
-export async function loginScreenshot(): Promise<Buffer | null> {
-  const s = state;
-  if (!s || s.login.isClosed()) return null;
-  return s.login.screenshot({ type: "jpeg", quality: 70 });
-}
-
-export type LoginInput =
-  | { type: "click"; x: number; y: number }
-  | { type: "text"; text: string }
-  | { type: "key"; key: string }
-  | { type: "wheel"; dy: number };
-
-// Only the keys a login form needs. Everything else arrives as text.
-const KEYS = new Set(["Enter", "Tab", "Backspace", "Delete", "Escape", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"]);
-
-export async function loginInput(input: LoginInput): Promise<void> {
-  const s = state;
-  if (!s || s.login.isClosed()) return;
-  const page = s.login;
-  switch (input.type) {
-    case "click": {
-      const x = Math.max(0, Math.min(VIEWPORT.width, input.x));
-      const y = Math.max(0, Math.min(VIEWPORT.height, input.y));
-      await page.mouse.click(x, y);
-      break;
-    }
-    case "text":
-      await page.keyboard.insertText(input.text.slice(0, 200));
-      break;
-    case "key":
-      if (KEYS.has(input.key)) await page.keyboard.press(input.key === "Space" ? " " : input.key);
-      break;
-    case "wheel":
-      await page.mouse.wheel(0, Math.max(-2000, Math.min(2000, input.dy)));
-      break;
-  }
-}
-
 export const loginViewport = () => VIEWPORT;
 
-/**
- * True when MitID asks for its QR code. MitID does that when the login comes
- * from a browser it does not recognise, such as this server's; the code has to
- * be scanned from a screen the person can point their phone at.
- */
-export async function loginWantsQr(): Promise<boolean> {
-  const s = state;
-  if (!s || s.login.isClosed()) return false;
-  // A string expression: it runs in the page, and this project has no DOM types.
-  const text = await s.login.evaluate<string>("document.body ? document.body.innerText : ''").catch(() => "");
-  return /scan qr/i.test(text);
-}
+// --- The current session: the caller's own when hosted for several people ---
+
+/** The session used outside withSession: local mode, and hosted for one person. */
+export const defaultSession = new SundhedSession();
+const current = new AsyncLocalStorage<SundhedSession>();
+
+/** Runs `fn` (and everything it starts) against `session`. */
+export const withSession = <T>(session: SundhedSession, fn: () => T): T => current.run(session, fn);
+export const currentSession = (): SundhedSession => current.getStore() ?? defaultSession;
+
+export const connect = () => currentSession().connect();
+export const status = () => currentSession().status();
+export const disconnect = () => currentSession().disconnect();
+export const apiGet = (path: string) => currentSession().apiGet(path);
+export const startLogin = () => currentSession().startLogin();
+export const restartLogin = () => currentSession().restartLogin();
+export const loginScreenshot = () => currentSession().loginScreenshot();
+export const loginInput = (input: LoginInput) => currentSession().loginInput(input);
+export const loginWantsQr = () => currentSession().loginWantsQr();

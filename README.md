@@ -121,6 +121,33 @@ Set `SUNDHEDMCP_HOSTED=1` to run hosted mode there at your own risk.
 | `SUNDHEDMCP_KEEPALIVE_MS` | `240000` | How often to touch the session; `0` turns it off |
 | `SUNDHEDMCP_SYNC` | on | `0` fetches the saved copy after each login only |
 | `SUNDHEDMCP_API_TOKENS` | | Hosted: bearer tokens `/mcp` accepts besides OAuth, comma-separated, 32+ characters each, for clients that cannot sign in with the password (kagent) |
+| `SUNDHEDMCP_MULTI_USER` | | Hosted: `1` for several people, each signed in with an identity provider (see below) |
+
+### Several people (OIDC)
+
+Hosted mode serves one person by default. With `SUNDHEDMCP_MULTI_USER=1`
+everyone signs in with the same OpenID Connect provider (Keycloak, say), and
+each person gets their own sundhed.dk session and their own saved copy,
+encrypted under a key derived for them. There is no admin password and no
+API token then: `/mcp` needs an access token from the provider, and
+`/connect` signs the browser in with it before the MitID login. Only run it
+for people who asked for it; their health data is then on your server.
+
+| Variable | |
+|---|---|
+| `SUNDHEDMCP_OIDC_ISSUER` | Must equal the tokens' `iss` exactly; https |
+| `SUNDHEDMCP_OIDC_AUDIENCE` | Must be in the access tokens' `aud` |
+| `SUNDHEDMCP_OIDC_ACCEPT_ID_TOKEN` | `1` also accepts ID tokens (kagent's oauth2-proxy forwards those); `aud` still applies |
+| `SUNDHEDMCP_OIDC_CLIENT_ID` | The client `/connect` signs in with; redirect URI `<BASE_URL>/connect/callback` |
+| `SUNDHEDMCP_OIDC_CLIENT_SECRET` | Its secret, unless it is a public client |
+| `SUNDHEDMCP_ANONYMOUS_TOOL_LIST` | `1` answers `initialize` and `tools/list` without a token, for kagent's tool discovery; tool calls still need one |
+
+A setting left half done stops the server at start. MCP clients find the
+provider through `/.well-known/oauth-protected-resource`. With the chart, set
+`mode: multi-user` and `oidc.*`; with kagent the `RemoteMCPServer` then
+forwards the signed-in user's token (`tokenPassthrough`) instead of an API
+token. kagent needs its own sign-in through the same realm for that (see
+aula-mcp's chart README, "kagent with Keycloak", for the oauth2-proxy setup).
 
 ### Sync
 
@@ -150,14 +177,14 @@ it is fetched again at the next login.
 | `SUNDHEDMCP_STORAGE_PREVIOUS_KEYS` | | Earlier keys, comma-separated, that still open the rows they sealed |
 
 `DATA_DIR` is `~/.sundhedmcp` for `serve` and `./data` (`/data` in the image)
-otherwise. A `snapshot.json` from an earlier version is moved into the
-database on start and then deleted.
+otherwise. A `snapshot.json` or `oauth.json` from an earlier version is moved
+into the database on start and then deleted.
 
 ### Kubernetes (Helm, kagent)
 
 The chart in [`charts/sundhedmcp`](./charts/sundhedmcp) runs hosted mode in
-one pod, with Chromium in it and a PVC for the OAuth state, the password hash
-and the encrypted SQLite copy. It creates the server password (and with
+one pod, with Chromium in it and a PVC for the password hash and the
+encrypted SQLite database (the saved copy and the OAuth state). It creates the server password (and with
 `apiToken.enabled` or `kagent.enabled` an API token) as Secrets kept across
 upgrades; `NOTES.txt` shows how to read them.
 

@@ -63,11 +63,37 @@ spec:
             # Chromium writes its profile and caches under HOME.
             - name: HOME
               value: /tmp
+            {{- if include "sundhedmcp.multiUser" . }}
+            - name: SUNDHEDMCP_MULTI_USER
+              value: "1"
+            - name: SUNDHEDMCP_OIDC_ISSUER
+              value: {{ .Values.oidc.issuer | quote }}
+            - name: SUNDHEDMCP_OIDC_AUDIENCE
+              value: {{ .Values.oidc.audience | quote }}
+            {{- if .Values.oidc.acceptIdToken }}
+            - name: SUNDHEDMCP_OIDC_ACCEPT_ID_TOKEN
+              value: "1"
+            {{- end }}
+            - name: SUNDHEDMCP_OIDC_CLIENT_ID
+              value: {{ .Values.oidc.clientId | quote }}
+            {{- with .Values.oidc.clientSecret.existingSecret }}
+            - name: SUNDHEDMCP_OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ . }}
+                  key: {{ $.Values.oidc.clientSecret.secretKey }}
+            {{- end }}
+            {{- if and .Values.kagent.enabled .Values.kagent.remoteMCPServer.discovery }}
+            - name: SUNDHEDMCP_ANONYMOUS_TOOL_LIST
+              value: "1"
+            {{- end }}
+            {{- else }}
             - name: ADMIN_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ include "sundhedmcp.passwordSecret" . }}
                   key: {{ .Values.adminPassword.secretKey }}
+            {{- end }}
             {{- if include "sundhedmcp.apiTokenEnabled" . }}
             - name: SUNDHEDMCP_API_TOKENS
               valueFrom:

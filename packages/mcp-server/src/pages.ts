@@ -182,7 +182,8 @@ export const signedInPage = (lang: Lang) => shell(lang, T[lang].already, `<p>${T
 
 export const signInFailedPage = (lang: Lang, message: string) => shell(lang, T[lang].failed, `<p>${esc(tr(lang, message))}</p>`, { kind: "error", pill: T[lang].notSignedIn });
 
-export function statusPage(lang: Lang, input: { problems: string[]; mcpUrl: string; loggedIn: boolean }): string {
+/** `loggedIn` is left out when it depends on who signs in (several people). */
+export function statusPage(lang: Lang, input: { problems: string[]; mcpUrl: string; loggedIn?: boolean }): string {
   const t = T[lang];
   if (input.problems.length) {
     return shell(lang, t.notConfigured, `<p>${t.setVars}</p><ul class="rows">${input.problems.map((p) => `<li>${esc(p)}</li>`).join("")}</ul>`, {
@@ -195,7 +196,7 @@ export function statusPage(lang: Lang, input: { problems: string[]; mcpUrl: stri
     lang,
     t.running,
     `<p>${t.addConnector}</p><p><code>${esc(input.mcpUrl)}</code></p>
-     <ul class="rows"><li>${t.session}<span class="r">${input.loggedIn ? t.loggedIn : t.notLoggedIn}</span></li></ul>
+     ${input.loggedIn === undefined ? "" : `<ul class="rows"><li>${t.session}<span class="r">${input.loggedIn ? t.loggedIn : t.notLoggedIn}</span></li></ul>`}
      <p><a href="/connect">${t.loginMitid}</a></p>
      <p class="muted small">${t.computerNote}</p>`,
     { kind: "ok", pill: t.runningPill, back: "/" },
