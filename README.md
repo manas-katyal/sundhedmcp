@@ -115,6 +115,18 @@ Set `SUNDHEDMCP_HOSTED=1` to run hosted mode there at your own risk.
 | `SUNDHEDMCP_BROWSER` | tries chrome, msedge, chrome-beta, chrome-canary, chromium | Playwright channel to use |
 | `SUNDHEDMCP_TAILSCALE` | found in the usual places | Path to the tailscale CLI, for `serve` |
 | `SUNDHEDMCP_KEEPALIVE_MS` | `240000` | How often to touch the session; `0` turns it off |
+| `SUNDHEDMCP_SYNC` | on | `0` fetches the saved copy after each login only |
+
+### Sync
+
+Right after each MitID login the whole record is fetched into the saved copy.
+While the session lasts, each part is fetched again on its own interval, so
+the copy is close to current when sundhed.dk ends the session: the summary,
+medicine card and prescriptions every hour, lab results every 6 hours,
+vaccinations and referrals every day. One part runs at a time, and only reads.
+A part that fails keeps its previous copy and is tried again after 10 minutes,
+then less often. `session_status` shows when each part was fetched and when it
+is fetched next.
 
 ### Storage of the saved copy
 

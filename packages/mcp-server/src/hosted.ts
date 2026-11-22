@@ -4,8 +4,9 @@
 import { createServer as createHttpServer } from "node:http";
 import { join } from "node:path";
 import { config, passwordConfigured, rememberEnvPassword, setupProblems } from "./config.ts";
-import { configureHosted, disconnect, onLogin } from "@sundhedmcp/session";
-import { refresh, useStorage } from "./snapshot.ts";
+import { configureHosted, disconnect } from "@sundhedmcp/session";
+import { useStorage } from "./snapshot.ts";
+import { startSync } from "./sync.ts";
 import { openStorage, SINGLE_OWNER_ID } from "./storage.ts";
 import { createApp } from "./app.ts";
 import type { GuideOptions } from "./guide.ts";
@@ -18,13 +19,14 @@ export interface HostedOptions {
 
 export async function startHosted(opts: HostedOptions = {}): Promise<void> {
   configureHosted(config.baseUrl);
-  // After each MitID login, fetch the whole record and keep an encrypted copy.
+  // After each MitID login, fetch the whole record and keep an encrypted copy,
+  // kept current while the session lasts (sync.ts).
   const storage = await openStorage(config.dataDir, "sqlite");
   if (storage) {
     await useStorage(storage.forOwner(SINGLE_OWNER_ID), join(config.dataDir, "snapshot.json"));
     console.log(`[sundhed] storage: ${storage.info.type} at ${storage.info.location}`);
   }
-  onLogin(() => void refresh().catch((err) => console.error(`[snapshot] failed: ${(err as Error).message}`)));
+  startSync();
   if (rememberEnvPassword()) console.log("[sundhed] stored a hash of ADMIN_PASSWORD on the volume; the variable can now be removed");
 
   // The OAuth issuer is the public address, so when Funnel gives us one the
