@@ -149,6 +149,19 @@ forwards the signed-in user's token (`tokenPassthrough`) instead of an API
 token. kagent needs its own sign-in through the same realm for that (see
 aula-mcp's chart README, "kagent with Keycloak", for the oauth2-proxy setup).
 
+In Keycloak, import
+[`examples/keycloak-connect-client.json`](./charts/sundhedmcp/examples/keycloak-connect-client.json)
+as the `/connect` client (set your host, copy its secret into
+`oidc.clientSecret.existingSecret`), and add
+[`examples/keycloak-kagent-audience-mapper.json`](./charts/sundhedmcp/examples/keycloak-kagent-audience-mapper.json)
+to the client kagent signs in with, so the tokens it forwards carry
+`aud: sundhedmcp`:
+
+```sh
+kcadm.sh create clients -r <realm> -f keycloak-connect-client.json
+kcadm.sh create clients/<kagent client uuid>/protocol-mappers/models -r <realm> -f keycloak-kagent-audience-mapper.json
+```
+
 ### Sync
 
 Right after each MitID login the whole record is fetched into the saved copy.
