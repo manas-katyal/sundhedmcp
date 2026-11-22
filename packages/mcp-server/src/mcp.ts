@@ -1,4 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { instrumentTools } from "./telemetry.ts";
 import { registerTools } from "./tools.ts";
 
 export const VERSION = "0.2.0"; // x-release-please-version
@@ -16,6 +17,6 @@ export function createServer(): McpServer {
       ].join(" "),
     },
   );
-  registerTools(server);
+  registerTools(instrumentTools(server));
   return server;
 }

@@ -129,6 +129,9 @@ spec:
               value: {{ ternary "1" "0" .Values.sync.enabled | quote }}
             - name: SUNDHEDMCP_KEEPALIVE_MS
               value: {{ .Values.keepAliveMs | quote }}
+            {{- with include "sundhedmcp.telemetryEnv" . }}
+            {{- . | nindent 12 }}
+            {{- end }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

@@ -1,0 +1,675 @@
+# Perses dashboard for sundhedmcp, rendered by templates/perses.yaml.
+# The __PLACEHOLDERS__ are filled from .Values.perses and .Values.telemetry;
+# a datasource line whose name is empty is dropped, so Perses uses the default
+# datasource of that kind. Metric names are the OpenTelemetry ones as the
+# collector's Prometheus exporter writes them: dots become underscores, a
+# unit of seconds adds _seconds.
+kind: 'Dashboard'
+metadata:
+  name: __DASHBOARD__
+  project: __PROJECT__
+spec:
+  display:
+    name: __DISPLAY_NAME__
+    description: 'sundhedmcp: is it answering, is sundhed.dk answering, and is the saved copy being fetched.'
+  duration: __DURATION__
+  refreshInterval: __REFRESH__
+  links: __LINKS__
+  panels:
+    requestRate:
+      kind: 'Panel'
+      spec:
+        display:
+          name: 'Requests per second'
+          description: 'HTTP requests answered, over 5 minutes: MCP, the API, the /connect pages.'
+        plugin:
+          kind: 'StatChart'
+          spec:
+            calculation: 'last'
+            format:
+              unit: 'decimal'
+              decimalPlaces: 2
+            thresholds:
+              defaultColor: '#2e9e4f'
+              steps: []
+        queries:
+          - kind: 'TimeSeriesQuery'
+            spec:
+              plugin:
+                kind: 'PrometheusTimeSeriesQuery'
+                spec:
+                  datasource: __PROMETHEUS_DATASOURCE__
+                  query: 'sum(rate(http_server_request_duration_seconds_count{__METRICS__}[5m]))'
+    serverErrors:
+      kind: 'Panel'
+      spec:
+        display:
+          name: 'Server errors'
+          description: 'Share of HTTP answers with a 5xx status over 5 minutes. Above 0 means a route failed: see the HTTP row and the logs.'
+        plugin:
+          kind: 'StatChart'
+          spec:
+            calculation: 'last'
+            format:
+              unit: 'percent-decimal'
+              decimalPlaces: 1
+            thresholds:
+              defaultColor: '#2e9e4f'
+              steps:
+                - value: 0.001
+                  color: '#e0902a'
+                - value: 0.05
+                  color: '#c8372d'
+        queries:
+          - kind: 'TimeSeriesQuery'
+            spec:
+              plugin:
+                kind: 'PrometheusTimeSeriesQuery'
+                spec:
+                  datasource: __PROMETHEUS_DATASOURCE__
+                  query: '(sum(rate(http_server_request_duration_seconds_count{__METRICS__,http_response_status_code=~"5.."}[5m])) or vector(0)) / clamp_min(sum(rate(http_server_request_duration_seconds_count{__METRICS__}[5m])), 1e-9)'
+    sundhedErrors:
+      kind: 'Panel'
+      spec:
+        display:
+          name: 'sundhed.dk calls failing'
+          description: 'Share of calls to sundhed.dk that failed over 15 minutes, an ended session included. Many means sundhed.dk is down or changed.'
+        plugin:
+          kind: 'StatChart'
+          spec:
+            calculation: 'last'
+            format:
+              unit: 'percent-decimal'
+              decimalPlaces: 1
+            thresholds:
+              defaultColor: '#2e9e4f'
+              steps:
+                - value: 0.05
+                  color: '#e0902a'
+                - value: 0.25
+                  color: '#c8372d'
+        queries:
+          - kind: 'TimeSeriesQuery'
+            spec:
+              plugin:
+                kind: 'PrometheusTimeSeriesQuery'
+                spec:
+                  datasource: __PROMETHEUS_DATASOURCE__
+                  query: '(sum(rate(sundhedmcp_sundhed_request_duration_seconds_count{__METRICS__,outcome!="ok"}[15m])) or vector(0)) / clamp_min(sum(rate(sundhedmcp_sundhed_request_duration_seconds_count{__METRICS__}[15m])), 1e-9)'
+    fetchFailures:
+      kind: 'Panel'
+      spec:
+        display:
+          name: 'Parts not fetched (1h)'
+          description: 'Parts of the record that could not be fetched into the saved copy in the last hour. The reason is on the record page and in the logs.'
+        plugin:
+          kind: 'StatChart'
+          spec:
+            calculation: 'last'
+            format:
+              unit: 'decimal'
+              decimalPlaces: 0
+            thresholds:
+              defaultColor: '#2e9e4f'
+              steps:
+                - value: 1
+                  color: '#e0902a'
+                - value: 6
+                  color: '#c8372d'
+            mappings:
+              - kind: 'Value'
+                spec:
+                  value: '0'
+                  result:
+                    value: 'None'
+                    color: '#2e9e4f'
+        queries:
+          - kind: 'TimeSeriesQuery'
+            spec:
+              plugin:
+                kind: 'PrometheusTimeSeriesQuery'
+                spec:
+                  datasource: __PROMETHEUS_DATASOURCE__
+                  query: 'sum(increase(sundhedmcp_fetch_duration_seconds_count{__METRICS__,outcome="error"}[1h])) or vector(0)'
+    toolRate:
+      kind: 'Panel'
+      spec:
+        display:
+          name: 'Tool calls (1h)'
+          description: 'MCP tool calls in the last hour.'
+        plugin:
+          kind: 'StatChart'
+          spec:
+            calculation: 'last'
+            format:
+              unit: 'decimal'
+              decimalPlaces: 0
+            thresholds:
+              defaultColor: '#2e9e4f'
+              steps: []
+        queries:
+          - kind: 'TimeSeriesQuery'
+            spec:
+              plugin:
+                kind: 'PrometheusTimeSeriesQuery'
+                spec:
+                  datasource: __PROMETHEUS_DATASOURCE__
+                  query: 'sum(increase(sundhedmcp_tool_duration_seconds_count{__METRICS__}[1h])) or vector(0)'
+    copies:
+      kind: 'Panel'
+      spec:
+        display:
+          name: 'Saved copies loaded'
+          description: 'People whose saved copy is loaded in this process (several people only).'
+        plugin:
+          kind: 'StatChart'
+          spec:
+            calculation: 'last'
+            format:
+              unit: 'decimal'
+              decimalPlaces: 0
+            thresholds:
+              defaultColor: '#2e9e4f'
+              steps: []
+        queries:
+          - kind: 'TimeSeriesQuery'
+            spec:
+              plugin:
+                kind: 'PrometheusTimeSeriesQuery'
+                spec:
+                  datasource: __PROMETHEUS_DATASOURCE__
+                  query: 'max(sundhedmcp_copies_loaded{__METRICS__}) or vector(0)'
+    httpRequests:
+      kind: 'Panel'
+      spec:
+        display:
+          name: 'Requests by route'
+          description: 'Requests per second by route template. Ids never appear: a route with an id shows as :id.'
+        plugin:
+          kind: 'TimeSeriesChart'
+          spec:
+            legend:
+              position: 'bottom'
+            yAxis:
+              format:
+                unit: 'decimal'
+                decimalPlaces: 2
+              min: 0
+            visual:
+              palette:
+                mode: 'categorical'
+                name: 'tableau10'
+        queries:
+          - kind: 'TimeSeriesQuery'
+            spec:
+              plugin:
+                kind: 'PrometheusTimeSeriesQuery'
+                spec:
+                  datasource: __PROMETHEUS_DATASOURCE__
+                  query: 'sum by (http_route) (rate(http_server_request_duration_seconds_count{__METRICS__}[5m]))'
+                  seriesNameFormat: '{{http_route}}'
+    httpLatency:
+      kind: 'Panel'
+      spec:
+        display:
+          name: 'Slowest routes (p95)'
+          description: '95 % of requests to a route answer faster than this. /mcp tool calls that go to sundhed.dk live are the slow ones.'
+        plugin:
+          kind: 'TimeSeriesChart'
+          spec:
+            legend:
+              position: 'bottom'
+            yAxis:
+              format:
+                unit: 'seconds'
+                decimalPlaces: 2
+              min: 0
+            visual:
+              palette:
+                mode: 'categorical'
+                name: 'tableau10'
+        queries:
+          - kind: 'TimeSeriesQuery'
+            spec:
+              plugin:
+                kind: 'PrometheusTimeSeriesQuery'
+                spec:
+                  datasource: __PROMETHEUS_DATASOURCE__
+                  query: 'histogram_quantile(0.95, sum by (le, http_route) (rate(http_server_request_duration_seconds_bucket{__METRICS__}[5m])))'
+                  seriesNameFormat: '{{http_route}}'
+    httpStatus:
+      kind: 'Panel'
+      spec:
+        display:
+          name: 'Answers by status'
+          description: 'HTTP status codes per second. 401 is a client without a valid token or an expired sign-in; 5xx is ours.'
+        plugin:
+          kind: 'TimeSeriesChart'
+          spec:
+            legend:
+              position: 'bottom'
+            yAxis:
+              format:
+                unit: 'decimal'
+                decimalPlaces: 2
+              min: 0
+            visual:
+              palette:
+                mode: 'categorical'
+                name: 'tableau10'
+        queries:
+          - kind: 'TimeSeriesQuery'
+            spec:
+              plugin:
+                kind: 'PrometheusTimeSeriesQuery'
+                spec:
+                  datasource: __PROMETHEUS_DATASOURCE__
+                  query: 'sum by (http_response_status_code) (rate(http_server_request_duration_seconds_count{__METRICS__}[5m]))'
+                  seriesNameFormat: '{{http_response_status_code}}'
+    sundhedCalls:
+      kind: 'Panel'
+      spec:
+        display:
+          name: 'sundhed.dk calls by app'
+          description: 'Calls to each sundhed.dk app per second, by outcome. session_gone means the MitID session ended.'
+        plugin:
+          kind: 'TimeSeriesChart'
+          spec:
+            legend:
+              position: 'bottom'
+            yAxis:
+              format:
+                unit: 'decimal'
+                decimalPlaces: 2
+              min: 0
+            visual:
+              palette:
+                mode: 'categorical'
+                name: 'tableau10'
+        queries:
+          - kind: 'TimeSeriesQuery'
+            spec:
+              plugin:
+                kind: 'PrometheusTimeSeriesQuery'
+                spec:
+                  datasource: __PROMETHEUS_DATASOURCE__
+                  query: 'sum by (sundhed_app, outcome) (rate(sundhedmcp_sundhed_request_duration_seconds_count{__METRICS__}[5m]))'
+                  seriesNameFormat: '{{sundhed_app}} {{outcome}}'
+    sundhedLatency:
+      kind: 'Panel'
+      spec:
+        display:
+          name: 'sundhed.dk latency (p95)'
+          description: '95 % of calls to an app answer faster than this. The first call to an app also loads its page.'
+        plugin:
+          kind: 'TimeSeriesChart'
+          spec:
+            legend:
+              position: 'bottom'
+            yAxis:
+              format:
+                unit: 'seconds'
+                decimalPlaces: 2
+              min: 0
+            visual:
+              palette:
+                mode: 'categorical'
+                name: 'tableau10'
+        queries:
+          - kind: 'TimeSeriesQuery'
+            spec:
+              plugin:
+                kind: 'PrometheusTimeSeriesQuery'
+                spec:
+                  datasource: __PROMETHEUS_DATASOURCE__
+                  query: 'histogram_quantile(0.95, sum by (le, sundhed_app) (rate(sundhedmcp_sundhed_request_duration_seconds_bucket{__METRICS__}[5m])))'
+                  seriesNameFormat: '{{sundhed_app}}'
+    fetchLatency:
+      kind: 'Panel'
+      spec:
+        display:
+          name: 'Fetching each part (p95)'
+          description: 'How long fetching one part of the record into the saved copy takes. The medicine card and lab results fetch many details.'
+        plugin:
+          kind: 'TimeSeriesChart'
+          spec:
+            legend:
+              position: 'bottom'
+            yAxis:
+              format:
+                unit: 'seconds'
+                decimalPlaces: 2
+              min: 0
+            visual:
+              palette:
+                mode: 'categorical'
+                name: 'tableau10'
+        queries:
+          - kind: 'TimeSeriesQuery'
+            spec:
+              plugin:
+                kind: 'PrometheusTimeSeriesQuery'
+                spec:
+                  datasource: __PROMETHEUS_DATASOURCE__
+                  query: 'histogram_quantile(0.95, sum by (le, sundhedmcp_part) (rate(sundhedmcp_fetch_duration_seconds_bucket{__METRICS__}[30m])))'
+                  seriesNameFormat: '{{sundhedmcp_part}}'
+    fetchOutcome:
+      kind: 'Panel'
+      spec:
+        display:
+          name: 'Parts fetched'
+          description: 'Parts fetched per hour, by part and outcome.'
+        plugin:
+          kind: 'TimeSeriesChart'
+          spec:
+            legend:
+              position: 'bottom'
+            yAxis:
+              format:
+                unit: 'decimal'
+                decimalPlaces: 0
+              min: 0
+            visual:
+              palette:
+                mode: 'categorical'
+                name: 'tableau10'
+        queries:
+          - kind: 'TimeSeriesQuery'
+            spec:
+              plugin:
+                kind: 'PrometheusTimeSeriesQuery'
+                spec:
+                  datasource: __PROMETHEUS_DATASOURCE__
+                  query: 'sum by (sundhedmcp_part, outcome) (increase(sundhedmcp_fetch_duration_seconds_count{__METRICS__}[1h]))'
+                  seriesNameFormat: '{{sundhedmcp_part}} {{outcome}}'
+    toolCalls:
+      kind: 'Panel'
+      spec:
+        display:
+          name: 'Tool calls'
+          description: 'Tool calls per hour, by tool and outcome. An error is a tool that answered with isError, often a person who is not logged in.'
+        plugin:
+          kind: 'TimeSeriesChart'
+          spec:
+            legend:
+              position: 'bottom'
+            yAxis:
+              format:
+                unit: 'decimal'
+                decimalPlaces: 0
+              min: 0
+            visual:
+              palette:
+                mode: 'categorical'
+                name: 'tableau10'
+        queries:
+          - kind: 'TimeSeriesQuery'
+            spec:
+              plugin:
+                kind: 'PrometheusTimeSeriesQuery'
+                spec:
+                  datasource: __PROMETHEUS_DATASOURCE__
+                  query: 'sum by (tool, outcome) (increase(sundhedmcp_tool_duration_seconds_count{__METRICS__}[1h]))'
+                  seriesNameFormat: '{{tool}} {{outcome}}'
+    toolLatency:
+      kind: 'Panel'
+      spec:
+        display:
+          name: 'Slowest tools (p95)'
+          description: '95 % of calls to a tool answer faster than this. A tool answering from the saved copy is fast; a live one waits on sundhed.dk.'
+        plugin:
+          kind: 'TimeSeriesChart'
+          spec:
+            legend:
+              position: 'bottom'
+            yAxis:
+              format:
+                unit: 'seconds'
+                decimalPlaces: 2
+              min: 0
+            visual:
+              palette:
+                mode: 'categorical'
+                name: 'tableau10'
+        queries:
+          - kind: 'TimeSeriesQuery'
+            spec:
+              plugin:
+                kind: 'PrometheusTimeSeriesQuery'
+                spec:
+                  datasource: __PROMETHEUS_DATASOURCE__
+                  query: 'histogram_quantile(0.95, sum by (le, tool) (rate(sundhedmcp_tool_duration_seconds_bucket{__METRICS__}[30m])))'
+                  seriesNameFormat: '{{tool}}'
+    recentTraces:
+      kind: 'Panel'
+      spec:
+        display:
+          name: 'Recent traces'
+          description: 'The newest requests, tool calls and fetches. Click one to see its sundhed.dk calls and how long each took.'
+        plugin:
+          kind: 'TraceTable'
+          spec: {}
+        queries:
+          - kind: 'TraceQuery'
+            spec:
+              plugin:
+                kind: 'TempoTraceQuery'
+                spec:
+                  datasource: __TEMPO_DATASOURCE__
+                  query: '{ resource.service.name = "__SERVICE__" }'
+                  limit: 20
+    errorTraces:
+      kind: 'Panel'
+      spec:
+        display:
+          name: 'Traces with errors'
+          description: 'The newest traces with a failed span: a failed sundhed.dk call, part or tool.'
+        plugin:
+          kind: 'TraceTable'
+          spec: {}
+        queries:
+          - kind: 'TraceQuery'
+            spec:
+              plugin:
+                kind: 'TempoTraceQuery'
+                spec:
+                  datasource: __TEMPO_DATASOURCE__
+                  query: '{ resource.service.name = "__SERVICE__" && status = error }'
+                  limit: 20
+    problemLogs:
+      kind: 'Panel'
+      spec:
+        display:
+          name: 'Failures'
+          description: 'Log lines about something that failed or was refused. CPR numbers, ids, uuids and e-mail addresses are taken out before they leave the pod.'
+        plugin:
+          kind: 'LogsTable'
+          spec:
+            allowWrap: true
+            enableDetails: true
+            showTime: true
+        queries:
+          - kind: 'LogQuery'
+            spec:
+              plugin:
+                kind: 'LokiLogQuery'
+                spec:
+                  datasource: __LOKI_DATASOURCE__
+                  query: '__LOGS__ |~ "(?i)fail|refus|error|could not"'
+    allLogs:
+      kind: 'Panel'
+      spec:
+        display:
+          name: 'All log lines'
+          description: 'Every log line sundhedmcp sent.'
+        plugin:
+          kind: 'LogsTable'
+          spec:
+            allowWrap: true
+            enableDetails: true
+            showTime: true
+        queries:
+          - kind: 'LogQuery'
+            spec:
+              plugin:
+                kind: 'LokiLogQuery'
+                spec:
+                  datasource: __LOKI_DATASOURCE__
+                  query: '__LOGS__'
+  layouts:
+    - kind: 'Grid'
+      spec:
+        display:
+          title: 'At a glance'
+          collapse:
+            open: true
+        items:
+          - x: 0
+            y: 0
+            width: 4
+            height: 4
+            content:
+              "$ref": '#/spec/panels/requestRate'
+          - x: 4
+            y: 0
+            width: 4
+            height: 4
+            content:
+              "$ref": '#/spec/panels/serverErrors'
+          - x: 8
+            y: 0
+            width: 4
+            height: 4
+            content:
+              "$ref": '#/spec/panels/sundhedErrors'
+          - x: 12
+            y: 0
+            width: 4
+            height: 4
+            content:
+              "$ref": '#/spec/panels/fetchFailures'
+          - x: 16
+            y: 0
+            width: 4
+            height: 4
+            content:
+              "$ref": '#/spec/panels/toolRate'
+          - x: 20
+            y: 0
+            width: 4
+            height: 4
+            content:
+              "$ref": '#/spec/panels/copies'
+    - kind: 'Grid'
+      spec:
+        display:
+          title: 'HTTP'
+          collapse:
+            open: true
+        items:
+          - x: 0
+            y: 0
+            width: 8
+            height: 8
+            content:
+              "$ref": '#/spec/panels/httpRequests'
+          - x: 8
+            y: 0
+            width: 8
+            height: 8
+            content:
+              "$ref": '#/spec/panels/httpLatency'
+          - x: 16
+            y: 0
+            width: 8
+            height: 8
+            content:
+              "$ref": '#/spec/panels/httpStatus'
+    - kind: 'Grid'
+      spec:
+        display:
+          title: 'sundhed.dk and the saved copy'
+          collapse:
+            open: true
+        items:
+          - x: 0
+            y: 0
+            width: 12
+            height: 8
+            content:
+              "$ref": '#/spec/panels/sundhedCalls'
+          - x: 12
+            y: 0
+            width: 12
+            height: 8
+            content:
+              "$ref": '#/spec/panels/sundhedLatency'
+          - x: 0
+            y: 8
+            width: 12
+            height: 8
+            content:
+              "$ref": '#/spec/panels/fetchLatency'
+          - x: 12
+            y: 8
+            width: 12
+            height: 8
+            content:
+              "$ref": '#/spec/panels/fetchOutcome'
+    - kind: 'Grid'
+      spec:
+        display:
+          title: 'Tools'
+          collapse:
+            open: false
+        items:
+          - x: 0
+            y: 0
+            width: 12
+            height: 8
+            content:
+              "$ref": '#/spec/panels/toolCalls'
+          - x: 12
+            y: 0
+            width: 12
+            height: 8
+            content:
+              "$ref": '#/spec/panels/toolLatency'
+    - kind: 'Grid'
+      spec:
+        display:
+          title: 'Traces'
+          collapse:
+            open: false
+        items:
+          - x: 0
+            y: 0
+            width: 12
+            height: 10
+            content:
+              "$ref": '#/spec/panels/recentTraces'
+          - x: 12
+            y: 0
+            width: 12
+            height: 10
+            content:
+              "$ref": '#/spec/panels/errorTraces'
+    - kind: 'Grid'
+      spec:
+        display:
+          title: 'Logs'
+          collapse:
+            open: false
+        items:
+          - x: 0
+            y: 0
+            width: 12
+            height: 12
+            content:
+              "$ref": '#/spec/panels/problemLogs'
+          - x: 12
+            y: 0
+            width: 12
+            height: 12
+            content:
+              "$ref": '#/spec/panels/allLogs'

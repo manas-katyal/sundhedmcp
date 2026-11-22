@@ -13,6 +13,7 @@ import { existsSync, readFileSync, rmSync } from "node:fs";
 import { monthsAgo, sundhed } from "@sundhedmcp/client";
 import { defaultSession, SessionGone, type SundhedSession, withSession } from "@sundhedmcp/session";
 import type { ItemInput, ItemKind, OwnerStorage, StoredItem } from "./storage.ts";
+import { traceFetch } from "./telemetry.ts";
 
 /** How far back the copy's lab results go. */
 export const LAB_YEARS = 10;
@@ -169,7 +170,7 @@ export class SavedCopy {
     for (const part of parts) {
       if (!sessionEnded) {
         try {
-          await FETCH[part](snap, take);
+          await traceFetch(part, () => FETCH[part](snap, take), () => snap[part] !== undefined);
         } catch (err) {
           if (!(err instanceof SessionGone)) throw err;
           sessionEnded = true;

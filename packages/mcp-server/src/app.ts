@@ -19,6 +19,7 @@ import { currentSession, loginViewport, type LoginInput, type SundhedSession } f
 import { createConnectSignIn, createTokenVerifier, type OidcConfig, type OidcDeps, onlyListsTools, protectedResourceMetadata, requireCaller } from "./oidc.ts";
 import { asOwner, defaultCopy, PART_NAMES, type SavedCopy } from "./snapshot.ts";
 import { type ApiCaller, mountApi } from "./api.ts";
+import { httpTelemetry } from "./telemetry.ts";
 import type { Users } from "./users.ts";
 
 const VIEWER_COOKIE = "sundhed_viewer";
@@ -38,6 +39,7 @@ export function createApp(guide?: GuideOptions, multi?: MultiUser) {
   const app = express();
   app.set("trust proxy", 1);
   app.disable("x-powered-by");
+  app.use(httpTelemetry());
   const strictCsp = "default-src 'none'; font-src 'self'; style-src 'unsafe-inline'; img-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'";
   app.use((_req, res, next) => {
     res.set({ "X-Frame-Options": "DENY", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "Content-Security-Policy": strictCsp });

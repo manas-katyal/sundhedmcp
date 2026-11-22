@@ -35,6 +35,11 @@ export class Users {
     return copy;
   }
 
+  /** How many people's copies are loaded. */
+  get loaded(): number {
+    return this.copies.size;
+  }
+
   /** The copy that belongs to a session, for sync after a login. */
   copyOf(session: SundhedSession): SavedCopy | undefined {
     return this.bySession.get(session);

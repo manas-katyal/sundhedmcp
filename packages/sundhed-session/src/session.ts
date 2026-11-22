@@ -7,6 +7,7 @@
 // browser). The functions below act on the session of whoever the current
 // call runs for (withSession), or on the one default session otherwise.
 import { AsyncLocalStorage } from "node:async_hooks";
+import { metrics, SpanKind, SpanStatusCode, trace } from "@opentelemetry/api";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright-core";
 
 export const ORIGIN = "https://www.sundhed.dk";
@@ -331,7 +332,7 @@ export class SundhedSession {
 
   /** GET a sundhed.dk path (e.g. "/app/vaccination/api/v1/overview") as JSON, inside the logged-in browser. */
   apiGet(path: string): Promise<unknown> {
-    const run = this.queue.then(() => this.apiGetNow(path));
+    const run = this.queue.then(() => traced(appOf(path), () => this.apiGetNow(path)));
     this.queue = run.catch(() => {});
     return run;
   }
@@ -351,6 +352,7 @@ export class SundhedSession {
       s.apps.delete(app);
       res = await fetchInPage(s, app, path);
     }
+    trace.getActiveSpan()?.setAttribute("http.response.status_code", res.status);
     if (res.status === 401 || res.status === 403) {
       if (!(await checkLoggedIn(s))) {
         this.markEnded(s);
@@ -447,6 +449,54 @@ export class SundhedSession {
     // A string expression: it runs in the page, and this project has no DOM types.
     const text = await s.login.evaluate<string>("document.body ? document.body.innerText : ''").catch(() => "");
     return /scan qr/i.test(text);
+  }
+}
+
+// --- Telemetry: a no-op unless the server set up OpenTelemetry (hosted mode) ---
+
+const requestDuration = (() => {
+  let made: { provider: unknown; histogram: ReturnType<ReturnType<typeof metrics.getMeter>["createHistogram"]> } | null = null;
+  return () => {
+    const provider = metrics.getMeterProvider();
+    if (made?.provider !== provider) {
+      made = {
+        provider,
+        histogram: metrics.getMeter("sundhedmcp").createHistogram("sundhedmcp.sundhed.request.duration", {
+          unit: "s",
+          description: "Calls to sundhed.dk's APIs from the logged-in browser, by app and outcome.",
+          advice: { explicitBucketBoundaries: [0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60] },
+        }),
+      };
+    }
+    return made.histogram;
+  };
+})();
+
+/**
+ * A client span and the request-duration histogram around one API call. Only
+ * the app's name is recorded (one of APP_PAGES), never the path: paths hold
+ * ids from the record.
+ */
+async function traced<T>(appName: string, run: () => Promise<T>): Promise<T> {
+  const app = appName in APP_PAGES ? appName : "other";
+  const started = performance.now();
+  let outcome = "error";
+  try {
+    return await trace.getTracer("sundhedmcp").startActiveSpan(`GET sundhed.dk ${app}`, { kind: SpanKind.CLIENT, attributes: { "sundhed.app": app } }, async (span) => {
+      try {
+        const result = await run();
+        outcome = "ok";
+        return result;
+      } catch (err) {
+        outcome = err instanceof SessionGone ? "session_gone" : "error";
+        span.setStatus({ code: SpanStatusCode.ERROR, message: outcome });
+        throw err;
+      } finally {
+        span.end();
+      }
+    });
+  } finally {
+    requestDuration().record((performance.now() - started) / 1000, { "sundhed.app": app, outcome });
   }
 }
 

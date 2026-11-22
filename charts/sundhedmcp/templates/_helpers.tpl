@@ -107,4 +107,53 @@ existingSecret, else the one kept in the chart's Secret, else new. Cached on
 {{- if and .Values.httpRoute.enabled (hasPrefix "http://localhost" .Values.baseUrl) }}
 {{- fail "httpRoute needs baseUrl set to the public URL: OAuth and the MitID login page use it" }}
 {{- end }}
+{{- if and .Values.telemetry.enabled (not .Values.telemetry.endpoint) }}
+{{- fail "telemetry needs telemetry.endpoint (an OTLP/HTTP collector URL)" }}
+{{- end }}
+{{- if and .Values.perses.enabled (not (and .Values.telemetry.enabled .Values.telemetry.signals.metrics)) }}
+{{- fail "perses needs telemetry.enabled and telemetry.signals.metrics: the dashboard reads those metrics" }}
+{{- end }}
+{{- end }}
+
+{{/* service.name for telemetry and the dashboard. */}}
+{{- define "sundhedmcp.serviceName" -}}
+{{- .Values.telemetry.serviceName | default (include "sundhedmcp.fullname" .) }}
+{{- end }}
+
+{{- define "sundhedmcp.telemetrySignals" -}}
+{{- $on := list }}
+{{- range $name := list "traces" "metrics" "logs" }}
+{{- if index $.Values.telemetry.signals $name }}{{ $on = append $on $name }}{{ end }}
+{{- end }}
+{{- join "," $on }}
+{{- end }}
+
+{{- define "sundhedmcp.resourceAttributes" -}}
+{{- $pairs := list }}
+{{- range $k, $v := .Values.telemetry.resourceAttributes }}
+{{- $pairs = append $pairs (printf "%s=%v" $k $v) }}
+{{- end }}
+{{- join "," $pairs }}
+{{- end }}
+
+{{/* OpenTelemetry env for the pod. */}}
+{{- define "sundhedmcp.telemetryEnv" -}}
+{{- if .Values.telemetry.enabled -}}
+- name: SUNDHEDMCP_OTEL
+  value: "1"
+- name: OTEL_EXPORTER_OTLP_ENDPOINT
+  value: {{ .Values.telemetry.endpoint | quote }}
+- name: OTEL_SERVICE_NAME
+  value: {{ include "sundhedmcp.serviceName" . | quote }}
+- name: SUNDHEDMCP_OTEL_SIGNALS
+  value: {{ include "sundhedmcp.telemetrySignals" . | quote }}
+- name: SUNDHEDMCP_OTEL_SAMPLE_RATIO
+  value: {{ .Values.telemetry.traceSampleRatio | quote }}
+- name: OTEL_METRIC_EXPORT_INTERVAL
+  value: {{ mul .Values.telemetry.metricIntervalSeconds 1000 | quote }}
+{{- with include "sundhedmcp.resourceAttributes" . }}
+- name: OTEL_RESOURCE_ATTRIBUTES
+  value: {{ . | quote }}
+{{- end }}
+{{- end }}
 {{- end }}

@@ -220,6 +220,33 @@ it is fetched again at the next login.
 otherwise. A `snapshot.json` or `oauth.json` from an earlier version is moved
 into the database on start and then deleted.
 
+### Telemetry (OpenTelemetry)
+
+Hosted mode can send traces, metrics and logs over OTLP/HTTP to a collector.
+It is off unless `SUNDHEDMCP_OTEL=1`, and local stdio mode never sends
+anything. What leaves the server: route templates (`/api/v1/prescriptions/:id`,
+never the id), tool names, record part names, sundhed.dk app names, status
+codes, counts and durations. Never health data, CPR numbers or who is signed
+in. Log lines are sent with CPR numbers, uuids, e-mail addresses and runs of
+six or more digits taken out.
+
+| Variable | Default | |
+|---|---|---|
+| `SUNDHEDMCP_OTEL` | | `1` turns telemetry on |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4318` | Collector base URL; `/v1/traces`, `/v1/metrics` and `/v1/logs` are added |
+| `OTEL_SERVICE_NAME` | `sundhedmcp` | `service.name` |
+| `SUNDHEDMCP_OTEL_SIGNALS` | `traces,metrics,logs` | Which signals to send |
+| `SUNDHEDMCP_OTEL_SAMPLE_RATIO` | `1` | Share of new traces kept; a caller's `traceparent` decides for its own |
+| `OTEL_METRIC_EXPORT_INTERVAL` | `30000` | Milliseconds between metric exports |
+
+Metrics: `http.server.request.duration` (by route and status),
+`sundhedmcp.tool.duration` (by tool and outcome),
+`sundhedmcp.fetch.duration` (each part fetched into the saved copy),
+`sundhedmcp.sundhed.request.duration` (calls to sundhed.dk, by app and
+outcome) and `sundhedmcp.copies.loaded`. The chart's `perses.enabled` adds a
+[Perses](https://perses.dev) dashboard for them as a ConfigMap for the Perses
+provisioning sidecar.
+
 ### Kubernetes (Helm, kagent)
 
 The chart in [`charts/sundhedmcp`](./charts/sundhedmcp) runs hosted mode in
@@ -245,7 +272,7 @@ With `kagent.enabled: true` the chart adds a `RemoteMCPServer` (and with
 the API token as its `Authorization` header, from a Secret the chart copies
 there. `networkPolicy.enabled` limits who reaches the pod to kagent, the helm
 test and `networkPolicy.from`. See [`values.yaml`](./charts/sundhedmcp/values.yaml)
-for Postgres, an existing storage key and the rest.
+for Postgres, an existing storage key, `telemetry` and `perses`, and the rest.
 
 Test the chart in [kind](https://kind.sigs.k8s.io/) (needs kind, helm,
 kubectl and podman or docker):
