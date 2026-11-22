@@ -89,7 +89,7 @@ export function registerTools(server: McpServer): void {
     },
     guard(async ({ forget_saved_copy }) => {
       await disconnect();
-      if (forget_saved_copy) forget();
+      if (forget_saved_copy) await forget();
       return text(`Logged out. The browser is closed and the session is gone.${forget_saved_copy ? " The saved copy is deleted." : ""}`);
     }),
   );

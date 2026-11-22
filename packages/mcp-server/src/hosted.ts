@@ -5,7 +5,8 @@ import { createServer as createHttpServer } from "node:http";
 import { join } from "node:path";
 import { config, passwordConfigured, rememberEnvPassword, setupProblems } from "./config.ts";
 import { configureHosted, disconnect, onLogin } from "@sundhedmcp/session";
-import { persistTo, refresh } from "./snapshot.ts";
+import { refresh, useStorage } from "./snapshot.ts";
+import { openStorage, SINGLE_OWNER_ID } from "./storage.ts";
 import { createApp } from "./app.ts";
 import type { GuideOptions } from "./guide.ts";
 
@@ -15,10 +16,14 @@ export interface HostedOptions {
   guide?: Omit<GuideOptions, "onPublicUrl">;
 }
 
-export function startHosted(opts: HostedOptions = {}): Promise<void> {
+export async function startHosted(opts: HostedOptions = {}): Promise<void> {
   configureHosted(config.baseUrl);
-  // After each MitID login, fetch the whole record and keep a copy on disk.
-  persistTo(join(config.dataDir, "snapshot.json"));
+  // After each MitID login, fetch the whole record and keep an encrypted copy.
+  const storage = await openStorage(config.dataDir, "sqlite");
+  if (storage) {
+    await useStorage(storage.forOwner(SINGLE_OWNER_ID), join(config.dataDir, "snapshot.json"));
+    console.log(`[sundhed] storage: ${storage.info.type} at ${storage.info.location}`);
+  }
   onLogin(() => void refresh().catch((err) => console.error(`[snapshot] failed: ${(err as Error).message}`)));
   if (rememberEnvPassword()) console.log("[sundhed] stored a hash of ADMIN_PASSWORD on the volume; the variable can now be removed");
 
@@ -43,7 +48,7 @@ export function startHosted(opts: HostedOptions = {}): Promise<void> {
   // Take the browser, and the session in it, down with the process.
   for (const signal of ["SIGINT", "SIGTERM"] as const) {
     process.on(signal, async () => {
-      await Promise.race([disconnect(), new Promise((r) => setTimeout(r, 3_000))]);
+      await Promise.race([Promise.all([disconnect(), storage?.close()]), new Promise((r) => setTimeout(r, 3_000))]);
       process.exit(0);
     });
   }
