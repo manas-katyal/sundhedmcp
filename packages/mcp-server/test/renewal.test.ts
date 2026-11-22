@@ -194,3 +194,97 @@ test("the dashboard form asks to confirm, and escapes what sundhed.dk wrote", as
   assert.ok(!list.includes("/connect/record/renewals/102\""));
   assert.match(renewalsPage("en", { loggedIn: false }), /href="\/connect"/);
 });
+
+// --- Auto-renew, with a made-up clock and medicine card ---
+
+const memoryStore = () => {
+  const settings = new Map<string, unknown>();
+  return { setting: async (id: string) => structuredClone(settings.get(id)), setSetting: async (id: string, data: unknown) => void settings.set(id, structuredClone(data)) };
+};
+
+test("auto-renew sends only what is due, checked against the card as it is then", async () => {
+  const { addRule, loadAutoRenew, runAutoRenew, stopRule } = await import("../src/auto-renew.ts");
+  const store = memoryStore();
+  const day = 86_400_000;
+  const start = new Date("2026-03-01T08:00:00Z");
+  const at = (d: number) => new Date(start.getTime() + d * day);
+  // Each rule is made right after a renewal of it was sent.
+  await addRule(store, { id: "101", drug: "Testamol", packageNumber: "111", packageText: "20 stk.", quantity: 2 }, start);
+  await addRule(store, { id: "103", drug: "Igangin", packageNumber: "1", packageText: "x", quantity: 1 }, start);
+  await addRule(store, { id: "102", drug: "Privatin", packageNumber: "1", packageText: "x", quantity: 1 }, start);
+  const { client, sent } = fakeClient();
+  const opts = { client, cooldownMs: 14 * day };
+
+  // Not due yet: nothing is sent, and nothing logged.
+  assert.deepEqual(await runAutoRenew(store, { ...opts, loggedIn: true, now: at(13) }), []);
+  assert.equal((await loadAutoRenew(store)).lastCheckAt, at(13).toISOString());
+
+  // Due, but logged out: nothing is sent; each is logged as missed.
+  const missed = await runAutoRenew(store, { ...opts, loggedIn: false, now: at(14) });
+  assert.deepEqual(missed.map((e) => [e.id, e.outcome]), [["101", "missed"], ["103", "missed"], ["102", "missed"]]);
+  assert.deepEqual(sent, []);
+
+  // Logged in: the one still offered is sent; the others are skipped and stay due.
+  const done = await runAutoRenew(store, { ...opts, loggedIn: true, now: at(15) });
+  assert.deepEqual(done.map((e) => [e.id, e.outcome]), [["101", "sent"], ["103", "skipped"], ["102", "skipped"]]);
+  assert.match(done[1]?.detail ?? "", /being handled/);
+  assert.match(done[2]?.detail ?? "", /private-marked/);
+  assert.deepEqual(sent, [{ drugMedicationId: 101, medicineCardVersion: 7, packageNumber: 111, quantity: 2 }]);
+  const state = await loadAutoRenew(store);
+  assert.equal(state.rules.find((r) => r.id === "101")?.lastSentAt, at(15).toISOString());
+  assert.equal(state.rules.find((r) => r.id === "103")?.lastSentAt, start.toISOString());
+  // Newest first.
+  assert.equal(state.events[0]?.id, "101");
+  assert.equal(state.events[0]?.at, at(15).toISOString());
+
+  // The next day only the skipped ones are tried again; 101 waits out its cooldown.
+  await stopRule(store, "102");
+  const next = await runAutoRenew(store, { ...opts, loggedIn: true, now: at(16) });
+  assert.deepEqual(next.map((e) => e.id), ["103"]);
+  assert.equal(sent.length, 1);
+  assert.equal(await stopRule(store, "nope"), false);
+});
+
+test("auto-renew logs a package sundhed.dk no longer offers as failed, and sends nothing", async () => {
+  const { addRule, runAutoRenew } = await import("../src/auto-renew.ts");
+  const store = memoryStore();
+  await addRule(store, { id: "101", drug: "Testamol", packageNumber: "999", packageText: "gone", quantity: 1 }, new Date("2026-01-01T00:00:00Z"));
+  const { client, sent } = fakeClient();
+  const [e] = await runAutoRenew(store, { client, loggedIn: true, now: new Date("2026-02-01T00:00:00Z"), cooldownMs: 86_400_000 });
+  assert.equal(e?.outcome, "failed");
+  assert.match(e?.detail ?? "", /not one Testamol can be renewed with/);
+  assert.deepEqual(sent, []);
+});
+
+test("the cooldown defaults to 14 days and ignores nonsense", async () => {
+  const { cooldownMs } = await import("../src/auto-renew.ts");
+  const day = 86_400_000;
+  assert.equal(cooldownMs({}), 14 * day);
+  assert.equal(cooldownMs({ SUNDHEDMCP_AUTO_RENEW_COOLDOWN_DAYS: "7" }), 7 * day);
+  for (const bad of ["0", "-3", "soon"]) assert.equal(cooldownMs({ SUNDHEDMCP_AUTO_RENEW_COOLDOWN_DAYS: bad }), 14 * day);
+});
+
+test("the renewals page lists auto-renew rules with a Stop button, and its log, also when logged out", async () => {
+  const { renewalFormPage, renewalsPage } = await import("../src/dashboard.ts");
+  const { addRule, loadAutoRenew } = await import("../src/auto-renew.ts");
+  const store = memoryStore();
+  await addRule(store, { id: "101", drug: "<i>Testamol</i>", packageNumber: "111", packageText: "20 stk.", quantity: 2 });
+  const auto = { state: await loadAutoRenew(store), cooldownMs: 14 * 86_400_000 };
+  const out = renewalsPage("en", { loggedIn: false, auto });
+  assert.match(out, /action="\/connect\/record\/renewals\/auto\/stop"/);
+  assert.match(out, /name="id" value="101"/);
+  assert.match(out, /Auto-renew turned on/);
+  assert.ok(!out.includes("<i>Testamol</i>"));
+  const listed = renewalsPage("da", { loggedIn: true, overview: await renewalOverview(fakeClient().client), auto });
+  assert.match(listed, /fornyes automatisk/);
+  // No rules and no log: no section.
+  assert.doesNotMatch(renewalsPage("en", { loggedIn: false, auto: { state: { rules: [], events: [] }, cooldownMs: 1 } }), /Auto-renew/);
+  const c = await renewalChoices("101", fakeClient().client);
+  assert.match(renewalFormPage("en", c, undefined, 14 * 86_400_000), /name="auto" value="1">[^<]*every 14 days/);
+  assert.doesNotMatch(renewalFormPage("en", c), /name="auto"/);
+});
+
+test("stopping auto-renew needs a same-origin form", async () => {
+  const res = await fetch(`${base}/connect/record/renewals/auto/stop`, { method: "POST", redirect: "manual", headers: { "content-type": "application/x-www-form-urlencoded", origin: "https://evil.example.test" }, body: "id=101" });
+  assert.equal(res.status, 403);
+});

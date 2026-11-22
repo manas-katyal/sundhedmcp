@@ -19,7 +19,8 @@ import { currentSession, loginViewport, type LoginInput, SessionGone, type Sundh
 import { createConnectSignIn, createTokenVerifier, type OidcConfig, type OidcDeps, onlyListsTools, protectedResourceMetadata, requireCaller } from "./oidc.ts";
 import { asOwner, defaultCopy, PART_NAMES, type SavedCopy } from "./snapshot.ts";
 import { type ApiCaller, mountApi } from "./api.ts";
-import { dashboardPage, type DashboardInput, PART_SLUGS, partOfSlug, partPage, renewalFormPage, renewalResultPage, renewalsPage, renewalTexts } from "./dashboard.ts";
+import { AUTO_STOP, dashboardPage, type DashboardInput, PART_SLUGS, partOfSlug, partPage, renewalFormPage, renewalResultPage, renewalsPage, renewalTexts } from "./dashboard.ts";
+import { addRule, cooldownMs, loadAutoRenew, stopRule } from "./auto-renew.ts";
 import { RenewalError, renewalChoices, renewalOverview, sendRenewal } from "./renewal.ts";
 import { syncStatus } from "./sync.ts";
 import { httpTelemetry } from "./telemetry.ts";
@@ -271,13 +272,15 @@ export function createApp(guide?: GuideOptions, multi?: MultiUser) {
       if (!copy) return;
       const lang = langOf(req);
       const s = await copy.session.status().catch(() => ({ loggedIn: false }));
+      const auto = { state: await loadAutoRenew(copy), cooldownMs: cooldownMs() };
+      const notice = req.query.stopped === "1" ? renewalTexts(lang).stopped : undefined;
       let page: string;
-      if (!s.loggedIn) page = renewalsPage(lang, { loggedIn: false });
+      if (!s.loggedIn) page = renewalsPage(lang, { loggedIn: false, auto, notice });
       else {
         try {
-          page = renewalsPage(lang, { loggedIn: true, overview: await asOwner(copy, () => renewalOverview()) });
+          page = renewalsPage(lang, { loggedIn: true, overview: await asOwner(copy, () => renewalOverview()), auto, notice });
         } catch (err) {
-          page = renewalsPage(lang, { loggedIn: true, error: renewalFailure(err) });
+          page = renewalsPage(lang, { loggedIn: true, error: renewalFailure(err), auto, notice });
         }
       }
       res.set("Cache-Control", "no-store").type("html").send(page);
@@ -288,7 +291,7 @@ export function createApp(guide?: GuideOptions, multi?: MultiUser) {
       const lang = langOf(req);
       let page: string;
       try {
-        page = renewalFormPage(lang, await asOwner(copy, () => renewalChoices(String(req.params.id))));
+        page = renewalFormPage(lang, await asOwner(copy, () => renewalChoices(String(req.params.id))), undefined, cooldownMs());
       } catch (err) {
         page = renewalResultPage(lang, { error: renewalFailure(err) });
       }
@@ -303,15 +306,25 @@ export function createApp(guide?: GuideOptions, multi?: MultiUser) {
       let page: string;
       try {
         if (body.confirm !== "1") {
-          page = renewalFormPage(lang, await asOwner(copy, () => renewalChoices(id)), renewalTexts(lang).mustConfirm);
+          page = renewalFormPage(lang, await asOwner(copy, () => renewalChoices(id)), renewalTexts(lang).mustConfirm, cooldownMs());
         } else {
           const r = await asOwner(copy, () => sendRenewal({ id, packageNumber: String(body.packageNumber ?? ""), quantity: Number(body.quantity) }));
-          page = renewalResultPage(lang, { drug: r.medicine.drug, pkg: r.package.text, quantity: r.quantity });
+          // Auto-renew asks for the same again later (auto-renew.ts); the rule is made only from a renewal just sent.
+          const auto = body.auto === "1";
+          if (auto) {
+            await addRule(copy, { id: r.medicine.id, drug: r.medicine.drug, ...(r.medicine.strength ? { strength: r.medicine.strength } : {}), packageNumber: r.package.number, packageText: r.package.text, quantity: r.quantity });
+          }
+          page = renewalResultPage(lang, { drug: r.medicine.drug, pkg: r.package.text, quantity: r.quantity, ...(auto ? { autoCooldownMs: cooldownMs() } : {}) });
         }
       } catch (err) {
         page = renewalResultPage(lang, { error: renewalFailure(err) });
       }
       res.set("Cache-Control", "no-store").type("html").send(page);
+    });
+    app.post(AUTO_STOP, requireViewer, express.urlencoded({ extended: false, limit: "1kb" }), async (req, res) => {
+      const copy = await viewerCopy(req);
+      if (copy) await stopRule(copy, String((req.body as Record<string, unknown> | undefined)?.id ?? ""));
+      res.redirect(303, `/connect/record/renewals${copy ? "?stopped=1" : ""}`);
     });
   }
   app.get(["/connect/record", "/connect/record/:part"], async (req, res) => {

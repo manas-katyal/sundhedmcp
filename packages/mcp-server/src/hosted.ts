@@ -7,6 +7,7 @@ import { config, MIN_API_TOKEN_LENGTH, passwordConfigured, rememberEnvPassword, 
 import { closeBrowser, configureHosted } from "@sundhedmcp/session";
 import { defaultCopy, useStorage } from "./snapshot.ts";
 import { startSync } from "./sync.ts";
+import { startAutoRenew } from "./auto-renew.ts";
 import { openStorage, SERVER_OWNER_ID, SINGLE_OWNER_ID } from "./storage.ts";
 import { store } from "./store.ts";
 import { createApp, type MultiUser } from "./app.ts";
@@ -39,6 +40,7 @@ export async function startHosted(opts: HostedOptions = {}): Promise<void> {
     const users = new Users(storage);
     multi = { oidc, users };
     startSync(process.env, (session) => users.copyOf(session));
+    if (config.allowRenewal) startAutoRenew(() => users.all(), (session) => users.copyOf(session), (line) => console.log(`[sundhed] ${line}`));
     // After sync is listening: a resumed login is fetched like a new one.
     void users.resumeLogins().then((n) => n && console.log(`[sundhed] resumed ${n} kept login(s)`), (err) => console.error(`[sundhed] could not resume logins: ${(err as Error).message}`));
     observeGauge("sundhedmcp.copies.loaded", "People whose saved copy is loaded in this process.", () => users.loaded);
@@ -50,6 +52,7 @@ export async function startHosted(opts: HostedOptions = {}): Promise<void> {
       defaultCopy.keepLogin();
     }
     startSync();
+    if (config.allowRenewal) startAutoRenew(() => [defaultCopy], (session) => (session === defaultCopy.session ? defaultCopy : undefined), (line) => console.log(`[sundhed] ${line}`));
     if (storage) void defaultCopy.resumeLogin().catch((err) => console.error(`[sundhed] could not resume the login: ${(err as Error).message}`));
     if (rememberEnvPassword()) console.log("[sundhed] stored a hash of ADMIN_PASSWORD on the volume; the variable can now be removed");
   }
