@@ -169,6 +169,16 @@ test("a dashboard form sent with Origin: null passes the same-origin check only 
   assert.equal((await post({ origin: "https://evil.example.test", "sec-fetch-site": "same-origin" })).status, 403);
 });
 
+test("pages run only the busy script, and the CSP allows exactly that script", async () => {
+  const res = await fetch(`${base}/`);
+  const html = await res.text();
+  const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1] ?? "");
+  assert.equal(scripts.length, 1);
+  const { createHash } = await import("node:crypto");
+  const hash = `'sha256-${createHash("sha256").update(scripts[0] ?? "").digest("base64")}'`;
+  assert.match(res.headers.get("content-security-policy") ?? "", new RegExp(`script-src ${hash.replace(/[+/]/g, "\\$&")};`));
+});
+
 test("the dashboard form asks to confirm, and escapes what sundhed.dk wrote", async () => {
   const { renewalFormPage, renewalsPage } = await import("../src/dashboard.ts");
   const c = await renewalChoices("101", fakeClient().client);
@@ -176,7 +186,9 @@ test("the dashboard form asks to confirm, and escapes what sundhed.dk wrote", as
   assert.match(form, /name="confirm" value="1" required/);
   assert.match(form, /value="222" required checked/);
   assert.ok(!form.includes("<b>Testamol</b>"));
-  assert.ok(!/<script/i.test(form));
+  // The only script is the shell's busy notice, which the CSP allows by hash.
+  assert.equal(form.match(/<script/gi)?.length, 1);
+  assert.match(form, /id="busy"[^>]*hidden/);
   const list = renewalsPage("en", { loggedIn: true, overview: await renewalOverview(fakeClient().client) });
   assert.match(list, /href="\/connect\/record\/renewals\/101"/);
   assert.ok(!list.includes("/connect/record/renewals/102\""));

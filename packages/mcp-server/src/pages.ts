@@ -1,6 +1,8 @@
 // Server-rendered pages for hosted mode: first run, the OAuth sign-in, the status
 // page and the /connect page where the owner logs in with MitID from afar.
 // Danish by default, with a DK | EN toggle remembered in a cookie.
+import { createHash } from "node:crypto";
+
 export const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
 export type Lang = "da" | "en";
@@ -44,6 +46,7 @@ const T = {
     langLabel: "Sprog",
     recordLink: "Se din journal",
     raw: "Rå data", more: (n: number) => `og ${n} mere`,
+    busy: "Arbejder … sundhed.dk kan være lidt om at svare",
   },
   en: {
     footer: "SundhedMCP · read-only · self-hosted · not affiliated with sundhed.dk",
@@ -74,6 +77,7 @@ const T = {
     langLabel: "Language",
     recordLink: "See your record",
     raw: "Raw data", more: (n: number) => `and ${n} more`,
+    busy: "Working … sundhed.dk can take a moment to answer",
   },
 } as const;
 
@@ -91,6 +95,35 @@ const DA_ERRORS: Record<string, string> = {
 export const tr = (lang: Lang, message: string) => (lang === "da" ? (DA_ERRORS[message] ?? message.replace(/^Use at least (\d+) characters\.$/, "Brug mindst $1 tegn.")) : message);
 
 type Kind = "neutral" | "ok" | "error";
+
+// Pages answer only after sundhed.dk has, which can take seconds. While the
+// next page loads, this shows a busy notice and stops a form being sent twice.
+// It is the same on every page, so the CSP allows it by hash, not 'unsafe-inline'.
+const BUSY_SCRIPT = `(() => {
+  const busy = document.getElementById("busy");
+  let timer = 0;
+  const show = () => { clearTimeout(timer); timer = setTimeout(() => { busy.hidden = false; }, 150); };
+  document.addEventListener("click", (e) => {
+    const a = e.target instanceof Element ? e.target.closest("a[href]") : null;
+    if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || a.target || a.hasAttribute("download")) return;
+    const url = new URL(a.href, location.href);
+    if (url.origin !== location.origin || (url.pathname === location.pathname && url.search === location.search && url.hash)) return;
+    show();
+  });
+  document.addEventListener("submit", (e) => {
+    if (e.defaultPrevented) return;
+    for (const b of e.target.querySelectorAll("button[type=submit], button:not([type])")) b.disabled = true;
+    show();
+  });
+  // Back and forward can show this page from the cache with the notice still up.
+  addEventListener("pageshow", () => {
+    clearTimeout(timer);
+    busy.hidden = true;
+    for (const b of document.querySelectorAll("button[disabled]")) b.disabled = false;
+  });
+})();`;
+/** For the Content-Security-Policy's script-src. */
+export const BUSY_SCRIPT_HASH = `'sha256-${createHash("sha256").update(BUSY_SCRIPT).digest("base64")}'`;
 
 /** `back` is the GET address to return to after switching language; leave it out on pages that answer a form. */
 export function shell(lang: Lang, title: string, body: string, opts: { kind?: Kind; pill?: string; head?: string; wide?: boolean; back?: string } = {}): string {
@@ -143,13 +176,20 @@ export function shell(lang: Lang, title: string, body: string, opts: { kind?: Ki
   .lang-toggle .thumb{position:absolute;top:2px;left:2px;width:26px;height:22px;border-radius:999px;background:var(--card);box-shadow:0 1px 3px rgba(0,0,0,.14);transition:translate 350ms var(--spring)}
   .lang-toggle[data-on="true"] .thumb{translate:30px 0}
   .lang-toggle:hover[data-on="false"] .thumb{translate:4px 0}.lang-toggle:hover[data-on="true"] .thumb{translate:26px 0}
-  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+  .busy{position:fixed;left:50%;bottom:24px;translate:-50% 0;z-index:10;display:flex;align-items:center;gap:10px;max-width:calc(100% - 32px);padding:10px 18px;border-radius:999px;background:var(--ink);color:var(--on-ink);font-size:14px;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+  .busy[hidden]{display:none}
+  .busy .spin{width:16px;height:16px;flex:none;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:spin 800ms linear infinite}
+  @keyframes spin{to{rotate:360deg}}
+  button:disabled{opacity:.5;cursor:progress}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}.busy .spin{animation-duration:2.4s}}
 </style>
 <body><div class="wrap">
   <div class="top"><div class="brand"><svg class="mark" viewBox="0 0 512 512" aria-hidden="true"> <defs> <linearGradient id="m-chip" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#6b2a6e"/><stop offset="0.45" stop-color="#b8456f"/><stop offset="0.75" stop-color="#e0566f"/><stop offset="1" stop-color="#ff9a5a"/></linearGradient> <linearGradient id="m-gloss" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.5"/><stop offset="0.5" stop-color="#fff" stop-opacity="0"/></linearGradient> <linearGradient id="m-heart" x1="0.2" y1="0" x2="0.8" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#fdf1f4"/></linearGradient> <linearGradient id="m-shine" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.45"/><stop offset="0.55" stop-color="#fff" stop-opacity="0"/></linearGradient> <filter id="m-soft" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#2a1537" flood-opacity="0.3"/></filter> </defs> <rect width="512" height="512" rx="114" fill="url(#m-chip)"/> <rect width="512" height="512" rx="114" fill="url(#m-gloss)"/> <rect x="3" y="3" width="506" height="506" rx="111" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="6"/> <g transform="translate(256 262) scale(0.9) translate(-256 -262)"> <path d="M256 372C168 314 132 268 132 222c0-40 30-70 68-70 24 0 44 12 56 32 12-20 32-32 56-32 38 0 68 30 68 70 0 46-36 92-124 150z" fill="url(#m-heart)" filter="url(#m-soft)"/> <path d="M256 372C168 314 132 268 132 222c0-40 30-70 68-70 24 0 44 12 56 32 12-20 32-32 56-32 38 0 68 30 68 70 0 46-36 92-124 150z" fill="url(#m-shine)"/> </g> </svg><span>SundhedMCP</span></div>${toggle}</div>
   <div class="card">${pill}<h1>${esc(title)}</h1>${body}</div>
   <footer>${T[lang].footer}</footer>
-</div></body></html>`;
+</div>
+<div class="busy" id="busy" role="status" aria-live="polite" hidden><span class="spin" aria-hidden="true"></span>${T[lang].busy}</div>
+<script>${BUSY_SCRIPT}</script></body></html>`;
 }
 
 export function loginPage(lang: Lang, opts: { requestId: string; clientName?: string; returnTo?: string; error?: string; back?: string }): string {

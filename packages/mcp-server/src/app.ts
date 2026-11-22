@@ -12,7 +12,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { config, MIN_API_TOKEN_LENGTH, MIN_PASSWORD_LENGTH, passwordConfigured, passwordFingerprint, setPassword, setupProblems } from "./config.ts";
 import { store } from "./store.ts";
 import { passwordLocked, SingleUserProvider, verifyPassword } from "./auth.ts";
-import { connectPage, connectSignInPage, firstRunPage, LANG_COOKIE, langOf, loginPage, returningPage, signedInPage, signInFailedPage, statusPage } from "./pages.ts";
+import { BUSY_SCRIPT_HASH, connectPage, connectSignInPage, firstRunPage, LANG_COOKIE, langOf, loginPage, returningPage, signedInPage, signInFailedPage, statusPage } from "./pages.ts";
 import { createServer, VERSION } from "./mcp.ts";
 import { isLocal, mountGuide, type GuideOptions } from "./guide.ts";
 import { currentSession, loginViewport, type LoginInput, SessionGone, type SundhedSession } from "@sundhedmcp/session";
@@ -43,7 +43,7 @@ export function createApp(guide?: GuideOptions, multi?: MultiUser) {
   app.set("trust proxy", 1);
   app.disable("x-powered-by");
   app.use(httpTelemetry());
-  const strictCsp = "default-src 'none'; font-src 'self'; style-src 'unsafe-inline'; img-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'";
+  const strictCsp = `default-src 'none'; font-src 'self'; style-src 'unsafe-inline'; script-src ${BUSY_SCRIPT_HASH}; img-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'`;
   app.use((_req, res, next) => {
     res.set({ "X-Frame-Options": "DENY", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "Content-Security-Policy": strictCsp });
     next();

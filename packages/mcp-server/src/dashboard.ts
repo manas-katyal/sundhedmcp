@@ -2,8 +2,9 @@
 // per part, and the lab results drawn over time. Everything comes from the
 // saved copy; the only action is fetching it again. When the server allows
 // it, a renewal page also asks the GP to renew a prescription, the one write
-// to sundhed.dk (renewal.ts). Rendered on the server, with no script, so it
-// keeps the strict Content-Security-Policy of the other pages.
+// to sundhed.dk (renewal.ts). Rendered on the server, with no script of its
+// own (only the shell's busy notice), so it keeps the strict
+// Content-Security-Policy of the other pages.
 //
 // sundhed.dk's field names are not documented and differ between its apps,
 // so the lab results are read by shape (labSeries), not by fixed keys.
